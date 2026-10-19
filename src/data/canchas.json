@@ -1,0 +1,5 @@
+[
+  { "id": 1, "nombre": "Cancha 1", "jugadores": 5, "precioHora": 60, "color": "#2e9d4f" },
+  { "id": 2, "nombre": "Cancha 2", "jugadores": 5, "precioHora": 60, "color": "#1f7fbf" },
+  { "id": 3, "nombre": "Cancha 3", "jugadores": 7, "precioHora": 90, "color": "#d9822b" }
+]

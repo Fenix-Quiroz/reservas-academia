@@ -1,0 +1,917 @@
+:root {
+  --fondo: #f4f7f2;
+  --tarjeta: #ffffff;
+  --texto: #1b2a1f;
+  --suave: #5b6b5f;
+  --verde: #1f8a44;
+  --verde-claro: #e3f4e8;
+  --borde: #d5ded6;
+  --ocupado: #eceeec;
+  --error: #c0392b;
+  --radio: 14px;
+  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  color: var(--texto);
+  background: var(--fondo);
+  line-height: 1.4;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--fondo);
+}
+
+button,
+input {
+  font: inherit;
+  color: inherit;
+}
+
+button {
+  cursor: pointer;
+}
+
+:focus-visible {
+  outline: 3px solid var(--verde);
+  outline-offset: 2px;
+}
+
+.app {
+  max-width: 520px;
+  margin: 0 auto;
+  padding: 0 16px 32px;
+}
+
+.cabecera {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-height: 60px;
+}
+
+.demo-aviso {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 12px;
+  padding: 10px 12px;
+  border: 1px solid #e5c46a;
+  border-radius: 10px;
+  background: #fff8df;
+  color: #6b5410;
+  font-size: 0.9rem;
+}
+
+.demo-aviso strong {
+  color: #4d3b08;
+}
+
+.demo-aviso.sin-conexion {
+  border-color: #e3a3a0;
+  background: #fdecea;
+  color: var(--error);
+}
+
+.demo-aviso.sin-conexion strong {
+  color: var(--error);
+}
+
+.marca {
+  font-weight: 800;
+}
+
+.atras {
+  min-height: 48px;
+  padding: 0 16px;
+  border: 2px solid var(--borde);
+  border-radius: 999px;
+  background: var(--tarjeta);
+  font-weight: 700;
+}
+
+.progreso {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+
+.punto {
+  width: 32px;
+  height: 8px;
+  border-radius: 4px;
+  background: var(--borde);
+}
+
+.punto.activo {
+  background: var(--verde);
+}
+
+.progreso-texto {
+  margin-left: 8px;
+  font-size: 0.9rem;
+  color: var(--suave);
+}
+
+h1 {
+  font-size: 1.6rem;
+  line-height: 1.2;
+  margin: 16px 0 8px;
+}
+
+h2 {
+  font-size: 1.05rem;
+  margin: 20px 0 8px;
+}
+
+h3 {
+  font-size: 1rem;
+  margin: 12px 0 6px;
+  color: var(--suave);
+}
+
+.subtitulo {
+  color: var(--suave);
+  margin: 0 0 8px;
+}
+
+.precio {
+  color: var(--verde);
+  font-weight: 700;
+}
+
+.precio.grande {
+  font-size: 1.25rem;
+}
+
+.reserva-a-nombre {
+  margin: 0 0 10px;
+  color: var(--suave);
+}
+
+.reserva-a-nombre strong {
+  color: var(--texto);
+}
+
+/* Paso 1 */
+.canchas {
+  display: grid;
+  gap: 12px;
+  margin-top: 16px;
+}
+
+.tarjeta-cancha {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 12px;
+  text-align: left;
+  background: var(--tarjeta);
+  border: 2px solid var(--borde);
+  border-radius: var(--radio);
+}
+
+.tarjeta-cancha:hover {
+  border-color: var(--verde);
+}
+
+.dibujo {
+  width: 110px;
+  flex-shrink: 0;
+}
+
+.cancha-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.cancha-info strong {
+  font-size: 1.3rem;
+}
+
+.jugadores {
+  color: var(--suave);
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.seleccionar-cancha {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 8px;
+  padding: 8px 10px;
+  border: 2px solid var(--verde);
+  border-radius: 10px;
+  background: var(--verde-claro);
+  color: var(--verde);
+  font-weight: 800;
+}
+
+.tarjeta-cancha:hover .seleccionar-cancha {
+  background: var(--verde);
+  color: #fff;
+}
+
+/* Paso 2 */
+.dias {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+}
+
+.chip.dia {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  min-height: 60px;
+}
+
+.chip.dia small {
+  font-size: 0.8rem;
+}
+
+.duraciones {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.chip {
+  min-height: 48px;
+  padding: 8px;
+  border: 2px solid var(--borde);
+  border-radius: 12px;
+  background: var(--tarjeta);
+  font-weight: 700;
+}
+
+.chip[aria-pressed='true'] {
+  border-color: var(--verde);
+  background: var(--verde);
+  color: #fff;
+}
+
+.chip.grande {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-height: 64px;
+  font-size: 1.1rem;
+}
+
+.chip small {
+  font-weight: 600;
+  opacity: 0.85;
+}
+
+.horas {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
+}
+
+.hora {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-height: 60px;
+  padding: 6px;
+  border: 2px solid var(--verde);
+  border-radius: 12px;
+  background: var(--verde-claro);
+  font-size: 1rem;
+  font-weight: 800;
+}
+
+.hora small {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--verde);
+}
+
+.hora:hover:not(:disabled) {
+  background: var(--verde);
+  color: #fff;
+}
+
+.hora:hover:not(:disabled) small {
+  color: #fff;
+}
+
+.hora:disabled {
+  cursor: not-allowed;
+  border-color: var(--borde);
+  background: var(--ocupado);
+  color: #9aa39c;
+  text-decoration: line-through;
+}
+
+.hora:disabled small {
+  color: #9aa39c;
+}
+
+.aviso {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 12px;
+  border-radius: 12px;
+  background: #fff6e0;
+}
+
+/* Paso 3 */
+.resumen {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  margin: 12px 0;
+  border-radius: var(--radio);
+  background: var(--tarjeta);
+  border: 2px solid var(--borde);
+}
+
+.resumen .dibujo {
+  width: 80px;
+}
+
+.resumen div {
+  display: flex;
+  flex-direction: column;
+}
+
+.formulario {
+  display: grid;
+  gap: 14px;
+}
+
+label {
+  display: grid;
+  gap: 6px;
+  font-weight: 700;
+}
+
+input {
+  min-height: 52px;
+  padding: 0 14px;
+  border: 2px solid var(--borde);
+  border-radius: 12px;
+  background: var(--tarjeta);
+  font-size: 1.15rem;
+}
+
+.ayuda-campo {
+  color: var(--suave);
+  font-size: 0.85rem;
+  font-weight: 500;
+}
+
+input:focus {
+  border-color: var(--verde);
+  outline: none;
+}
+
+.error {
+  margin: 0;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: #fdecea;
+  color: var(--error);
+  font-weight: 600;
+}
+
+.error-conexion {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.error-conexion .chip {
+  flex-shrink: 0;
+  min-height: 40px;
+  padding: 4px 10px;
+  border-color: var(--error);
+  color: var(--error);
+}
+
+.estado-carga {
+  margin: 0 0 12px;
+  color: var(--suave);
+  font-weight: 700;
+}
+
+button:disabled {
+  cursor: wait;
+  opacity: 0.65;
+}
+
+.boton-principal,
+.boton-secundario {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  min-height: 56px;
+  margin-top: 12px;
+  border-radius: var(--radio);
+  font-size: 1.15rem;
+  font-weight: 800;
+  text-decoration: none;
+}
+
+.boton-principal {
+  border: none;
+  background: var(--verde);
+  color: #fff;
+}
+
+.boton-secundario {
+  border: 2px solid var(--borde);
+  background: var(--tarjeta);
+}
+
+.enlace {
+  display: block;
+  margin: 14px auto 0;
+  min-height: 44px;
+  padding: 0 12px;
+  border: none;
+  background: none;
+  color: var(--verde);
+  font-weight: 700;
+  text-decoration: underline;
+}
+
+.nota {
+  text-align: center;
+  color: var(--suave);
+  font-size: 0.9rem;
+}
+
+/* Mis reservas */
+.resumen .enlace.izquierda {
+  align-self: flex-start;
+  margin: 4px 0 0;
+  padding: 0;
+  color: var(--error);
+}
+
+.nota.izquierda {
+  text-align: left;
+  margin-top: 4px;
+}
+
+.confirmar {
+  display: grid;
+  gap: 6px;
+  margin-top: 8px;
+  font-weight: 700;
+}
+
+.exito {
+  margin: 12px 0 0;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: var(--verde-claro);
+  color: var(--verde);
+  font-weight: 700;
+}
+
+.editar-datos {
+  margin: 12px 0 16px;
+  font-size: 1rem;
+}
+
+.editor-datos {
+  display: grid;
+  gap: 12px;
+  margin: 16px 0;
+  padding: 16px;
+  border: 2px solid var(--borde);
+  border-radius: var(--radio);
+  background: var(--tarjeta);
+}
+
+.editor-datos h2 {
+  margin: 0;
+}
+
+.editor-acciones {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.editor-acciones .boton-principal,
+.editor-acciones .boton-secundario {
+  margin-top: 0;
+  min-height: 48px;
+  font-size: 1rem;
+}
+
+.chip.peligro {
+  border-color: var(--error);
+  background: var(--error);
+  color: #fff;
+}
+
+/* Paso 4 */
+.listo {
+  text-align: center;
+  padding-top: 24px;
+}
+
+.check {
+  font-size: 4rem;
+}
+
+.frase {
+  font-size: 1.2rem;
+}
+
+.whatsapp {
+  /* verde WhatsApp oscurecido: el #25d366 original no se lee con texto blanco */
+  background: #128c4a;
+}
+
+/* Acceso al panel del encargado */
+.admin-auth-state {
+  display: grid;
+  min-height: 100vh;
+  place-items: center;
+  padding: 24px;
+  color: var(--suave);
+  text-align: center;
+}
+
+.admin-auth-shell {
+  display: grid;
+  min-height: 100vh;
+  place-items: center;
+  padding: 24px 16px;
+}
+
+.admin-auth-card {
+  width: min(100%, 430px);
+  padding: 28px;
+  border: 2px solid var(--borde);
+  border-radius: var(--radio);
+  background: var(--tarjeta);
+  box-shadow: 0 12px 32px rgb(27 42 31 / 8%);
+}
+
+.admin-auth-card h1 {
+  margin-top: 8px;
+}
+
+.admin-auth-form {
+  display: grid;
+  gap: 14px;
+  margin-top: 22px;
+}
+
+.admin-auth-form label {
+  display: grid;
+  gap: 5px;
+  font-weight: 700;
+}
+
+.admin-auth-form input {
+  min-height: 48px;
+  padding: 0 12px;
+  border: 2px solid var(--borde);
+  border-radius: 10px;
+  background: var(--tarjeta);
+}
+
+.admin-auth-form .admin-boton {
+  display: grid;
+  min-height: 48px;
+  place-items: center;
+  margin-top: 0;
+  text-decoration: none;
+}
+
+/* Panel del encargado */
+.admin-app {
+  max-width: 1120px;
+  margin: 0 auto;
+  padding: 24px 20px 48px;
+}
+
+.admin-cabecera {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 24px;
+  margin-bottom: 20px;
+}
+
+.admin-cabecera h1 {
+  margin-top: 4px;
+}
+
+.admin-kicker {
+  margin: 0;
+  color: var(--verde);
+  font-size: 0.8rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.admin-acciones {
+  display: flex;
+  gap: 8px;
+}
+
+.admin-boton {
+  width: auto;
+  min-height: 48px;
+  margin-top: 0;
+  padding: 0 16px;
+  font-size: 0.95rem;
+}
+
+.admin-limpiar {
+  border-color: #e7b6b0;
+  color: var(--error);
+}
+
+.admin-reset-confirmar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 5px;
+  color: var(--error);
+  font-size: 0.85rem;
+  font-weight: 800;
+}
+
+.admin-reset-confirmar .chip {
+  min-height: 40px;
+  padding: 4px 9px;
+  font-size: 0.85rem;
+}
+
+.admin-metricas {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+  margin: 20px 0;
+}
+
+.admin-metrica {
+  display: grid;
+  gap: 6px;
+  padding: 18px;
+  border: 2px solid var(--borde);
+  border-radius: var(--radio);
+  background: var(--tarjeta);
+}
+
+.admin-metrica span {
+  color: var(--suave);
+  font-weight: 700;
+}
+
+.admin-metrica strong {
+  font-size: 1.8rem;
+}
+
+.admin-listado {
+  padding: 20px;
+  border: 2px solid var(--borde);
+  border-radius: var(--radio);
+  background: var(--tarjeta);
+}
+
+.admin-listado-cabecera {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 20px;
+  margin-bottom: 16px;
+}
+
+.admin-listado h2 {
+  margin: 0;
+}
+
+.admin-listado .subtitulo {
+  margin-top: 4px;
+}
+
+.admin-filtros {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.admin-filtros label {
+  min-width: 150px;
+  gap: 4px;
+  color: var(--suave);
+  font-size: 0.8rem;
+}
+
+.admin-filtros select,
+.admin-filtros input {
+  min-height: 44px;
+  padding: 0 10px;
+  border: 2px solid var(--borde);
+  border-radius: 10px;
+  background: var(--tarjeta);
+  font-size: 0.95rem;
+}
+
+.admin-filtros input {
+  width: 170px;
+}
+
+.admin-reservas {
+  display: grid;
+  gap: 8px;
+}
+
+.admin-reserva {
+  display: grid;
+  grid-template-columns: 1.1fr 1fr 180px;
+  align-items: center;
+  gap: 16px;
+  padding: 14px;
+  border: 1px solid var(--borde);
+  border-radius: 12px;
+}
+
+.admin-reserva-fecha,
+.admin-reserva-datos,
+.admin-reserva-estado {
+  display: grid;
+  gap: 3px;
+}
+
+.admin-reserva-fecha span,
+.admin-reserva-datos span,
+.admin-reserva-estado small {
+  color: var(--suave);
+}
+
+.admin-reserva-fecha strong {
+  text-transform: capitalize;
+}
+
+.admin-reserva-estado {
+  justify-items: end;
+  text-align: right;
+}
+
+.estado {
+  display: inline-flex;
+  align-items: center;
+  min-height: 28px;
+  padding: 0 9px;
+  border-radius: 999px;
+  font-size: 0.8rem;
+  font-weight: 800;
+}
+
+.estado-activa {
+  background: var(--verde-claro);
+  color: var(--verde);
+}
+
+.estado-suave {
+  background: var(--ocupado);
+  color: var(--suave);
+}
+
+.admin-cancelar {
+  min-height: 38px;
+  padding: 0 10px;
+  border: 2px solid #e7b6b0;
+  border-radius: 9px;
+  background: #fff8f7;
+  color: var(--error);
+  font-weight: 700;
+}
+
+.admin-confirmar {
+  display: grid;
+  gap: 5px;
+  color: var(--error);
+  font-size: 0.85rem;
+  font-weight: 700;
+}
+
+.admin-confirmar > div {
+  display: flex;
+  justify-content: flex-end;
+  gap: 5px;
+}
+
+.admin-confirmar .chip {
+  min-height: 36px;
+  padding: 4px 8px;
+  font-size: 0.85rem;
+}
+
+.admin-vacio {
+  display: grid;
+  justify-items: center;
+  gap: 4px;
+  padding: 36px 16px;
+  border: 2px dashed var(--borde);
+  border-radius: 12px;
+  color: var(--suave);
+  text-align: center;
+}
+
+.admin-cargando {
+  display: grid;
+  justify-items: center;
+  padding: 36px 16px;
+  border: 2px dashed var(--borde);
+  border-radius: 12px;
+  color: var(--suave);
+  font-weight: 700;
+}
+
+@media (max-width: 760px) {
+  .admin-cabecera,
+  .admin-listado-cabecera {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .admin-acciones,
+  .admin-filtros {
+    justify-content: stretch;
+  }
+
+  .admin-acciones .admin-boton {
+    flex: 1;
+  }
+
+  .admin-filtros label,
+  .admin-filtros input,
+  .admin-filtros select {
+    width: 100%;
+  }
+
+  .admin-filtros label {
+    min-width: 0;
+  }
+
+  .admin-reserva {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .admin-reserva-estado {
+    grid-column: 1 / -1;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    text-align: left;
+  }
+}
+
+@media (max-width: 380px) {
+  .dias,
+  .horas {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .tarjeta-cancha {
+    gap: 10px;
+  }
+
+  .dibujo {
+    width: 92px;
+  }
+
+  .admin-app {
+    padding-right: 12px;
+    padding-left: 12px;
+  }
+
+  .admin-metricas {
+    grid-template-columns: 1fr;
+  }
+
+  .admin-listado {
+    padding: 14px;
+  }
+}
