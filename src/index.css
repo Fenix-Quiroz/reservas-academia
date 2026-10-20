@@ -3,7 +3,7 @@
   --tarjeta: #ffffff;
   --texto: #1b2a1f;
   --suave: #5b6b5f;
-  --verde: #1f8a44;
+  --verde: #197a3c;
   --verde-claro: #e3f4e8;
   --borde: #d5ded6;
   --ocupado: #eceeec;
@@ -126,6 +126,19 @@ h1 {
 h2 {
   font-size: 1.05rem;
   margin: 20px 0 8px;
+}
+
+.selector-grupo {
+  width: 100%;
+  margin: 20px 0 8px;
+  padding: 0;
+  border: 0;
+}
+
+.selector-grupo > legend {
+  padding: 0;
+  font-size: 1.05rem;
+  font-weight: 800;
 }
 
 h3 {
@@ -377,7 +390,11 @@ input {
 
 input:focus {
   border-color: var(--verde);
-  outline: none;
+}
+
+input:focus-visible {
+  outline: 3px solid var(--verde);
+  outline-offset: 2px;
 }
 
 .error {
@@ -411,7 +428,7 @@ input:focus {
 }
 
 button:disabled {
-  cursor: wait;
+  cursor: not-allowed;
   opacity: 0.65;
 }
 
@@ -540,8 +557,8 @@ button:disabled {
 }
 
 .whatsapp {
-  /* verde WhatsApp oscurecido: el #25d366 original no se lee con texto blanco */
-  background: #128c4a;
+  /* verde WhatsApp oscurecido para mantener contraste con texto blanco */
+  background: #087a3f;
 }
 
 /* Acceso al panel del encargado */
@@ -771,6 +788,11 @@ button:disabled {
 
 .admin-reserva-fecha strong {
   text-transform: capitalize;
+}
+
+.admin-reserva-datos h3 {
+  margin: 0;
+  font-size: 1rem;
 }
 
 .admin-reserva-estado {

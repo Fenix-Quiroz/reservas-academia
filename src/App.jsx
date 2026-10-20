@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import canchas from './data/canchas.json'
 import {
   horarios, masCercana, fechaISO, sumarDias, rangoHablado,
@@ -73,6 +73,7 @@ export default function App() {
   const [intentoCarga, setIntentoCarga] = useState(0)
   // "Mis reservas" se abre encima del paso actual, así al volver no se pierde lo elegido
   const [verMias, setVerMias] = useState(false)
+  const tituloRef = useRef(null)
   const mias = yo ? deCliente(reservas, yo.celular) : []
 
   // Refresca la agenda local, remota y los cambios en tiempo real de Supabase.
@@ -105,6 +106,11 @@ export default function App() {
     }
   }, [intentoCarga])
 
+  useEffect(() => {
+    const frame = window.requestAnimationFrame(() => tituloRef.current?.focus())
+    return () => window.cancelAnimationFrame(frame)
+  }, [paso, verMias, hecha])
+
   const fecha = fechaISO(sumarDias(dia))
 
   function reiniciar() {
@@ -128,11 +134,11 @@ export default function App() {
             ← Atrás
           </button>
         ) : (
-          <span className="marca">⚽ Reserva tu cancha</span>
+          <span className="marca"><span aria-hidden="true">⚽</span> Reserva tu cancha</span>
         )}
         {yo && !verMias && (
           <button className="atras" onClick={() => setVerMias(true)}>
-            📋 Mis reservas{mias.length > 0 && ` (${mias.length})`}
+            <span aria-hidden="true">📋</span> Mis reservas{mias.length > 0 && ` (${mias.length})`}
           </button>
         )}
       </header>
@@ -148,7 +154,9 @@ export default function App() {
       )}
 
       {verMias ? (
+        <main aria-busy={cargandoReservas}>
         <MisReservas
+          tituloRef={tituloRef}
           mias={mias}
           yo={yo}
           alCancelar={(id) => {
@@ -181,13 +189,15 @@ export default function App() {
             reiniciar()
           }}
         />
+        </main>
       ) : (
       <>
       {paso < 4 && <Progreso paso={paso} />}
 
-      <main>
+      <main aria-busy={cargandoReservas}>
         {paso === 1 && (
           <PasoCancha
+            tituloRef={tituloRef}
             alElegir={(c) => {
               // Arranca en el primer día que tenga horas libres (de noche, "Hoy" ya no tiene)
               const primerLibre = Array.from({ length: DIAS }, (_, d) => d).find((d) =>
@@ -202,6 +212,7 @@ export default function App() {
         )}
         {paso === 2 && (
           <PasoHorario
+            tituloRef={tituloRef}
             cancha={cancha}
             reservas={reservas}
             dia={dia}
@@ -217,6 +228,7 @@ export default function App() {
         )}
         {paso === 3 && (
           <PasoDatos
+            tituloRef={tituloRef}
             cancha={cancha}
             dia={dia}
             fecha={fecha}
@@ -236,6 +248,7 @@ export default function App() {
         )}
         {paso === 4 && (
           <PasoListo
+            tituloRef={tituloRef}
             reserva={hecha}
             cancha={cancha}
             dia={dia}
@@ -252,9 +265,16 @@ export default function App() {
 
 function Progreso({ paso }) {
   return (
-    <div className="progreso" aria-label={`Paso ${paso} de 3: ${NOMBRES_PASOS[paso - 1]}`}>
+    <div
+      className="progreso"
+      role="progressbar"
+      aria-valuemin="1"
+      aria-valuemax="3"
+      aria-valuenow={paso}
+      aria-valuetext={`Paso ${paso} de 3: ${NOMBRES_PASOS[paso - 1]}`}
+    >
       {[1, 2, 3].map((n) => (
-        <span key={n} className={n <= paso ? 'punto activo' : 'punto'} />
+        <span key={n} className={n <= paso ? 'punto activo' : 'punto'} aria-hidden="true" />
       ))}
       <span className="progreso-texto">Paso {paso} de 3 · {NOMBRES_PASOS[paso - 1]}</span>
     </div>
@@ -279,10 +299,10 @@ function DibujoCancha({ color, jugadores }) {
   )
 }
 
-function PasoCancha({ alElegir }) {
+function PasoCancha({ alElegir, tituloRef }) {
   return (
     <section>
-      <h1>¿En qué cancha quieres jugar?</h1>
+      <h1 ref={tituloRef} tabIndex="-1">¿En qué cancha quieres jugar?</h1>
       <div className="canchas">
         {canchas.map((c) => (
           <button key={c.id} className="tarjeta-cancha" onClick={() => alElegir(c)}>
@@ -305,41 +325,45 @@ function PasoCancha({ alElegir }) {
   )
 }
 
-function PasoHorario({ cancha, reservas, dia, setDia, horas, setHoras, fecha, alElegir }) {
+function PasoHorario({ cancha, reservas, dia, setDia, horas, setHoras, fecha, alElegir, tituloRef }) {
   const lista = horarios(reservas, cancha.id, fecha, horas)
   const hayLibres = lista.some((h) => h.libre)
 
   return (
     <section>
-      <h1>¿Qué día y a qué hora?</h1>
+      <h1 ref={tituloRef} tabIndex="-1">¿Qué día y a qué hora?</h1>
       <p className="subtitulo">
         {cancha.nombre} · {tipo(cancha)} · para {cancha.jugadores * 2} jugadores
       </p>
 
-      <h2>1. Elige el día</h2>
-      <div className="dias">
-        {Array.from({ length: DIAS }, (_, d) => (
-          <button key={d} className="chip dia" aria-label={nombreDia(d, true)} aria-pressed={d === dia} onClick={() => setDia(d)}>
-            <span>{nombreDiaCorto(d).titulo}</span>
-            <small>{nombreDiaCorto(d).detalle}</small>
-          </button>
-        ))}
-      </div>
+      <fieldset className="selector-grupo">
+        <legend>1. Elige el día</legend>
+        <div className="dias">
+          {Array.from({ length: DIAS }, (_, d) => (
+            <button key={d} className="chip dia" aria-label={nombreDia(d, true)} aria-pressed={d === dia} onClick={() => setDia(d)}>
+              <span>{nombreDiaCorto(d).titulo}</span>
+              <small>{nombreDiaCorto(d).detalle}</small>
+            </button>
+          ))}
+        </div>
+      </fieldset>
 
-      <h2>2. ¿Cuánto tiempo quieres jugar?</h2>
-      <div className="duraciones">
-        {[1, 2].map((h) => (
-          <button key={h} className="chip grande" aria-pressed={h === horas} onClick={() => setHoras(h)}>
-            {h === 1 ? '1 hora' : '2 horas'}
-            <small>S/ {cancha.precioHora * h}</small>
-          </button>
-        ))}
-      </div>
+      <fieldset className="selector-grupo">
+        <legend>2. ¿Cuánto tiempo quieres jugar?</legend>
+        <div className="duraciones">
+          {[1, 2].map((h) => (
+            <button key={h} className="chip grande" aria-pressed={h === horas} onClick={() => setHoras(h)}>
+              {h === 1 ? '1 hora' : '2 horas'}
+              <small>S/ {cancha.precioHora * h}</small>
+            </button>
+          ))}
+        </div>
+      </fieldset>
 
-      <h2>3. Elige una hora</h2>
+      <fieldset className="selector-grupo">
+        <legend>3. Elige una hora</legend>
       {!hayLibres && (
-        <div className="aviso">
-          Ya no quedan horas libres {nombreDia(dia, true)}.
+        <div className="aviso" role="status">Ya no quedan horas libres {nombreDia(dia, true)}.
           {dia < DIAS - 1 && (
             <button className="enlace" onClick={() => setDia(dia + 1)}>
               Ver {nombreDia(dia + 1, true)} →
@@ -353,7 +377,7 @@ function PasoHorario({ cancha, reservas, dia, setDia, horas, setHoras, fecha, al
         return (
           <div key={g.nombre} className="grupo">
             <h3>
-              {g.icono} {g.nombre}
+              <span aria-hidden="true">{g.icono}</span> {g.nombre}
             </h3>
             <div className="horas">
               {delGrupo.map((h) => (
@@ -366,12 +390,13 @@ function PasoHorario({ cancha, reservas, dia, setDia, horas, setHoras, fecha, al
           </div>
         )
       })}
+      </fieldset>
     </section>
   )
 }
 
 function PasoDatos({
-  cancha, dia, fecha, horas, inicio, setInicio, yo, setYo, setReservas, volverAHorario, alVerMias, alReservar,
+  cancha, dia, fecha, horas, inicio, setInicio, yo, setYo, setReservas, volverAHorario, alVerMias, alReservar, tituloRef,
 }) {
   const [modo, setModo] = useState('nuevo') // 'nuevo' | 'volver'
   const [alias, setAlias] = useState('')
@@ -483,7 +508,7 @@ function PasoDatos({
     const alt = conflicto.alternativa
     return (
       <section>
-        <h1>😕 Alguien reservó esa hora antes que tú</h1>
+        <h1 ref={tituloRef} tabIndex="-1">😕 Alguien reservó esa hora antes que tú</h1>
         {alt ? (
           <>
             <p className="subtitulo">Pero esta hora está libre:</p>
@@ -512,7 +537,7 @@ function PasoDatos({
   if (encontrado) {
     return (
       <section>
-        <h1>¿Eres {encontrado.alias}?</h1>
+        <h1 ref={tituloRef} tabIndex="-1">¿Eres {encontrado.alias}?</h1>
         <p className="subtitulo">Ese celular ya reservó antes con ese nombre.</p>
         <button
           className="boton-principal"
@@ -539,7 +564,7 @@ function PasoDatos({
   if (yo) {
     return (
       <section>
-        <h1>¿Todo bien, {yo.alias}?</h1>
+        <h1 ref={tituloRef} tabIndex="-1">¿Todo bien, {yo.alias}?</h1>
         <p className="reserva-a-nombre">Reserva a nombre de <strong>{yo.alias}</strong></p>
         {resumen}
         {error && <p className="error" role="alert">{error}</p>}
@@ -566,7 +591,7 @@ function PasoDatos({
 
   return (
     <section>
-      <h1>{modo === 'nuevo' ? '¿A nombre de quién reservamos?' : '¡Hola de nuevo!'}</h1>
+      <h1 ref={tituloRef} tabIndex="-1">{modo === 'nuevo' ? '¿A nombre de quién reservamos?' : '¡Hola de nuevo!'}</h1>
       {resumen}
 
       <form
@@ -580,8 +605,12 @@ function PasoDatos({
           <label>
             <span>Nombre o apodo para la reserva</span>
             <input
+              id="alias-reserva"
               value={alias}
+              required
               disabled={Boolean(procesando)}
+              aria-invalid={Boolean(error)}
+              aria-describedby={error ? 'datos-error' : undefined}
               onChange={(e) => setAlias(e.target.value)}
               placeholder="Ej: Juan o LosPibes"
               autoComplete="nickname"
@@ -590,19 +619,24 @@ function PasoDatos({
           </label>
         )}
         <label>
-            <span>Número de celular de quien reserva</span>
+          <span>Número de celular de quien reserva</span>
           <input
+            id="celular-reserva"
             value={celular}
-              disabled={Boolean(procesando)}
+            type="tel"
+            required
+            disabled={Boolean(procesando)}
+            aria-invalid={Boolean(error)}
+            aria-describedby={error ? 'ayuda-celular datos-error' : 'ayuda-celular'}
             onChange={(e) => setCelular(e.target.value.replace(/\D/g, ''))}
             placeholder="Ej: 987654321"
             inputMode="numeric"
             autoComplete="tel"
             maxLength={9}
           />
-          <small className="ayuda-campo">Lo usamos para encontrar tu reserva. No necesitas crear una cuenta.</small>
+          <small id="ayuda-celular" className="ayuda-campo">Lo usamos para encontrar tu reserva. No necesitas crear una cuenta.</small>
         </label>
-        {error && <p className="error" role="alert">{error}</p>}
+        {error && <p id="datos-error" className="error" role="alert">{error}</p>}
         <button className="boton-principal" type="submit" disabled={Boolean(procesando)}>
           {textoAccion}
         </button>
@@ -623,7 +657,7 @@ function PasoDatos({
   )
 }
 
-function PasoListo({ reserva, cancha, dia, alTerminar, alVerMias }) {
+function PasoListo({ reserva, cancha, dia, alTerminar, alVerMias, tituloRef }) {
   const frase = `Jugarás en la ${cancha.nombre} ${nombreDia(dia, true)} ${rangoHablado(reserva.inicio, reserva.horas)}.`
   const total = cancha.precioHora * reserva.horas
   const whatsapp = `https://wa.me/?text=${encodeURIComponent(`⚽ Reservé cancha: ${frase} Pago S/ ${total} en la cancha.`)}`
@@ -631,12 +665,12 @@ function PasoListo({ reserva, cancha, dia, alTerminar, alVerMias }) {
   return (
     <section className="listo">
       <div className="check" aria-hidden="true">✅</div>
-      <h1>¡Listo, {reserva.alias}!</h1>
+      <h1 ref={tituloRef} tabIndex="-1">¡Listo, {reserva.alias}!</h1>
       <p className="reserva-a-nombre">Reserva a nombre de <strong>{reserva.alias}</strong></p>
       <p className="frase">{frase}</p>
       <p className="precio grande">Pagas S/ {total} en la cancha</p>
       <p className="subtitulo">Puedes verla en “Mis reservas” o avisar a tu equipo.</p>
-      <a className="boton-principal whatsapp" href={whatsapp} target="_blank" rel="noreferrer">
+      <a className="boton-principal whatsapp" href={whatsapp} target="_blank" rel="noreferrer" aria-label="Avisar a mis amigos por WhatsApp (se abre en una nueva pestaña)">
         Avisar a mis amigos por WhatsApp
       </a>
       <button className="boton-secundario" onClick={alTerminar}>
@@ -649,7 +683,7 @@ function PasoListo({ reserva, cancha, dia, alTerminar, alVerMias }) {
   )
 }
 
-function MisReservas({ mias, yo, alCancelar, alActualizarDatos, alReservar }) {
+function MisReservas({ mias, yo, alCancelar, alActualizarDatos, alReservar, tituloRef }) {
   const [porCancelar, setPorCancelar] = useState(null) // id de la reserva que pide "¿Seguro?"
   const [editando, setEditando] = useState(false)
   const [alias, setAlias] = useState(yo.alias)
@@ -712,7 +746,7 @@ function MisReservas({ mias, yo, alCancelar, alActualizarDatos, alReservar }) {
 
   return (
     <section>
-      <h1>Mis reservas</h1>
+      <h1 ref={tituloRef} tabIndex="-1">Mis reservas</h1>
       <p className="subtitulo">Puedes cancelar tu reserva en cualquier momento.</p>
       {exito && <p className="exito" role="status">{exito}</p>}
       {editando ? (
@@ -720,21 +754,36 @@ function MisReservas({ mias, yo, alCancelar, alActualizarDatos, alReservar }) {
           <h2>Editar mis datos</h2>
           <label>
             <span>Tu nombre o apodo</span>
-            <input value={alias} disabled={guardandoDatos} onChange={(e) => setAlias(e.target.value)} maxLength={20} autoComplete="nickname" />
+            <input
+              id="editar-alias"
+              value={alias}
+              required
+              disabled={guardandoDatos}
+              aria-invalid={Boolean(datosError)}
+              aria-describedby={datosError ? 'editar-datos-error' : undefined}
+              onChange={(e) => setAlias(e.target.value)}
+              maxLength={20}
+              autoComplete="nickname"
+            />
           </label>
           <label>
             <span>Tu celular</span>
             <input
+              id="editar-celular"
               value={celular}
+              type="tel"
+              required
               disabled={guardandoDatos}
+              aria-invalid={Boolean(datosError)}
+              aria-describedby={datosError ? 'editar-celular-ayuda editar-datos-error' : 'editar-celular-ayuda'}
               onChange={(e) => setCelular(e.target.value.replace(/\D/g, ''))}
               inputMode="numeric"
               maxLength={9}
               autoComplete="tel"
             />
-            <small className="ayuda-campo">Lo usamos para encontrar tus reservas.</small>
+            <small id="editar-celular-ayuda" className="ayuda-campo">Lo usamos para encontrar tus reservas.</small>
           </label>
-          {datosError && <p className="error" role="alert">{datosError}</p>}
+          {datosError && <p id="editar-datos-error" className="error" role="alert">{datosError}</p>}
           <div className="editor-acciones">
             <button className="boton-principal" type="submit" disabled={guardandoDatos}>
               {guardandoDatos ? 'Guardando…' : 'Guardar cambios'}
@@ -761,10 +810,10 @@ function MisReservas({ mias, yo, alCancelar, alActualizarDatos, alReservar }) {
       )}
       {!mias.length ? (
         <>
-          <h1>Aún no tienes reservas</h1>
+          <h2>Aún no tienes reservas</h2>
           <p className="subtitulo">Cuando reserves una cancha, aparecerá aquí.</p>
           <button className="boton-principal" onClick={alReservar}>
-            ⚽ Reservar una cancha
+            <span aria-hidden="true">⚽</span> Reservar una cancha
           </button>
         </>
       ) : (
@@ -783,8 +832,8 @@ function MisReservas({ mias, yo, alCancelar, alActualizarDatos, alReservar }) {
               <span className="precio">S/ {c.precioHora * r.horas} · pagas en la cancha</span>
 
               {porCancelar === r.id ? (
-                <div className="confirmar">
-                  <span>¿Seguro que quieres cancelar?</span>
+                <div className="confirmar" role="group" aria-labelledby={`confirmar-cancelar-${r.id}`}>
+                  <span id={`confirmar-cancelar-${r.id}`}>¿Seguro que quieres cancelar?</span>
                   <div className="duraciones">
                     <button className="chip peligro" disabled={cancelando === r.id} onClick={() => cancelar(r.id)}>
                       {cancelando === r.id ? 'Cancelando…' : 'Sí, cancelar'}

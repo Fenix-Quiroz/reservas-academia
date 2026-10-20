@@ -190,7 +190,7 @@ export default function AdminApp() {
   }
 
   return (
-    <div className="admin-app">
+    <main className="admin-app" aria-busy={cargando}>
       <header className="admin-cabecera">
         <div>
           <p className="admin-kicker">Panel privado</p>
@@ -206,11 +206,11 @@ export default function AdminApp() {
             </div>
           ) : (
             <button className="boton-secundario admin-boton admin-limpiar" onClick={() => setPorLimpiar(true)}>
-              🧹 Empezar de cero
+              <span aria-hidden="true">🧹</span> Empezar de cero
             </button>
           ))}
           <button className="boton-secundario admin-boton" disabled={cargando} onClick={actualizar}>
-            {cargando ? 'Actualizando…' : '↻ Actualizar'}
+            {cargando ? 'Actualizando…' : <><span aria-hidden="true">↻</span> Actualizar</>}
           </button>
           <a className="boton-secundario admin-boton" href="/">Vista del cliente</a>
           {supabaseConfigurado && <button className="boton-secundario admin-boton" onClick={cerrarSesion}>Cerrar sesión</button>}
@@ -280,6 +280,7 @@ export default function AdminApp() {
             <label className="admin-buscar">
               <span>Alias o nombre</span>
               <input
+                type="search"
                 value={filtros.buscar}
                 onChange={(e) => setFiltros({ ...filtros, buscar: e.target.value })}
                 placeholder="Ej: David o 931..."
@@ -301,13 +302,13 @@ export default function AdminApp() {
               const puedeCancelar = !reserva.id.startsWith('demo-') && sePuedeCancelar(reserva)
               const cancha = canchas.find((c) => c.id === reserva.canchaId)
               return (
-                <article className="admin-reserva" key={reserva.id}>
+                <article className="admin-reserva" key={reserva.id} aria-labelledby={`reserva-${reserva.id}`}>
                   <div className="admin-reserva-fecha">
                     <strong>{fechaVisible(reserva.fecha)}</strong>
                     <span>{rangoHablado(reserva.inicio, reserva.horas)}</span>
                   </div>
                   <div className="admin-reserva-datos">
-                    <strong>{nombreCancha(reserva.canchaId)}</strong>
+                    <h3 id={`reserva-${reserva.id}`}>{nombreCancha(reserva.canchaId)}</h3>
                     <span>{reserva.alias} · {reserva.celular}</span>
                     <span className="precio">S/ {precioDeReserva(reserva, canchas)} · {cancha?.jugadores} contra {cancha?.jugadores}</span>
                   </div>
@@ -316,8 +317,8 @@ export default function AdminApp() {
                       {estadoReserva(reserva)}
                     </span>
                     {porCancelar === reserva.id ? (
-                      <div className="admin-confirmar">
-                        <span>¿Cancelar esta reserva?</span>
+                      <div className="admin-confirmar" role="group" aria-labelledby={`confirmar-admin-${reserva.id}`}>
+                        <span id={`confirmar-admin-${reserva.id}`}>¿Cancelar esta reserva?</span>
                         <div>
                           <button className="chip peligro" disabled={cancelando === reserva.id} onClick={() => cancelar(reserva.id)}>
                             {cancelando === reserva.id ? 'Cancelando…' : 'Sí, cancelar'}
@@ -337,7 +338,7 @@ export default function AdminApp() {
           </div>
         )}
       </section>
-    </div>
+    </main>
   )
 }
 
@@ -373,13 +374,31 @@ function AdminLogin({ errorInicial }) {
         <form className="admin-auth-form" onSubmit={ingresar}>
           <label>
             <span>Correo</span>
-            <input type="email" value={email} required autoComplete="email" onChange={(e) => setEmail(e.target.value)} />
+            <input
+              id="admin-email"
+              type="email"
+              value={email}
+              required
+              aria-invalid={Boolean(error)}
+              aria-describedby={error ? 'admin-login-error' : undefined}
+              autoComplete="email"
+              onChange={(e) => setEmail(e.target.value)}
+            />
           </label>
           <label>
             <span>Contraseña</span>
-            <input type="password" value={password} required autoComplete="current-password" onChange={(e) => setPassword(e.target.value)} />
+            <input
+              id="admin-password"
+              type="password"
+              value={password}
+              required
+              aria-invalid={Boolean(error)}
+              aria-describedby={error ? 'admin-login-error' : undefined}
+              autoComplete="current-password"
+              onChange={(e) => setPassword(e.target.value)}
+            />
           </label>
-          {error && <p className="error" role="alert">{error}</p>}
+          {error && <p id="admin-login-error" className="error" role="alert">{error}</p>}
           <button className="boton-principal" type="submit" disabled={procesando}>
             {procesando ? 'Ingresando…' : 'Iniciar sesión'}
           </button>
