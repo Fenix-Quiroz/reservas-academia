@@ -21,6 +21,18 @@ function nombreCancha(id) {
   return canchas.find((c) => c.id === id)?.nombre ?? 'Campo desconocido'
 }
 
+function AdminMarca() {
+  return (
+    <div className="admin-marca">
+      <img src="/favicon-jaguar.png" alt="" aria-hidden="true" />
+      <div>
+        <strong>Administración de reservas</strong>
+        <span>Polideportivo El Jaguar</span>
+      </div>
+    </div>
+  )
+}
+
 function estadoReserva(reserva, ahora) {
   if (!activa(reserva, ahora)) return 'Finalizada'
   if (reserva.id.startsWith('demo-')) return 'Demo'
@@ -193,8 +205,9 @@ export default function AdminApp() {
     <main className="admin-app" aria-busy={cargando}>
       <header className="admin-cabecera">
         <div>
+          <AdminMarca />
           <p className="admin-kicker">Panel privado</p>
-          <h1>Reservas de la academia</h1>
+          <h1>Reservas del polideportivo</h1>
           <p className="subtitulo">Revisa las reservas hechas desde este navegador.</p>
         </div>
         <div className="admin-acciones">
@@ -368,6 +381,7 @@ function AdminLogin({ errorInicial }) {
   return (
     <main className="admin-auth-shell">
       <section className="admin-auth-card">
+        <AdminMarca />
         <p className="admin-kicker">Panel privado</p>
         <h1>Ingresar al panel</h1>
         <p className="subtitulo">Solo el dueño o encargado puede ver las reservas.</p>
@@ -413,6 +427,7 @@ function AdminNoAutorizado({ alCerrar }) {
   return (
     <main className="admin-auth-shell">
       <section className="admin-auth-card">
+        <AdminMarca />
         <p className="admin-kicker">Panel privado</p>
         <h1>Acceso no autorizado</h1>
         <p className="subtitulo">No tienes autorización para ver las reservas de la academia.</p>

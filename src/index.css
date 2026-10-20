@@ -596,6 +596,36 @@ button:disabled {
   margin-top: 8px;
 }
 
+.admin-marca {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.admin-marca img {
+  width: 52px;
+  height: 52px;
+  flex: 0 0 52px;
+  object-fit: contain;
+  border-radius: 12px;
+}
+
+.admin-marca strong,
+.admin-marca span {
+  display: block;
+}
+
+.admin-marca strong {
+  font-size: 1rem;
+}
+
+.admin-marca span {
+  margin-top: 2px;
+  color: var(--suave);
+  font-size: 0.9rem;
+}
+
 .admin-auth-form {
   display: grid;
   gap: 14px;
