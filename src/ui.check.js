@@ -90,5 +90,6 @@ assert.match(css, /--verde: #197a3c/)
 assert.match(css, /background: #087a3f/)
 assert.match(css, /input:focus-visible\s*\{/)
 assert.match(css, /button:disabled[\s\S]*cursor: not-allowed/)
+assert.match(css, /h1\[tabindex=['"]-1['"]\]:focus\s*\{[\s\S]*outline: none;/)
 
 console.log('✔ ui.check.js OK')

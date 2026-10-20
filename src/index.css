@@ -123,6 +123,11 @@ h1 {
   margin: 16px 0 8px;
 }
 
+/* Los títulos reciben foco para orientar a lectores de pantalla, pero no son controles de teclado. */
+h1[tabindex='-1']:focus {
+  outline: none;
+}
+
 h2 {
   font-size: 1.05rem;
   margin: 20px 0 8px;
