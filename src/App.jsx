@@ -12,7 +12,7 @@ import { supabaseConfigurado } from './supabase.js'
 import { suscribirseAReservas } from './supabaseData.js'
 
 const DIAS = 7
-const NOMBRES_PASOS = ['Cancha', 'Día y hora', 'Tus datos']
+const NOMBRES_PASOS = ['Campo', 'Día y hora', 'Tus datos']
 const GRUPOS = [
   // "En la mañana" y no "Mañana", para no confundir con el día de mañana
   { nombre: 'En la mañana', icono: '🌅', desde: 0, hasta: 12 },
@@ -134,7 +134,7 @@ export default function App() {
             ← Atrás
           </button>
         ) : (
-          <span className="marca"><span aria-hidden="true">⚽</span> Reserva tu cancha</span>
+          <span className="marca"><span aria-hidden="true">⚽</span> Reserva tu campo</span>
         )}
         {yo && !verMias && (
           <button className="atras" onClick={() => setVerMias(true)}>
@@ -302,7 +302,7 @@ function DibujoCancha({ color, jugadores }) {
 function PasoCancha({ alElegir, tituloRef }) {
   return (
     <section>
-      <h1 ref={tituloRef} tabIndex="-1">¿En qué cancha quieres jugar?</h1>
+      <h1 ref={tituloRef} tabIndex="-1">¿En qué campo quieres jugar?</h1>
       <div className="canchas">
         {canchas.map((c) => (
           <button key={c.id} className="tarjeta-cancha" onClick={() => alElegir(c)}>
@@ -315,7 +315,7 @@ function PasoCancha({ alElegir, tituloRef }) {
               <small className="jugadores">Para {c.jugadores * 2} jugadores</small>
               <span className="precio">S/ {c.precioHora} la hora</span>
               <span className="seleccionar-cancha">
-                Elegir esta cancha <span aria-hidden="true">→</span>
+                Elegir este campo <span aria-hidden="true">→</span>
               </span>
             </span>
           </button>
@@ -491,7 +491,7 @@ function PasoDatos({
         <span>
           {capital(nombreDia(dia, true))}, {rangoHablado(inicio, horas)}
         </span>
-        <span className="precio">S/ {cancha.precioHora * horas} · pagas en la cancha</span>
+        <span className="precio">S/ {cancha.precioHora * horas} · pagas en el campo</span>
       </div>
     </div>
   )
@@ -658,9 +658,9 @@ function PasoDatos({
 }
 
 function PasoListo({ reserva, cancha, dia, alTerminar, alVerMias, tituloRef }) {
-  const frase = `Jugarás en la ${cancha.nombre} ${nombreDia(dia, true)} ${rangoHablado(reserva.inicio, reserva.horas)}.`
+  const frase = `Jugarás en el ${cancha.nombre} ${nombreDia(dia, true)} ${rangoHablado(reserva.inicio, reserva.horas)}.`
   const total = cancha.precioHora * reserva.horas
-  const whatsapp = `https://wa.me/?text=${encodeURIComponent(`⚽ Reservé cancha: ${frase} Pago S/ ${total} en la cancha.`)}`
+  const whatsapp = `https://wa.me/?text=${encodeURIComponent(`⚽ Reservé campo: ${frase} Pago S/ ${total} en el campo.`)}`
 
   return (
     <section className="listo">
@@ -668,7 +668,7 @@ function PasoListo({ reserva, cancha, dia, alTerminar, alVerMias, tituloRef }) {
       <h1 ref={tituloRef} tabIndex="-1">¡Listo, {reserva.alias}!</h1>
       <p className="reserva-a-nombre">Reserva a nombre de <strong>{reserva.alias}</strong></p>
       <p className="frase">{frase}</p>
-      <p className="precio grande">Pagas S/ {total} en la cancha</p>
+      <p className="precio grande">Pagas S/ {total} en el campo</p>
       <p className="subtitulo">Puedes verla en “Mis reservas” o avisar a tu equipo.</p>
       <a className="boton-principal whatsapp" href={whatsapp} target="_blank" rel="noreferrer" aria-label="Avisar a mis amigos por WhatsApp (se abre en una nueva pestaña)">
         Avisar a mis amigos por WhatsApp
@@ -732,7 +732,7 @@ function MisReservas({ mias, yo, alCancelar, alActualizarDatos, alReservar, titu
     try {
       const r = await alCancelar(id)
       setPorCancelar(null)
-      setExito(r.error ? '' : '✔ Reserva cancelada. La cancha quedó libre para otros.')
+      setExito(r.error ? '' : '✔ Reserva cancelada. El campo quedó libre para otros.')
       if (r.error === 'tarde') setError('No pudimos cancelar la reserva. Inténtalo de nuevo.')
       else if (r.error === 'conexion') setError('No pudimos cancelar la reserva. Revisa tu conexión e inténtalo de nuevo.')
       else if (r.error) setError('Esta reserva no se puede cancelar desde aquí. Llama a la academia.')
@@ -811,9 +811,9 @@ function MisReservas({ mias, yo, alCancelar, alActualizarDatos, alReservar, titu
       {!mias.length ? (
         <>
           <h2>Aún no tienes reservas</h2>
-          <p className="subtitulo">Cuando reserves una cancha, aparecerá aquí.</p>
+          <p className="subtitulo">Cuando reserves un campo, aparecerá aquí.</p>
           <button className="boton-principal" onClick={alReservar}>
-            <span aria-hidden="true">⚽</span> Reservar una cancha
+            <span aria-hidden="true">⚽</span> Reservar un campo
           </button>
         </>
       ) : (
@@ -829,7 +829,7 @@ function MisReservas({ mias, yo, alCancelar, alActualizarDatos, alReservar, titu
               <span>
                 {capital(nombreDia(diaDe(r.fecha), true))}, {rangoHablado(r.inicio, r.horas)}
               </span>
-              <span className="precio">S/ {c.precioHora * r.horas} · pagas en la cancha</span>
+              <span className="precio">S/ {c.precioHora * r.horas} · pagas en el campo</span>
 
               {porCancelar === r.id ? (
                 <div className="confirmar" role="group" aria-labelledby={`confirmar-cancelar-${r.id}`}>

@@ -18,7 +18,7 @@ function fechaVisible(fecha) {
 }
 
 function nombreCancha(id) {
-  return canchas.find((c) => c.id === id)?.nombre ?? 'Cancha desconocida'
+  return canchas.find((c) => c.id === id)?.nombre ?? 'Campo desconocido'
 }
 
 function estadoReserva(reserva, ahora) {
@@ -271,9 +271,9 @@ export default function AdminApp() {
               </select>
             </label>
             <label>
-              <span>Cancha</span>
+              <span>Campo</span>
               <select value={filtros.canchaId} onChange={(e) => setFiltros({ ...filtros, canchaId: e.target.value })}>
-                <option value="todas">Todas las canchas</option>
+                <option value="todas">Todos los campos</option>
                 {canchas.map((cancha) => <option key={cancha.id} value={cancha.id}>{cancha.nombre}</option>)}
               </select>
             </label>
