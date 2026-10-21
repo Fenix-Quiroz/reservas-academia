@@ -3,41 +3,14 @@ import canchas from './data/canchas.json'
 import { cancelarReserva, cargarReservas, leerReservas, limpiarDatosLocales } from './almacen.js'
 import { supabase, supabaseConfigurado } from './supabase.js'
 import { suscribirseAReservas } from './supabaseData.js'
-import { activa, fechaISO, rangoHablado, sePuedeCancelar, sumarDias } from './reservas.js'
-import { filtrarReservas, precioDeReserva, resumenAdmin } from './admin.js'
+import { filtrarReservas, resumenAdmin } from './admin.js'
 import { esAdmin } from './adminAuth.js'
-
-const hoy = () => fechaISO(new Date())
-
-function fechaVisible(fecha) {
-  return new Date(`${fecha}T12:00:00`).toLocaleDateString('es-PE', {
-    weekday: 'long',
-    day: 'numeric',
-    month: 'long',
-  })
-}
-
-function nombreCancha(id) {
-  return canchas.find((c) => c.id === id)?.nombre ?? 'Campo desconocido'
-}
-
-function AdminMarca() {
-  return (
-    <div className="admin-marca">
-      <img src="/favicon-jaguar.png" alt="" aria-hidden="true" />
-      <div>
-        <strong>Administración de reservas</strong>
-        <span>Polideportivo El Jaguar</span>
-      </div>
-    </div>
-  )
-}
-
-function estadoReserva(reserva, ahora) {
-  if (!activa(reserva, ahora)) return 'Finalizada'
-  if (reserva.id.startsWith('demo-')) return 'Demo'
-  return 'Activa'
-}
+import AdminLogin from './components/admin/AdminLogin.jsx'
+import AdminNoAutorizado from './components/admin/AdminNoAutorizado.jsx'
+import AdminCabecera from './components/admin/AdminCabecera.jsx'
+import AdminMetricas from './components/admin/AdminMetricas.jsx'
+import AdminFiltros from './components/admin/AdminFiltros.jsx'
+import AdminListado from './components/admin/AdminListado.jsx'
 
 export default function AdminApp() {
   const [usuario, setUsuario] = useState(null)
@@ -127,6 +100,10 @@ export default function AdminApp() {
   const resumen = useMemo(() => resumenAdmin(reservas), [reservas])
   const visibles = useMemo(() => filtrarReservas(reservas, filtros, canchas), [reservas, filtros])
 
+  async function ingresar(email, password) {
+    return supabase.auth.signInWithPassword({ email, password })
+  }
+
   async function actualizar() {
     if (cargando) return
     setCargando(true)
@@ -194,41 +171,25 @@ export default function AdminApp() {
   }
 
   if (supabaseConfigurado && !usuario) {
-    return <AdminLogin errorInicial={authError} />
+    return <AdminLogin errorInicial={authError} onLogin={ingresar} />
   }
 
   if (supabaseConfigurado && !esAdmin(usuario)) {
-    return <AdminNoAutorizado alCerrar={cerrarSesion} />
+    return <AdminNoAutorizado onLogout={cerrarSesion} />
   }
 
   return (
     <main className="admin-app" aria-busy={cargando}>
-      <header className="admin-cabecera">
-        <div>
-          <AdminMarca />
-          <p className="admin-kicker">Panel privado</p>
-          <h1>Reservas del polideportivo</h1>
-          <p className="subtitulo">Revisa las reservas hechas desde este navegador.</p>
-        </div>
-        <div className="admin-acciones">
-          {!supabaseConfigurado && (porLimpiar ? (
-            <div className="admin-reset-confirmar">
-              <span>¿Borrar reservas y clientes?</span>
-              <button className="chip peligro" onClick={limpiar}>Sí, borrar</button>
-              <button className="chip" onClick={() => setPorLimpiar(false)}>No</button>
-            </div>
-          ) : (
-            <button className="boton-secundario admin-boton admin-limpiar" onClick={() => setPorLimpiar(true)}>
-              <span aria-hidden="true">🧹</span> Empezar de cero
-            </button>
-          ))}
-          <button className="boton-secundario admin-boton" disabled={cargando} onClick={actualizar}>
-            {cargando ? 'Actualizando…' : <><span aria-hidden="true">↻</span> Actualizar</>}
-          </button>
-          <a className="boton-secundario admin-boton" href="/">Vista del cliente</a>
-          {supabaseConfigurado && <button className="boton-secundario admin-boton" onClick={cerrarSesion}>Cerrar sesión</button>}
-        </div>
-      </header>
+      <AdminCabecera
+        supabaseConfigurado={supabaseConfigurado}
+        porLimpiar={porLimpiar}
+        cargando={cargando}
+        onClearRequest={() => setPorLimpiar(true)}
+        onClearCancel={() => setPorLimpiar(false)}
+        onClearConfirm={limpiar}
+        onRefresh={actualizar}
+        onLogout={cerrarSesion}
+      />
 
       <div className={`demo-aviso${estadoConexion === 'error' ? ' sin-conexion' : ''}`} role={estadoConexion === 'error' ? 'alert' : 'status'}>
         <strong>{!supabaseConfigurado
@@ -237,8 +198,7 @@ export default function AdminApp() {
             ? 'Sin conexión'
             : estadoConexion === 'sincronizando'
               ? 'Sincronizando…'
-              : 'Datos sincronizados'}</strong>
-        <span>{!supabaseConfigurado
+              : 'Datos sincronizados'}</strong> <span>{!supabaseConfigurado
           ? 'El panel y las reservas comparten el almacenamiento de este navegador.'
           : estadoConexion === 'error'
             ? 'No pudimos sincronizar las reservas. Pulsa “Actualizar” para reintentar.'
@@ -250,16 +210,7 @@ export default function AdminApp() {
       {mensaje && <p className="exito" role="status">{mensaje}</p>}
       {error && <p className="error" role="alert">{error}</p>}
 
-      <section className="admin-metricas" aria-label="Resumen de reservas">
-        <article className="admin-metrica">
-          <span>Próximas reservas</span>
-          <strong>{resumen.proximas}</strong>
-        </article>
-        <article className="admin-metrica">
-          <span>Reservas de hoy</span>
-          <strong>{resumen.hoy}</strong>
-        </article>
-      </section>
+      <AdminMetricas resumen={resumen} />
 
       <section className="admin-listado">
         <div className="admin-listado-cabecera">
@@ -267,171 +218,23 @@ export default function AdminApp() {
             <h2>Agenda</h2>
             <p className="subtitulo">{visibles.length} reserva{visibles.length === 1 ? '' : 's'} mostrada{visibles.length === 1 ? '' : 's'}</p>
           </div>
-          <div className="admin-filtros">
-            <label>
-              <span>Ver</span>
-              <select value={filtros.vista} onChange={(e) => setFiltros({ ...filtros, vista: e.target.value })}>
-                <option value="proximas">Próximas</option>
-                <option value="todas">Todas</option>
-              </select>
-            </label>
-            <label>
-              <span>Fecha</span>
-              <select value={filtros.fecha} onChange={(e) => setFiltros({ ...filtros, fecha: e.target.value })}>
-                <option value="todas">Todas las fechas</option>
-                <option value={hoy()}>Hoy</option>
-                <option value={fechaISO(sumarDias(1))}>Mañana</option>
-              </select>
-            </label>
-            <label>
-              <span>Campo</span>
-              <select value={filtros.canchaId} onChange={(e) => setFiltros({ ...filtros, canchaId: e.target.value })}>
-                <option value="todas">Todos los campos</option>
-                {canchas.map((cancha) => <option key={cancha.id} value={cancha.id}>{cancha.nombre}</option>)}
-              </select>
-            </label>
-            <label className="admin-buscar">
-              <span>Alias o nombre</span>
-              <input
-                type="search"
-                value={filtros.buscar}
-                onChange={(e) => setFiltros({ ...filtros, buscar: e.target.value })}
-                placeholder="Ej: David o 931..."
-              />
-            </label>
-          </div>
+          <AdminFiltros
+            filtros={filtros}
+            canchas={canchas}
+            onChange={(siguiente) => setFiltros((actual) => ({ ...actual, ...siguiente }))}
+          />
         </div>
 
-        {cargando ? (
-          <div className="admin-cargando" role="status">Cargando reservas…</div>
-        ) : visibles.length === 0 ? (
-          <div className="admin-vacio">
-            <strong>No hay reservas con estos filtros.</strong>
-            <span>Prueba con “Todas” o cambia la fecha.</span>
-          </div>
-        ) : (
-          <div className="admin-reservas">
-            {visibles.map((reserva) => {
-              const puedeCancelar = !reserva.id.startsWith('demo-') && sePuedeCancelar(reserva)
-              const cancha = canchas.find((c) => c.id === reserva.canchaId)
-              return (
-                <article className="admin-reserva" key={reserva.id} aria-labelledby={`reserva-${reserva.id}`}>
-                  <div className="admin-reserva-fecha">
-                    <strong>{fechaVisible(reserva.fecha)}</strong>
-                    <span>{rangoHablado(reserva.inicio, reserva.horas)}</span>
-                  </div>
-                  <div className="admin-reserva-datos">
-                    <h3 id={`reserva-${reserva.id}`}>{nombreCancha(reserva.canchaId)}</h3>
-                    <span>{reserva.alias} · {reserva.celular}</span>
-                    <span className="precio">S/ {precioDeReserva(reserva, canchas)} · {cancha?.jugadores} contra {cancha?.jugadores}</span>
-                  </div>
-                  <div className="admin-reserva-estado">
-                    <span className={`estado estado-${estadoReserva(reserva) === 'Activa' ? 'activa' : 'suave'}`}>
-                      {estadoReserva(reserva)}
-                    </span>
-                    {porCancelar === reserva.id ? (
-                      <div className="admin-confirmar" role="group" aria-labelledby={`confirmar-admin-${reserva.id}`}>
-                        <span id={`confirmar-admin-${reserva.id}`}>¿Cancelar esta reserva?</span>
-                        <div>
-                          <button className="chip peligro" disabled={cancelando === reserva.id} onClick={() => cancelar(reserva.id)}>
-                            {cancelando === reserva.id ? 'Cancelando…' : 'Sí, cancelar'}
-                          </button>
-                          <button className="chip" disabled={Boolean(cancelando)} onClick={() => setPorCancelar(null)}>No</button>
-                        </div>
-                      </div>
-                    ) : puedeCancelar ? (
-                      <button className="admin-cancelar" disabled={Boolean(cancelando)} onClick={() => setPorCancelar(reserva.id)}>Cancelar</button>
-                    ) : reserva.id.startsWith('demo-') ? (
-                      <small>Solo ejemplo</small>
-                    ) : null}
-                  </div>
-                </article>
-              )
-            })}
-          </div>
-        )}
-      </section>
-    </main>
-  )
-}
-
-function AdminLogin({ errorInicial }) {
-  const [email, setEmail] = useState('')
-  const [password, setPassword] = useState('')
-  const [error, setError] = useState(errorInicial ?? '')
-  const [procesando, setProcesando] = useState(false)
-
-  async function ingresar(e) {
-    e.preventDefault()
-    if (procesando) return
-    setError('')
-    setProcesando(true)
-    const { error: errorInicio } = await supabase.auth.signInWithPassword({
-      email: email.trim(),
-      password,
-    })
-    if (errorInicio) {
-      setError(errorInicio.message.toLowerCase().includes('invalid login credentials')
-        ? 'El correo o la contraseña no son correctos.'
-        : 'No pudimos iniciar sesión. Revisa tu conexión e inténtalo de nuevo.')
-    }
-    setProcesando(false)
-  }
-
-  return (
-    <main className="admin-auth-shell">
-      <section className="admin-auth-card">
-        <AdminMarca />
-        <p className="admin-kicker">Panel privado</p>
-        <h1>Ingresar al panel</h1>
-        <p className="subtitulo">Solo el dueño o encargado puede ver las reservas.</p>
-        <form className="admin-auth-form" onSubmit={ingresar}>
-          <label>
-            <span>Correo</span>
-            <input
-              id="admin-email"
-              type="email"
-              value={email}
-              required
-              aria-invalid={Boolean(error)}
-              aria-describedby={error ? 'admin-login-error' : undefined}
-              autoComplete="email"
-              onChange={(e) => setEmail(e.target.value)}
-            />
-          </label>
-          <label>
-            <span>Contraseña</span>
-            <input
-              id="admin-password"
-              type="password"
-              value={password}
-              required
-              aria-invalid={Boolean(error)}
-              aria-describedby={error ? 'admin-login-error' : undefined}
-              autoComplete="current-password"
-              onChange={(e) => setPassword(e.target.value)}
-            />
-          </label>
-          {error && <p id="admin-login-error" className="error" role="alert">{error}</p>}
-          <button className="boton-principal" type="submit" disabled={procesando}>
-            {procesando ? 'Ingresando…' : 'Iniciar sesión'}
-          </button>
-          <a className="boton-secundario admin-boton" href="/">Volver a reservar</a>
-        </form>
-      </section>
-    </main>
-  )
-}
-
-function AdminNoAutorizado({ alCerrar }) {
-  return (
-    <main className="admin-auth-shell">
-      <section className="admin-auth-card">
-        <AdminMarca />
-        <p className="admin-kicker">Panel privado</p>
-        <h1>Acceso no autorizado</h1>
-        <p className="subtitulo">No tienes autorización para ver las reservas de la academia.</p>
-        <button className="boton-principal" onClick={alCerrar}>Cerrar sesión</button>
+        <AdminListado
+          visibles={visibles}
+          cargando={cargando}
+          canchas={canchas}
+          porCancelar={porCancelar}
+          cancelando={cancelando}
+          onRequestCancel={setPorCancelar}
+          onCancel={cancelar}
+          onCancelRequest={() => setPorCancelar(null)}
+        />
       </section>
     </main>
   )
