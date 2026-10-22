@@ -1,7 +1,7 @@
 import { activa, rangoHablado } from '../../reservas'
-import type { Campo, Reserva } from '../../types.js'
+import type { Campo, EstadoReserva, Reserva } from '../../types.js'
 
-type EstadoReserva = 'Finalizada' | 'Demo' | 'Activa'
+type EtiquetaEstado = 'Finalizada' | 'Demo' | 'Activa' | 'Iniciada' | 'Cancelada'
 
 export interface AdminReservaCardProps {
   reserva: Reserva
@@ -12,6 +12,8 @@ export interface AdminReservaCardProps {
   onRequestCancel: () => void
   onCancel: (id: string) => void | Promise<void>
   onCancelRequest: () => void
+  onStatus: (id: string, estado: EstadoReserva) => void | Promise<void>
+  actualizandoEstado: string | null
 }
 
 function fechaVisible(fecha: string): string {
@@ -22,10 +24,13 @@ function fechaVisible(fecha: string): string {
   })
 }
 
-function estadoReserva(reserva: Reserva): EstadoReserva {
-  if (!activa(reserva)) return 'Finalizada'
-  if (reserva.id.startsWith('demo-')) return 'Demo'
-  return 'Activa'
+function estadoReserva(reserva: Reserva): { etiqueta: EtiquetaEstado; clase: string } {
+  if (reserva.id.startsWith('demo-')) return { etiqueta: 'Demo', clase: 'suave' }
+  if (reserva.estado === 'iniciado') return { etiqueta: 'Iniciada', clase: 'iniciado' }
+  if (reserva.estado === 'finalizado') return { etiqueta: 'Finalizada', clase: 'finalizado' }
+  if (reserva.estado === 'cancelado') return { etiqueta: 'Cancelada', clase: 'cancelada' }
+  if (!activa(reserva)) return { etiqueta: 'Finalizada', clase: 'finalizado' }
+  return { etiqueta: 'Activa', clase: 'activa' }
 }
 
 export default function AdminReservaCard({
@@ -37,8 +42,12 @@ export default function AdminReservaCard({
   onRequestCancel,
   onCancel,
   onCancelRequest,
+  onStatus,
+  actualizandoEstado,
 }: AdminReservaCardProps) {
   const estado = estadoReserva(reserva)
+  const esDemo = reserva.id.startsWith('demo-')
+  const procesando = cancelando === reserva.id || actualizandoEstado === reserva.id
 
   return (
     <article className="admin-reserva" aria-labelledby={`reserva-${reserva.id}`}>
@@ -49,25 +58,32 @@ export default function AdminReservaCard({
       <div className="admin-reserva-datos">
         <h3 id={`reserva-${reserva.id}`}>{cancha?.nombre ?? 'Campo desconocido'}</h3>
         <span>{reserva.alias} · {reserva.celular}</span>
-        <span className="precio">S/ {(cancha?.precioHora ?? 0) * reserva.horas} · {cancha?.jugadores} contra {cancha?.jugadores}</span>
+        <span className="precio">S/ {reserva.montoTotal ?? (cancha?.precioHora ?? 0) * reserva.horas} · {cancha?.jugadores} contra {cancha?.jugadores}</span>
       </div>
       <div className="admin-reserva-estado">
-        <span className={`estado estado-${estado === 'Activa' ? 'activa' : 'suave'}`}>
-          {estado}
+        <span className={`estado estado-${estado.clase}`}>
+          {estado.etiqueta}
         </span>
         {porCancelar === reserva.id ? (
           <div className="admin-confirmar" role="group" aria-labelledby={`confirmar-admin-${reserva.id}`}>
             <span id={`confirmar-admin-${reserva.id}`}>¿Cancelar esta reserva?</span>
             <div>
-              <button className="chip peligro" disabled={cancelando === reserva.id} onClick={() => onCancel(reserva.id)}>
+              <button className="chip peligro" disabled={procesando} onClick={() => onCancel(reserva.id)}>
                 {cancelando === reserva.id ? 'Cancelando…' : 'Sí, cancelar'}
               </button>
-              <button className="chip" disabled={Boolean(cancelando)} onClick={onCancelRequest}>No</button>
+              <button className="chip" disabled={Boolean(cancelando || actualizandoEstado)} onClick={onCancelRequest}>No</button>
             </div>
           </div>
-        ) : puedeCancelar ? (
-          <button className="admin-cancelar" disabled={Boolean(cancelando)} onClick={onRequestCancel}>Cancelar</button>
-        ) : reserva.id.startsWith('demo-') ? (
+        ) : !esDemo && reserva.estado === 'activo' ? (
+          puedeCancelar ? <button className="admin-cancelar" disabled={procesando} onClick={onRequestCancel}>Cancelar</button> : null
+        ) : !esDemo && reserva.estado === 'iniciado' ? (
+          <div className="admin-reserva-acciones">
+            <button className="admin-estado-accion" disabled={procesando} onClick={() => onStatus(reserva.id, 'finalizado')}>
+              {actualizandoEstado === reserva.id ? 'Finalizando…' : 'Finalizar reserva'}
+            </button>
+            {puedeCancelar && <button className="admin-cancelar" disabled={procesando} onClick={onRequestCancel}>Cancelar</button>}
+          </div>
+        ) : esDemo ? (
           <small>Solo ejemplo</small>
         ) : null}
       </div>

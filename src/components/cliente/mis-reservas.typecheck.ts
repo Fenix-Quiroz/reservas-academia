@@ -21,6 +21,7 @@ const reserva: Reserva = {
   horas: 1,
   alias: cliente.alias,
   celular: cliente.celular,
+  estado: 'activo',
 }
 
 const vista = MisReservas({

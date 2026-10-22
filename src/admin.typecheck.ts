@@ -25,6 +25,7 @@ const reserva = {
   horas: 1,
   alias: 'Equipo Jaguar',
   celular: '987654321',
+  estado: 'activo',
 } satisfies Reserva
 
 const filtros = {

@@ -1,4 +1,5 @@
 import type { Reserva } from './types.js'
+import { puedeCambiarEstado } from './estadoReserva.js'
 
 // Lógica pura de reservas: no sabe de dónde vienen los datos.
 // Cuando conectemos Supabase, este archivo se queda igual.
@@ -6,7 +7,7 @@ import type { Reserva } from './types.js'
 export const ABRE = 8
 export const CIERRA = 23
 
-type ReservaHorario = Pick<Reserva, 'canchaId' | 'fecha' | 'inicio' | 'horas'>
+type ReservaHorario = Pick<Reserva, 'canchaId' | 'fecha' | 'inicio' | 'horas'> & Partial<Pick<Reserva, 'estado'>>
 
 export interface HorarioDisponible {
   inicio: number
@@ -42,7 +43,7 @@ export function horarios(
   const lista: HorarioDisponible[] = []
   for (let inicio = ABRE; inicio + horas <= CIERRA; inicio++) {
     if (esHoy && inicio <= ahora.getHours()) continue
-    const libre = !reservas.some((r) => chocan(r, { canchaId, fecha, inicio, horas }))
+    const libre = !reservas.some((r) => r.estado !== 'cancelado' && chocan(r, { canchaId, fecha, inicio, horas }))
     lista.push({ inicio, libre })
   }
   return lista
@@ -57,8 +58,10 @@ export function masCercana(lista: HorarioDisponible[], inicio: number): HorarioD
 
 // Una reserva está activa si todavía no terminó
 export const activa = (r: ReservaHorario, ahora: Date = new Date()): boolean =>
-  r.fecha > fechaISO(ahora) ||
-  (r.fecha === fechaISO(ahora) && r.inicio + r.horas > ahora.getHours())
+  r.estado !== 'cancelado' &&
+  r.estado !== 'finalizado' &&
+  (r.fecha > fechaISO(ahora) ||
+    (r.fecha === fechaISO(ahora) && r.inicio + r.horas > ahora.getHours()))
 
 export const MAX_ACTIVAS = 2
 
@@ -73,7 +76,8 @@ export const deCliente = (
     .sort((a, b) => a.fecha.localeCompare(b.fecha) || a.inicio - b.inicio)
 
 // Por ahora las reservas se pueden cancelar en cualquier momento.
-export const sePuedeCancelar = (_r?: Reserva, _ahora: Date = new Date()): boolean => true
+export const sePuedeCancelar = (r?: Reserva, _ahora: Date = new Date()): boolean =>
+  Boolean(r && puedeCambiarEstado(r.estado, 'cancelado'))
 
 // 8 → "8", 13 → "1", 24 → "12"
 const hora12 = (h: number): number => ((h + 11) % 12) + 1

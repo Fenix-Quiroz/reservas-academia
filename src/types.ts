@@ -14,6 +14,8 @@ export interface Cliente {
   celular: string
 }
 
+export type EstadoReserva = 'activo' | 'iniciado' | 'finalizado' | 'cancelado'
+
 export interface Reserva {
   id: string
   canchaId: number
@@ -22,10 +24,12 @@ export interface Reserva {
   horas: number
   alias: string
   celular: string
+  estado: EstadoReserva
+  montoTotal?: number
   nombre?: string
 }
 
-export type ReservaNueva = Omit<Reserva, 'id'>
+export type ReservaNueva = Omit<Reserva, 'id' | 'estado'>
 
 export type VistaAdmin = 'proximas' | 'todas'
 export type FiltroFecha = 'todas' | string

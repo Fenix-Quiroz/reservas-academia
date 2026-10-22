@@ -35,6 +35,7 @@ export default function MisReservas({
   onReserve,
   tituloRef,
 }: MisReservasProps) {
+  const reservasVisibles = reservas.filter((reserva) => reserva.estado !== 'cancelado')
   const [porCancelar, setPorCancelar] = useState<string | null>(null)
   const [editando, setEditando] = useState(false)
   const [alias, setAlias] = useState(yo.alias)
@@ -159,7 +160,7 @@ export default function MisReservas({
           ✏️ Editar mis datos
         </button>
       )}
-      {!reservas.length ? (
+      {!reservasVisibles.length ? (
         <>
           <h2>Aún no tienes reservas</h2>
           <p className="subtitulo">Cuando reserves un campo, aparecerá aquí.</p>
@@ -170,7 +171,7 @@ export default function MisReservas({
       ) : (
         <>
           {error && <p className="error" role="alert">{error}</p>}
-          {reservas.map((r) => {
+          {reservasVisibles.map((r) => {
             const c = canchas.find((x) => x.id === r.canchaId)
             if (!c) return null
             return (

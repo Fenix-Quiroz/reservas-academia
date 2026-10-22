@@ -30,6 +30,7 @@ const reserva = {
   horas: 1,
   alias: cliente.alias,
   celular: cliente.celular,
+  estado: 'activo',
 } satisfies Reserva
 
 const nuevaReserva = {

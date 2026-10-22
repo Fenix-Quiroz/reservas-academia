@@ -114,7 +114,14 @@ export default function App() {
     if (!canchaActual) return { error: 'conexion' }
 
     try {
-      const r = await Promise.resolve(crearReserva({ canchaId: canchaActual.id, fecha, inicio: hora, horas, ...cliente }))
+      const r = await Promise.resolve(crearReserva({
+        canchaId: canchaActual.id,
+        fecha,
+        inicio: hora,
+        horas,
+        montoTotal: canchaActual.precioHora * horas,
+        ...cliente,
+      }))
       let actuales: Reserva[]
       try {
         actuales = await cargarReservas()

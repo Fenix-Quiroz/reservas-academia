@@ -1,23 +1,27 @@
 // Fallback de la demo. Con Supabase activo, las reservas y clientes vienen de la base remota.
 import demo from './data/reservas-demo.json' with { type: 'json' }
-import type { Cliente, Reserva, ReservaNueva } from './types.js'
+import type { Cliente, EstadoReserva, Reserva, ReservaNueva } from './types.js'
+import { normalizarReserva, puedeCambiarEstado } from './estadoReserva.js'
 import { chocan, activa, fechaISO, sumarDias, sePuedeCancelar, MAX_ACTIVAS } from './reservas.js'
 import { supabaseConfigurado } from './supabase.js'
 import type {
   ResultadoCancelacion,
   ResultadoCliente,
+  ResultadoEstado,
   ResultadoReserva,
 } from './supabaseData.js'
 import {
   leerReservasRemotas,
   crearReservaRemota,
   cancelarReservaRemota,
+  actualizarEstadoReservaRemota,
   buscarClienteRemoto,
   registrarClienteRemoto,
   actualizarClienteRemoto,
 } from './supabaseData.js'
 
-type ReservaDemo = Omit<Reserva, 'id' | 'fecha'> & { dia: number }
+type ReservaDemo = Omit<Reserva, 'id' | 'fecha' | 'estado'> & { dia: number }
+type ReservaGuardada = Omit<Reserva, 'estado'> & { estado?: unknown }
 type ResultadoClienteLocal = ResultadoCliente | { error: 'celular'; alias: string }
 
 function leer<T>(clave: string, porDefecto: T): T {
@@ -51,9 +55,11 @@ if (supabaseConfigurado) limpiarDatosDemoLocales()
 
 // Las reservas de prueba se calculan siempre desde hoy, así la grilla nunca se ve vacía
 const reservasDemo = (): Reserva[] =>
-  (demo as ReservaDemo[]).map(({ dia, ...r }, i) => ({ ...r, id: `demo-${i}`, fecha: fechaISO(sumarDias(dia)) }))
+  (demo as ReservaDemo[]).map(({ dia, ...r }, i) => ({ ...r, id: `demo-${i}`, fecha: fechaISO(sumarDias(dia)), estado: 'activo' as const }))
 
-export const leerReservas = (): Reserva[] => supabaseConfigurado ? [] : [...reservasDemo(), ...leer<Reserva[]>('reservas', [])]
+export const leerReservas = (): Reserva[] => supabaseConfigurado
+  ? []
+  : [...reservasDemo(), ...leer<ReservaGuardada[]>('reservas', []).map(normalizarReserva)]
 
 export const cargarReservas = (): Reserva[] | Promise<Reserva[]> =>
   supabaseConfigurado ? leerReservasRemotas() : leerReservas()
@@ -73,11 +79,11 @@ export function crearReserva(nueva: ReservaNueva): ResultadoReserva | Promise<Re
   if (supabaseConfigurado) return crearReservaRemota(nueva)
 
   const todas = leerReservas()
-  if (todas.some((r) => chocan(r, nueva))) return { error: 'ocupado' }
+  if (todas.some((r) => r.estado !== 'cancelado' && chocan(r, nueva))) return { error: 'ocupado' }
   if (todas.filter((r) => r.celular === nueva.celular && activa(r)).length >= MAX_ACTIVAS)
     return { error: 'limite' }
 
-  const reserva: Reserva = { ...nueva, id: crypto.randomUUID() }
+  const reserva: Reserva = { ...nueva, id: crypto.randomUUID(), estado: 'activo' }
   guardar('reservas', [...leer<Reserva[]>('reservas', []), reserva])
   return { reserva }
 }
@@ -86,11 +92,22 @@ export function crearReserva(nueva: ReservaNueva): ResultadoReserva | Promise<Re
 export function cancelarReserva(id: string): ResultadoCancelacion | Promise<ResultadoCancelacion> {
   if (supabaseConfigurado) return cancelarReservaRemota(id)
 
-  const guardadas = leer<Reserva[]>('reservas', [])
+  const guardadas = leer<ReservaGuardada[]>('reservas', []).map(normalizarReserva)
   const reserva = guardadas.find((r) => r.id === id)
   if (!reserva) return { error: 'no-existe' }
   if (!sePuedeCancelar(reserva)) return { error: 'tarde' }
-  guardar('reservas', guardadas.filter((r) => r.id !== id))
+  guardar('reservas', guardadas.map((r) => r.id === id ? { ...r, estado: 'cancelado' as const } : r))
+  return {}
+}
+
+export function actualizarEstadoReserva(id: string, estado: EstadoReserva): ResultadoEstado | Promise<ResultadoEstado> {
+  if (supabaseConfigurado) return actualizarEstadoReservaRemota(id, estado)
+
+  const guardadas = leer<ReservaGuardada[]>('reservas', []).map(normalizarReserva)
+  const reserva = guardadas.find((r) => r.id === id)
+  if (!reserva) return { error: 'no-existe' }
+  if (!puedeCambiarEstado(reserva.estado, estado)) return { error: 'estado-invalido' }
+  guardar('reservas', guardadas.map((r) => r.id === id ? { ...r, estado } : r))
   return {}
 }
 

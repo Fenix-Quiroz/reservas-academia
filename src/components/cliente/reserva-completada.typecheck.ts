@@ -10,6 +10,7 @@ const reserva: Reserva = {
   horas: 1,
   alias: 'Juan',
   celular: '987654321',
+  estado: 'finalizado',
 }
 const cancha: Campo = {
   id: 1,

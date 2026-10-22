@@ -2,6 +2,7 @@ import type { Cliente, Reserva, ReservaNueva } from './types.js'
 import {
   aReserva,
   actualizarClienteRemoto,
+  actualizarEstadoReservaRemota,
   buscarClienteRemoto,
   cancelarReservaRemota,
   crearReservaRemota,
@@ -20,6 +21,7 @@ const reserva: Reserva = {
   horas: 1,
   alias: 'Equipo Jaguar',
   celular: '987654321',
+  estado: 'activo',
 }
 
 const nueva: ReservaNueva = {
@@ -41,9 +43,10 @@ const cliente: Promise<Cliente | null> = buscarClienteRemoto(reserva.celular)
 const reservas: Promise<Reserva[]> = leerReservasRemotas()
 const nuevaRemota = crearReservaRemota(nueva)
 const cancelada = cancelarReservaRemota(reserva.id)
+const estadoActualizado = actualizarEstadoReservaRemota(reserva.id, 'iniciado')
 const registrada = registrarClienteRemoto(reserva.alias, reserva.celular)
 const actualizada = actualizarClienteRemoto(reserva.celular, reserva.alias, reserva.celular)
 const error = errorDeSupabase({ code: '23P01' })
 const dejarDeEscuchar: () => void = suscribirseAReservas(() => {})
 
-void [remota, cliente, reservas, nuevaRemota, cancelada, registrada, actualizada, error, dejarDeEscuchar]
+void [remota, cliente, reservas, nuevaRemota, cancelada, estadoActualizado, registrada, actualizada, error, dejarDeEscuchar]

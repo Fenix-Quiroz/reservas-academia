@@ -4,6 +4,7 @@ import fs from 'node:fs'
 const app = fs.readFileSync(new URL('./App.tsx', import.meta.url), 'utf8')
 const datosReserva = fs.readFileSync(new URL('./components/cliente/DatosReserva.tsx', import.meta.url), 'utf8')
 const misReservas = fs.readFileSync(new URL('./components/cliente/MisReservas.tsx', import.meta.url), 'utf8')
+const selectorHorario = fs.readFileSync(new URL('./components/cliente/SelectorHorario.tsx', import.meta.url), 'utf8')
 const cliente = [
   app,
   'CabeceraCliente.tsx',
@@ -27,6 +28,7 @@ const admin = [
   'AdminNoAutorizado.tsx',
   'AdminCabecera.tsx',
   'AdminMetricas.tsx',
+  'AdminBalanceMensual.tsx',
   'AdminFiltros.tsx',
   'AdminReservaCard.tsx',
   'AdminListado.tsx',
@@ -70,6 +72,7 @@ assert.match(cliente, /function nombreDiaCorto/)
 assert.match(cliente, /month: 'long'/)
 assert.match(cliente, /function rangoVisible/)
 assert.match(cliente, /¿Cuánto tiempo quieres jugar\?/)
+assert.match(selectorHorario, /className="duraciones"/)
 assert.match(cliente, /Elige una hora/)
 assert.match(cliente, /const textoAccion/)
 assert.match(cliente, /className="hora-rango"/)
@@ -155,6 +158,14 @@ assert.match(admin, /Empezar de cero/)
 assert.match(admin, /¿Borrar reservas y clientes\?/)
 assert.match(admin, /Actualizando…/)
 assert.match(admin, /Cancelando…/)
+assert.doesNotMatch(admin, /Iniciar turno/)
+assert.match(admin, /Finalizar reserva/)
+assert.match(admin, /onStatus/)
+assert.match(admin, /clase: 'iniciado'/)
+assert.match(admin, /clase: 'finalizado'/)
+assert.match(admin, /Balance mensual/)
+assert.match(admin, /Descargar balance mensual/)
+assert.match(admin, /type="month"/)
 assert.match(admin, /Cargando reservas…/)
 assert.match(admin, /Datos sincronizados/)
 assert.match(admin, /Sin conexión/)
@@ -241,6 +252,13 @@ assert.match(css, /\.chip\.dia\s*\{/)
 assert.match(css, /\.admin-app\s*\{/)
 assert.match(css, /\.admin-marca\s*\{/)
 assert.match(css, /\.admin-metricas\s*\{/)
+assert.match(css, /\.admin-balance\s*\{/)
+assert.match(css, /\.admin-balance-controles\s*\{/)
+assert.match(css, /\.admin-balance-controles\s*>\s*\*\s*\{[\s\S]*min-width:\s*0/)
+assert.match(css, /\.admin-balance-controles input\s*\{[\s\S]*max-width:\s*100%/)
+assert.match(css, /\.admin-balance-controles input\s*\{[\s\S]*display:\s*block/)
+assert.match(css, /\.admin-balance-descargar\s*\{[\s\S]*max-width:\s*100%[\s\S]*white-space:\s*normal/)
+assert.match(css, /\.admin-balance-resumen\s*\{/)
 assert.match(css, /\.admin-auth-shell\s*\{[\s\S]*background:\s*var\(--color-ink-950\)/)
 assert.match(css, /\.admin-auth-card\s*\{[\s\S]*border:\s*1px solid var\(--color-gold-700\)[\s\S]*background:\s*var\(--color-ink-900\)/)
 assert.match(css, /\.admin-app\s*\{[\s\S]*color:\s*var\(--color-ink-50\)/)

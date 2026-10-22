@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useState } from 'react'
 import canchas from './data/canchas.json'
-import type { Campo, FiltrosAdmin, Reserva } from './types.js'
+import type { Campo, EstadoReserva, FiltrosAdmin, Reserva } from './types.js'
 import type { UsuarioAdmin } from './adminAuth.js'
-import { cancelarReserva, cargarReservas, leerReservas, limpiarDatosLocales } from './almacen'
+import { actualizarEstadoReserva, cancelarReserva, cargarReservas, leerReservas, limpiarDatosLocales } from './almacen'
 import { supabase, supabaseConfigurado } from './supabase'
 import { suscribirseAReservas } from './supabaseData'
 import { filtrarReservas, resumenAdmin } from './admin'
@@ -13,6 +13,8 @@ import AdminCabecera from './components/admin/AdminCabecera'
 import AdminMetricas from './components/admin/AdminMetricas'
 import AdminFiltros from './components/admin/AdminFiltros'
 import AdminListado from './components/admin/AdminListado'
+import AdminAlarmaTurno from './components/admin/AdminAlarmaTurno'
+import AdminBalanceMensual from './components/admin/AdminBalanceMensual'
 
 type EstadoConexion = 'sincronizando' | 'demo' | 'error' | 'sincronizado'
 
@@ -39,6 +41,7 @@ export default function AdminApp() {
   const [cargando, setCargando] = useState(true)
   const [estadoConexion, setEstadoConexion] = useState<EstadoConexion>(supabaseConfigurado ? 'sincronizando' : 'demo')
   const [cancelando, setCancelando] = useState<string | null>(null)
+  const [actualizandoEstado, setActualizandoEstado] = useState<string | null>(null)
 
   useEffect(() => {
     if (!mensaje) return undefined
@@ -170,6 +173,32 @@ export default function AdminApp() {
     }
   }
 
+  async function cambiarEstado(id: string, estado: EstadoReserva): Promise<void> {
+    if (actualizandoEstado) return
+    setActualizandoEstado(id)
+    setPorCancelar(null)
+    try {
+      const resultado = await actualizarEstadoReserva(id, estado)
+      if ('error' in resultado) {
+        setError(resultado.error === 'estado-invalido'
+          ? 'Ese cambio de estado no está permitido.'
+          : resultado.error === 'conexion'
+            ? 'No pudimos actualizar el estado. Revisa la conexión.'
+            : 'La reserva ya no existe.')
+        setMensaje('')
+        return
+      }
+      setReservas(await cargarReservas())
+      setMensaje(estado === 'iniciado' ? 'Turno iniciado.' : 'Reserva finalizada y pago confirmado.')
+      setError('')
+    } catch {
+      setError('No pudimos actualizar el estado. Revisa tu conexión e inténtalo de nuevo.')
+      setMensaje('')
+    } finally {
+      setActualizandoEstado(null)
+    }
+  }
+
   function limpiar(): void {
     limpiarDatosLocales()
     setReservas(leerReservas())
@@ -226,7 +255,11 @@ export default function AdminApp() {
       {mensaje && <p className="exito" role="status">{mensaje}</p>}
       {error && <p className="error" role="alert">{error}</p>}
 
+      <AdminAlarmaTurno reservas={reservas} canchas={canchas} />
+
       <AdminMetricas resumen={resumen} />
+
+      <AdminBalanceMensual reservas={reservas} canchas={canchas} />
 
       <section className="admin-listado">
         <div className="admin-listado-cabecera">
@@ -250,6 +283,8 @@ export default function AdminApp() {
           onRequestCancel={(id) => setPorCancelar(id)}
           onCancel={cancelar}
           onCancelRequest={() => setPorCancelar(null)}
+          onStatus={cambiarEstado}
+          actualizandoEstado={actualizandoEstado}
         />
       </section>
     </main>

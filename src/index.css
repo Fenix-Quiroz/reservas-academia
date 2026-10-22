@@ -1534,6 +1534,113 @@ button:disabled {
   color: #fecaca;
 }
 
+.admin-alarma {
+  display: grid;
+  gap: 14px;
+  margin: 20px 0;
+  padding: 16px;
+  border: 1px solid var(--color-ink-700);
+  border-radius: var(--radio);
+  background: var(--color-ink-900);
+}
+
+.admin-alarma.tiene-alertas {
+  border-color: var(--color-gold-500);
+  background: var(--color-gold-950);
+  box-shadow: 0 0 0 3px rgb(210 154 20 / 16%);
+}
+
+.admin-alarma-cabecera,
+.admin-alarma-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.admin-alarma h2 {
+  margin: 2px 0 0;
+  font-size: 1.1rem;
+}
+
+.admin-alarma-ayuda {
+  margin: 4px 0 0;
+  color: var(--color-ink-300);
+}
+
+.admin-alarma-acciones {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.admin-alarma-activar {
+  flex: 0 0 auto;
+  border-color: var(--color-gold-700);
+  background: var(--color-ink-800);
+  color: var(--color-gold-200);
+}
+
+.admin-alarma-prueba {
+  flex: 0 0 auto;
+  border-color: var(--color-ink-600);
+  background: var(--color-ink-800);
+  color: var(--color-ink-50);
+}
+
+.admin-alarma-prueba:hover {
+  background: var(--color-ink-700);
+}
+
+.admin-alarma-activar:disabled {
+  border-color: var(--color-gold-700);
+  background: var(--color-gold-950);
+  color: var(--color-gold-200);
+  cursor: default;
+  opacity: 1;
+}
+
+.admin-alarma-alertas {
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid var(--color-gold-500);
+  border-radius: 12px;
+  background: var(--color-ink-900);
+  color: var(--color-ink-50);
+}
+
+.admin-alarma-lista {
+  display: grid;
+  gap: 8px;
+}
+
+.admin-alarma-item {
+  padding-top: 10px;
+  border-top: 1px solid var(--color-ink-700);
+}
+
+.admin-alarma-item > div {
+  display: grid;
+  gap: 3px;
+}
+
+.admin-alarma-item span {
+  color: var(--color-ink-300);
+}
+
+.admin-alarma-confirmar {
+  min-height: 40px;
+  border-color: var(--color-gold-500);
+  background: var(--color-gold-500);
+  color: var(--color-ink-950);
+}
+
+.admin-alarma-confirmar:hover {
+  background: var(--color-gold-400);
+}
+
 .admin-metricas {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
@@ -1557,6 +1664,116 @@ button:disabled {
 
 .admin-metrica strong {
   font-size: 1.8rem;
+}
+
+.admin-balance {
+  display: grid;
+  gap: 18px;
+  margin: 20px 0;
+  padding: 20px;
+  border: 1px solid var(--color-ink-700);
+  border-radius: var(--radio);
+  background: var(--color-ink-900);
+}
+
+.admin-balance-cabecera {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 24px;
+}
+
+.admin-balance h2 {
+  margin: 2px 0 0;
+}
+
+.admin-balance-ayuda {
+  margin: 4px 0 0;
+  color: var(--color-ink-300);
+}
+
+.admin-balance-controles {
+  display: grid;
+  grid-template-columns: minmax(150px, 1fr) auto;
+  align-items: end;
+  gap: 6px 8px;
+  min-width: min(100%, 390px);
+}
+
+.admin-balance-controles > * {
+  min-width: 0;
+}
+
+.admin-balance-controles label {
+  grid-column: 1 / -1;
+  color: var(--color-ink-300);
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
+.admin-balance-controles input {
+  display: block;
+  max-width: 100%;
+  min-width: 0;
+  min-height: 48px;
+  padding: 0 10px;
+  border: 1px solid var(--color-ink-600);
+  border-radius: 10px;
+  background: var(--color-ink-800);
+  color: var(--color-ink-50);
+  font: inherit;
+}
+
+.admin-balance-descargar {
+  max-width: 100%;
+  min-width: 0;
+  border-color: var(--color-gold-600);
+  background: var(--color-gold-500);
+  color: var(--color-ink-950);
+  font-weight: 800;
+  line-height: 1.2;
+  white-space: normal;
+}
+
+.admin-balance-descargar:hover {
+  background: var(--color-gold-400);
+}
+
+.admin-balance-descargar:disabled {
+  cursor: wait;
+  opacity: 0.7;
+}
+
+.admin-balance-error {
+  margin: 0;
+  padding: 10px 12px;
+  border: 1px solid #9f2d24;
+  border-radius: 10px;
+  background: #431d1b;
+  color: #fecaca;
+  font-weight: 700;
+}
+
+.admin-balance-resumen {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+  padding-top: 2px;
+}
+
+.admin-balance-resumen span {
+  display: grid;
+  gap: 4px;
+  padding: 14px;
+  border: 1px solid var(--color-ink-700);
+  border-radius: 12px;
+  background: var(--color-ink-800);
+  color: var(--color-ink-300);
+}
+
+.admin-balance-resumen strong {
+  color: var(--color-gold-200);
+  font-size: 1.35rem;
 }
 
 .admin-listado {
@@ -1676,6 +1893,41 @@ button:disabled {
   color: var(--color-ink-200);
 }
 
+.estado-iniciado {
+  background: var(--color-gold-900);
+  color: var(--color-gold-100);
+}
+
+.estado-finalizado {
+  background: var(--color-ink-700);
+  color: var(--color-ink-100);
+}
+
+.estado-cancelada {
+  background: #431d1b;
+  color: #fecaca;
+}
+
+.admin-reserva-acciones {
+  display: grid;
+  justify-items: end;
+  gap: 6px;
+}
+
+.admin-estado-accion {
+  min-height: 38px;
+  padding: 0 10px;
+  border: 1px solid var(--color-gold-600);
+  border-radius: 9px;
+  background: var(--color-gold-950);
+  color: var(--color-gold-100);
+  font-weight: 800;
+}
+
+.admin-estado-accion:hover:not(:disabled) {
+  background: var(--color-gold-800);
+}
+
 .admin-cancelar {
   min-height: 38px;
   padding: 0 10px;
@@ -1770,9 +2022,22 @@ button:disabled {
   }
 
   .admin-cabecera,
-  .admin-listado-cabecera {
+  .admin-balance-cabecera,
+  .admin-listado-cabecera,
+  .admin-alarma-cabecera,
+  .admin-alarma-item {
     align-items: stretch;
     flex-direction: column;
+  }
+
+  .admin-alarma-activar,
+  .admin-alarma-prueba,
+  .admin-alarma-confirmar {
+    width: 100%;
+  }
+
+  .admin-alarma-acciones {
+    width: 100%;
   }
 
   .admin-acciones,
@@ -1792,6 +2057,21 @@ button:disabled {
 
   .admin-filtros label {
     min-width: 0;
+  }
+
+  .admin-balance-controles {
+    width: 100%;
+    min-width: 0;
+    grid-template-columns: 1fr;
+  }
+
+  .admin-balance-controles input,
+  .admin-balance-descargar {
+    width: 100%;
+  }
+
+  .admin-balance-resumen {
+    grid-template-columns: 1fr;
   }
 
   .admin-reserva {

@@ -62,12 +62,14 @@ export default function SelectorHorario({
 
       <fieldset className="selector-grupo">
         <legend>2. ¿Cuánto tiempo quieres jugar?</legend>
-        {[1, 2].map((duracion) => (
-          <button key={duracion} className="chip grande" aria-pressed={duracion === horas} onClick={() => onHorasChange(duracion)}>
-            {duracion === 1 ? '1 hora' : '2 horas'}
-            <small>S/ {cancha.precioHora * duracion}</small>
-          </button>
-        ))}
+        <div className="duraciones">
+          {[1, 2].map((duracion) => (
+            <button key={duracion} className="chip grande" aria-pressed={duracion === horas} onClick={() => onHorasChange(duracion)}>
+              {duracion === 1 ? '1 hora' : '2 horas'}
+              <small>S/ {cancha.precioHora * duracion}</small>
+            </button>
+          ))}
+        </div>
       </fieldset>
 
       <fieldset className="selector-grupo">

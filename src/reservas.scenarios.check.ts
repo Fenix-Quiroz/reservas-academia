@@ -2,6 +2,7 @@ import assert from 'node:assert/strict'
 import {
   cancelarReserva,
   crearReserva,
+  actualizarEstadoReserva,
   leerReservas,
   registrarCliente,
   buscarPorCelular,
@@ -49,6 +50,7 @@ function reserva(overrides: Partial<Omit<Reserva, 'id'>> & { id?: string } = {})
     horas: 1,
     alias: 'Equipo Prueba',
     celular: '955555555',
+    estado: 'activo',
     ...datosReserva,
   }
 }
@@ -95,11 +97,13 @@ assert.equal((await buscarPorCelular('966666666'))?.alias, 'Equipo Luna')
 assert.equal(conError(await registrarCliente('Otro nombre', '966666666')).error, 'celular')
 assert.deepEqual(conCliente(await registrarCliente(' equipo luna ', '977777777')).cliente, { alias: 'equipo luna', celular: '977777777' })
 
-// Una reserva futura se puede cancelar y desaparece del almacenamiento.
+// Una reserva futura se puede cancelar y conserva su histórico con estado cancelado.
 resetStorage()
 const cancelable = conReserva(await crearReserva(reserva({ fecha: '2099-06-01', celular: '988888881' })))
 assert.deepEqual(await cancelarReserva(cancelable.reserva.id), {})
-assert.equal(leerReservas().some((r) => r.id === cancelable.reserva.id), false)
+const cancelada = leerReservas().find((r) => r.id === cancelable.reserva.id)
+assert.equal(cancelada?.id, cancelable.reserva.id)
+assert.equal(cancelada?.estado, 'cancelado')
 
 // Las reservas inexistentes no se cancelan, pero las que ya pasaron sí.
 resetStorage()
@@ -107,7 +111,17 @@ assert.equal((await cancelarReserva('reserva-que-no-existe')).error, 'no-existe'
 const pasada = { ...reserva({ id: 'reserva-pasada', fecha: '2000-01-01' }) }
 localStorage.setItem('reservas', JSON.stringify([pasada]))
 assert.deepEqual(await cancelarReserva('reserva-pasada'), {})
-assert.equal(leerReservas().some((r) => r.id === 'reserva-pasada'), false)
+assert.equal(leerReservas().find((r) => r.id === 'reserva-pasada')?.estado, 'cancelado')
+
+// El encargado puede iniciar y finalizar una reserva, pero no devolverla a un estado anterior.
+resetStorage()
+const transicionable = conReserva(await crearReserva(reserva({ fecha: '2099-07-01', celular: '988888882' })))
+assert.deepEqual(await actualizarEstadoReserva(transicionable.reserva.id, 'iniciado'), {})
+assert.equal(leerReservas().find((r) => r.id === transicionable.reserva.id)?.estado, 'iniciado')
+assert.deepEqual(await actualizarEstadoReserva(transicionable.reserva.id, 'finalizado'), {})
+assert.equal(leerReservas().find((r) => r.id === transicionable.reserva.id)?.estado, 'finalizado')
+assert.equal((await actualizarEstadoReserva(transicionable.reserva.id, 'activo')).error, 'estado-invalido')
+assert.equal((await cancelarReserva(transicionable.reserva.id)).error, 'tarde')
 
 // La demo se puede reiniciar y elimina reservas, clientes y usuario recordado.
 resetStorage({

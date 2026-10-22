@@ -11,6 +11,7 @@ export interface ResumenAdmin {
 const texto = (valor: unknown): string => String(valor ?? '').trim().toLowerCase()
 
 export const precioDeReserva = (reserva: Reserva, canchas: CanchaAdmin[]): number => {
+  if (typeof reserva.montoTotal === 'number' && Number.isFinite(reserva.montoTotal)) return reserva.montoTotal
   const cancha = canchas.find((c) => c.id === reserva.canchaId)
   return (cancha?.precioHora ?? 0) * reserva.horas
 }

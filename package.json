@@ -15,12 +15,16 @@
     "check:scenarios": "tsx src/reservas.scenarios.check.ts",
     "check:admin": "tsx src/admin.check.ts",
     "check:supabase": "tsx src/supabase.check.ts",
+    "check:balance": "tsx src/balanceMensual.check.ts",
+    "check:estado": "tsx src/estadoReserva.check.ts",
+    "check:alarm": "tsx src/utils/alarmaTurno.check.ts",
     "check:typescript": "tsx src/typescript.check.ts"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.118.0",
     "react": "^19.1.0",
-    "react-dom": "^19.1.0"
+    "react-dom": "^19.1.0",
+    "xlsx-js-style": "^1.2.0"
   },
   "devDependencies": {
     "@eslint/js": "^9.25.0",

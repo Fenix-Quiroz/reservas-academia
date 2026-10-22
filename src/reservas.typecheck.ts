@@ -23,6 +23,7 @@ const reserva = {
   horas: 1,
   alias: 'Equipo Jaguar',
   celular: '987654321',
+  estado: 'activo',
 } satisfies Reserva
 
 const lista = horarios([reserva], 1, reserva.fecha, 1, new Date('2026-10-20T12:00'))

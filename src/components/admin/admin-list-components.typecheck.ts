@@ -1,4 +1,4 @@
-import type { Campo, FiltrosAdmin, Reserva } from '../../types.js'
+import type { Campo, EstadoReserva, FiltrosAdmin, Reserva } from '../../types.js'
 import AdminFiltros from './AdminFiltros.js'
 import AdminListado from './AdminListado.js'
 import AdminReservaCard from './AdminReservaCard.js'
@@ -22,6 +22,7 @@ const reserva: Reserva = {
   horas: 1,
   alias: 'Luis',
   celular: '999999999',
+  estado: 'activo',
 }
 
 const filtros: FiltrosAdmin = {
@@ -46,6 +47,8 @@ const listadoNode = AdminListado({
   onRequestCancel: (_id: string) => undefined,
   onCancel: async (_id: string) => undefined,
   onCancelRequest: () => undefined,
+  onStatus: async (_id: string, _estado: EstadoReserva) => undefined,
+  actualizandoEstado: null,
 })
 
 const cardNode = AdminReservaCard({
@@ -57,6 +60,8 @@ const cardNode = AdminReservaCard({
   onRequestCancel: () => undefined,
   onCancel: async (_id: string) => undefined,
   onCancelRequest: () => undefined,
+  onStatus: async (_id: string, _estado: EstadoReserva) => undefined,
+  actualizandoEstado: null,
 })
 
 void [filtrosNode, listadoNode, cardNode]

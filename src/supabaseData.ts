@@ -1,5 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
-import type { Cliente, Reserva, ReservaNueva } from './types.js'
+import type { Cliente, EstadoReserva, Reserva, ReservaNueva } from './types.js'
+import { normalizarReserva, puedeCambiarEstado } from './estadoReserva.js'
 import { activa, MAX_ACTIVAS, sePuedeCancelar } from './reservas.js'
 import { supabase } from './supabase.js'
 
@@ -17,6 +18,8 @@ export type ResultadoError = { error: ErrorReserva }
 export type ResultadoReserva = { reserva: Reserva } | ResultadoError
 export type ResultadoCliente = { cliente: Cliente } | ResultadoError
 export type ResultadoCancelacion = Record<string, never> | ResultadoError
+export type ErrorEstado = ErrorReserva | 'estado-invalido'
+export type ResultadoEstado = Record<string, never> | { error: ErrorEstado }
 
 interface FilaReserva {
   id?: string
@@ -26,6 +29,8 @@ interface FilaReserva {
   horas: number | string
   alias: string
   celular: string
+  estado?: unknown
+  monto_total?: number | string | null
 }
 
 interface FilaCliente {
@@ -42,15 +47,20 @@ interface ErrorSupabase {
   message?: string
 }
 
-export const deReserva = (fila: FilaReserva): Reserva => ({
-  id: fila.id as string,
-  canchaId: Number(fila.cancha_id),
-  fecha: fila.fecha,
-  inicio: Number(fila.inicio),
-  horas: Number(fila.horas),
-  alias: fila.alias,
-  celular: fila.celular,
-})
+export const deReserva = (fila: FilaReserva): Reserva => {
+  const montoTotal = Number(fila.monto_total)
+  return normalizarReserva({
+    id: fila.id as string,
+    canchaId: Number(fila.cancha_id),
+    fecha: fila.fecha,
+    inicio: Number(fila.inicio),
+    horas: Number(fila.horas),
+    alias: fila.alias,
+    celular: fila.celular,
+    estado: fila.estado,
+    ...(Number.isFinite(montoTotal) ? { montoTotal } : {}),
+  })
+}
 
 export const aReserva = (reserva: Reserva | ReservaNueva): FilaReserva => {
   const fila: FilaReserva = {
@@ -60,6 +70,10 @@ export const aReserva = (reserva: Reserva | ReservaNueva): FilaReserva => {
     horas: reserva.horas,
     alias: reserva.alias,
     celular: reserva.celular,
+    estado: ('estado' in reserva ? reserva.estado : 'activo') as EstadoReserva,
+  }
+  if ('montoTotal' in reserva && typeof reserva.montoTotal === 'number' && Number.isFinite(reserva.montoTotal)) {
+    fila.monto_total = reserva.montoTotal
   }
   if ('id' in reserva && reserva.id) fila.id = reserva.id
   return fila
@@ -80,7 +94,7 @@ export async function leerReservasRemotas(): Promise<Reserva[]> {
   const cliente = clienteSupabase()
   const { data, error } = await cliente
     .from('reservas')
-    .select('id, cancha_id, fecha, inicio, horas, alias, celular')
+    .select('id, cancha_id, fecha, inicio, horas, alias, celular, estado, monto_total')
     .order('fecha')
     .order('inicio')
 
@@ -92,7 +106,7 @@ export async function crearReservaRemota(reserva: ReservaNueva): Promise<Resulta
   const cliente = clienteSupabase()
   const { data: pendientes, error: limiteError } = await cliente
     .from('reservas')
-    .select('fecha, inicio, horas, cancha_id, alias, celular')
+    .select('fecha, inicio, horas, cancha_id, alias, celular, estado, monto_total')
     .eq('celular', reserva.celular)
   if (limiteError) return { error: 'conexion' }
   if ((pendientes as FilaReserva[]).map(deReserva).filter((r) => activa(r)).length >= MAX_ACTIVAS) return { error: 'limite' }
@@ -100,7 +114,7 @@ export async function crearReservaRemota(reserva: ReservaNueva): Promise<Resulta
   const { data, error } = await cliente
     .from('reservas')
     .insert(aReserva(reserva))
-    .select('id, cancha_id, fecha, inicio, horas, alias, celular')
+    .select('id, cancha_id, fecha, inicio, horas, alias, celular, estado, monto_total')
     .single()
 
   if (error) return { error: errorDeSupabase(error) }
@@ -111,7 +125,7 @@ export async function cancelarReservaRemota(id: string): Promise<ResultadoCancel
   const cliente = clienteSupabase()
   const { data, error: lecturaError } = await cliente
     .from('reservas')
-    .select('id, cancha_id, fecha, inicio, horas, alias, celular')
+    .select('id, cancha_id, fecha, inicio, horas, alias, celular, estado, monto_total')
     .eq('id', id)
     .maybeSingle()
 
@@ -119,7 +133,28 @@ export async function cancelarReservaRemota(id: string): Promise<ResultadoCancel
   if (!data) return { error: 'no-existe' }
   if (!sePuedeCancelar(deReserva(data as FilaReserva))) return { error: 'tarde' }
 
-  const { error } = await cliente.from('reservas').delete().eq('id', id)
+  const { error } = await cliente
+    .from('reservas')
+    .update({ estado: 'cancelado' })
+    .eq('id', id)
+  return error ? { error: errorDeSupabase(error) } : {}
+}
+
+export async function actualizarEstadoReservaRemota(id: string, estado: EstadoReserva): Promise<ResultadoEstado> {
+  const cliente = clienteSupabase()
+  const { data, error: lecturaError } = await cliente
+    .from('reservas')
+    .select('id, cancha_id, fecha, inicio, horas, alias, celular, estado, monto_total')
+    .eq('id', id)
+    .maybeSingle()
+
+  if (lecturaError) return { error: 'conexion' }
+  if (!data) return { error: 'no-existe' }
+
+  const reserva = deReserva(data as FilaReserva)
+  if (!puedeCambiarEstado(reserva.estado, estado)) return { error: 'estado-invalido' }
+
+  const { error } = await cliente.from('reservas').update({ estado }).eq('id', id)
   return error ? { error: errorDeSupabase(error) } : {}
 }
 

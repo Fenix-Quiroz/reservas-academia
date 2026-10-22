@@ -11,6 +11,7 @@ const r = (inicio: number, horas: number, extra: Partial<Reserva> = {}): Reserva
   horas,
   alias: 'Equipo Prueba',
   celular: 'sin-celular',
+  estado: 'activo',
   ...extra,
 })
 
@@ -26,6 +27,7 @@ const lista = horarios([r(19, 2)], 1, '2026-10-20', 1, ahora)
 assert.equal(lista[0]!.inicio, 8, 'abre a las 8')
 assert.equal(lista.at(-1)!.inicio, 22, 'última hora de 1h empieza a las 10pm')
 assert.ok(!lista.find((h) => h.inicio === 20)!.libre, '8pm ocupada por la reserva 7-9')
+assert.ok(horarios([r(20, 1, { estado: 'cancelado' })], 1, '2026-10-20', 1, ahora).find((h) => h.inicio === 20)!.libre, 'una cancelada libera la hora')
 assert.equal(horarios([], 1, '2026-10-20', 2, ahora).at(-1)!.inicio, 21, 'última de 2h empieza a las 9pm')
 assert.ok(horarios([], 1, '2026-10-19', 1, ahora).every((h) => h.inicio > 12), 'hoy no muestra horas pasadas')
 assert.equal(masCercana(lista, 19)!.inicio, 18, 'sugiere la libre más cercana')
@@ -40,6 +42,11 @@ const mias = deCliente(
   ahora,
 )
 assert.deepEqual(mias.map((x) => x.inicio), [20, 15], 'solo las mías y sin las ya jugadas, en orden')
+assert.deepEqual(
+  deCliente([r(20, 1, { ...mio, estado: 'cancelado' })], '999', ahora),
+  [],
+  'las canceladas no aparecen entre las reservas del cliente',
+)
 
 const a15 = r(15, 1, { fecha: '2026-10-19' }) // ahora son las 12:00 del 19
 assert.ok(sePuedeCancelar(a15, ahora), 'antes de empezar: se puede cancelar')

@@ -1,5 +1,5 @@
 import { sePuedeCancelar } from '../../reservas'
-import type { Campo, Reserva } from '../../types.js'
+import type { Campo, EstadoReserva, Reserva } from '../../types.js'
 import AdminReservaCard from './AdminReservaCard'
 
 export interface AdminListadoProps {
@@ -11,6 +11,8 @@ export interface AdminListadoProps {
   onRequestCancel: (id: string) => void
   onCancel: (id: string) => void | Promise<void>
   onCancelRequest: () => void
+  onStatus: (id: string, estado: EstadoReserva) => void | Promise<void>
+  actualizandoEstado: string | null
 }
 
 export default function AdminListado({
@@ -22,6 +24,8 @@ export default function AdminListado({
   onRequestCancel,
   onCancel,
   onCancelRequest,
+  onStatus,
+  actualizandoEstado,
 }: AdminListadoProps) {
   if (cargando) return <div className="admin-cargando" role="status">Cargando reservas…</div>
 
@@ -49,6 +53,8 @@ export default function AdminListado({
             onRequestCancel={() => onRequestCancel(reserva.id)}
             onCancel={onCancel}
             onCancelRequest={onCancelRequest}
+            onStatus={onStatus}
+            actualizandoEstado={actualizandoEstado}
           />
         )
       })}

@@ -23,9 +23,11 @@ const admin = [
   'src/components/admin/AdminNoAutorizado.tsx',
   'src/components/admin/AdminCabecera.tsx',
   'src/components/admin/AdminMetricas.tsx',
+  'src/components/admin/AdminBalanceMensual.tsx',
   'src/components/admin/AdminFiltros.tsx',
   'src/components/admin/AdminReservaCard.tsx',
   'src/components/admin/AdminListado.tsx',
+  'src/components/admin/AdminAlarmaTurno.tsx',
 ]
 
 for (const file of [...cliente, ...admin]) {
@@ -39,7 +41,7 @@ for (const name of ['CabeceraCliente', 'ProgresoReserva', 'SelectorCampos', 'Sel
   assert.match(app, new RegExp(`import .*${name}.* from`), `App.tsx debe importar ${name}`)
 }
 
-for (const name of ['AdminLogin', 'AdminNoAutorizado', 'AdminCabecera', 'AdminMetricas', 'AdminFiltros', 'AdminListado']) {
+for (const name of ['AdminLogin', 'AdminNoAutorizado', 'AdminCabecera', 'AdminMetricas', 'AdminBalanceMensual', 'AdminFiltros', 'AdminListado', 'AdminAlarmaTurno']) {
   assert.match(adminApp, new RegExp(`import .*${name}.* from`), `AdminApp.tsx debe importar ${name}`)
 }
 
@@ -48,6 +50,8 @@ assert.match(read('src/components/cliente/MisReservas.tsx'), /src=\{c\.imagen\}/
 assert.match(read('src/components/admin/AdminCabecera.tsx'), /import AdminMarca.* from/)
 assert.match(read('src/components/admin/AdminLogin.tsx'), /import AdminMarca.* from/)
 assert.match(read('src/components/admin/AdminNoAutorizado.tsx'), /import AdminMarca.* from/)
+assert.match(read('src/components/admin/AdminAlarmaTurno.tsx'), /className="admin-alarma/)
+assert.match(read('src/components/admin/AdminAlarmaTurno.tsx'), /Probar alarmas/)
 
 assert.doesNotMatch(app, /function (Progreso|DibujoCancha|PasoCancha|PasoHorario|PasoDatos|PasoListo|MisReservas)\s*\(/)
 assert.doesNotMatch(adminApp, /function (AdminMarca|AdminLogin|AdminNoAutorizado)\s*\(/)
