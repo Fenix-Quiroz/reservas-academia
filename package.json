@@ -7,13 +7,15 @@
     "dev": "vite",
     "build": "vite build",
     "lint": "eslint .",
+    "typecheck": "tsc --noEmit",
     "preview": "vite preview",
-    "check": "node src/reservas.check.js",
-    "check:ui": "node src/ui.check.js",
-    "check:components": "node src/componentization.check.js",
-    "check:scenarios": "node src/reservas.scenarios.check.js",
-    "check:admin": "node src/admin.check.js",
-    "check:supabase": "node src/supabase.check.js"
+    "check": "tsx src/reservas.check.ts",
+    "check:ui": "tsx src/ui.check.ts",
+    "check:components": "tsx src/componentization.check.ts",
+    "check:scenarios": "tsx src/reservas.scenarios.check.ts",
+    "check:admin": "tsx src/admin.check.ts",
+    "check:supabase": "tsx src/supabase.check.ts",
+    "check:typescript": "tsx src/typescript.check.ts"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.118.0",
@@ -22,6 +24,7 @@
   },
   "devDependencies": {
     "@eslint/js": "^9.25.0",
+    "@types/node": "^26.6.5",
     "@types/react": "^19.1.2",
     "@types/react-dom": "^19.1.2",
     "@vitejs/plugin-react": "^4.4.1",
@@ -29,6 +32,8 @@
     "eslint-plugin-react-hooks": "^5.2.0",
     "eslint-plugin-react-refresh": "^0.4.19",
     "globals": "^16.0.0",
+    "tsx": "^4.23.15",
+    "typescript": "^7.0.2",
     "vite": "^6.3.5"
   }
 }
