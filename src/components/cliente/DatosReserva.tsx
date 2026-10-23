@@ -3,12 +3,20 @@ import type { RefObject } from 'react'
 import { capital, nombreDia } from '../../utils/fechasReserva'
 import { rangoHablado, type HorarioDisponible } from '../../reservas'
 import type { Campo, Cliente, Reserva } from '../../types.js'
+import {
+  ALIAS_MAXIMO,
+  normalizarAlias,
+  normalizarCelular,
+  validarAlias,
+  validarCelular,
+} from '../../validacionCliente'
 
 type Modo = 'nuevo' | 'volver'
 type Procesando = '' | 'reserva' | 'datos' | 'buscar'
 type ErrorAccion =
   | 'ocupado'
   | 'limite'
+  | 'limite-intentos'
   | 'celular'
   | 'conexion'
   | 'no-existe'
@@ -67,7 +75,8 @@ export default function DatosReserva({
   const [procesando, setProcesando] = useState<Procesando>('')
   const [clientePendiente, setClientePendiente] = useState<Cliente | null>(null)
 
-  const celularValido = /^9\d{8}$/.test(celular)
+  const errorCelular = validarCelular(celular)
+  const celularValido = errorCelular === null
 
   async function reservar(cliente: Cliente, hora = inicio, yaProcesando = false, recordarCliente = false): Promise<boolean> {
     if (!yaProcesando && procesando) return false
@@ -81,6 +90,14 @@ export default function DatosReserva({
         }
         if (r.error === 'limite') {
           setError('Ya tienes 2 reservas pendientes. Cuando juegues una, podrás reservar otra.')
+          return false
+        }
+        if (r.error === 'limite-intentos') {
+          setError('Hiciste varios intentos seguidos. Espera 10 minutos y vuelve a intentarlo.')
+          return false
+        }
+        if (r.error === 'tarde') {
+          setError('La fecha o la hora ya no está disponible. Elige otro turno.')
           return false
         }
         setError('No pudimos guardar la reserva. Revisa tu conexión e inténtalo de nuevo.')
@@ -102,8 +119,8 @@ export default function DatosReserva({
 
   async function crearYReservar(): Promise<void> {
     setError('')
-    if (alias.trim().length < 2) {
-      setError('Escribe tu nombre o apodo (mínimo 2 letras).')
+    if (validarAlias(alias)) {
+      setError('El nombre debe tener entre 2 y 24 caracteres, empezar con una letra y usar solo letras, números, espacios, guiones o apóstrofes.')
       return
     }
     if (!celularValido) {
@@ -113,9 +130,9 @@ export default function DatosReserva({
     if (procesando) return
     setProcesando('datos')
     try {
-      const r = await actions.createClient(alias, celular)
+      const r = await actions.createClient(normalizarAlias(alias), normalizarCelular(celular))
       if ('error' in r && r.error === 'celular') {
-        const existente = await actions.findClient(celular)
+        const existente = await actions.findClient(normalizarCelular(celular))
         setEncontrado(existente ?? null)
         return
       }
@@ -141,7 +158,7 @@ export default function DatosReserva({
     if (procesando) return
     setProcesando('buscar')
     try {
-      const c = await actions.findClient(celular)
+      const c = await actions.findClient(normalizarCelular(celular))
       if (c) setEncontrado(c)
       else setError('No encontramos ese celular. Elige "Es mi primera vez" para crear tu nombre.')
     } catch {
@@ -285,7 +302,8 @@ export default function DatosReserva({
               onChange={(e) => setAlias(e.target.value)}
               placeholder="Ej: Juan o LosPibes"
               autoComplete="nickname"
-              maxLength={20}
+              minLength={2}
+              maxLength={ALIAS_MAXIMO}
             />
           </label>
         )}

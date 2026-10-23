@@ -2,8 +2,8 @@ import { useEffect, useMemo, useState } from 'react'
 import canchas from './data/canchas.json'
 import type { Campo, EstadoReserva, FiltrosAdmin, Reserva } from './types.js'
 import type { UsuarioAdmin } from './adminAuth.js'
-import { actualizarEstadoReserva, cancelarReserva, cargarReservas, leerReservas, limpiarDatosLocales } from './almacen'
-import { supabase, supabaseConfigurado } from './supabase'
+import { actualizarEstadoReserva, cancelarReservaAdmin, cargarReservas, leerReservas, limpiarDatosLocales } from './almacen'
+import { supabase, supabaseFaltaEnProduccion, supabaseConfigurado } from './supabase'
 import { suscribirseAReservas } from './supabaseData'
 import { filtrarReservas, resumenAdmin } from './admin'
 import { esAdmin } from './adminAuth'
@@ -145,7 +145,7 @@ export default function AdminApp() {
     if (cancelando) return
     setCancelando(id)
     try {
-      const resultado = await cancelarReserva(id)
+      const resultado = await cancelarReservaAdmin(id)
       setPorCancelar(null)
       if (resultado.error) {
         setError(resultado.error === 'tarde'
@@ -221,6 +221,14 @@ export default function AdminApp() {
 
   if (supabaseConfigurado && !esAdmin(usuario)) {
     return <AdminNoAutorizado onLogout={cerrarSesion} />
+  }
+
+  if (supabaseFaltaEnProduccion) {
+    return (
+      <main className="admin-auth-state" role="alert">
+        El panel no está configurado para producción. Define VITE_SUPABASE_URL y VITE_SUPABASE_PUBLISHABLE_KEY en Vercel.
+      </main>
+    )
   }
 
   return (

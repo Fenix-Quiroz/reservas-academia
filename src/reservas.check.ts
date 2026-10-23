@@ -1,6 +1,6 @@
 // Corre con: npm run check
 import assert from 'node:assert/strict'
-import { chocan, horarios, masCercana, rangoHablado, deCliente, sePuedeCancelar } from './reservas'
+import { chocan, horarios, masCercana, rangoHablado, deCliente, sePuedeCancelar, ocultarHorariosPasados } from './reservas'
 import type { Reserva } from './types'
 
 const r = (inicio: number, horas: number, extra: Partial<Reserva> = {}): Reserva => ({
@@ -31,6 +31,15 @@ assert.ok(horarios([r(20, 1, { estado: 'cancelado' })], 1, '2026-10-20', 1, ahor
 assert.equal(horarios([], 1, '2026-10-20', 2, ahora).at(-1)!.inicio, 21, 'última de 2h empieza a las 9pm')
 assert.ok(horarios([], 1, '2026-10-19', 1, ahora).every((h) => h.inicio > 12), 'hoy no muestra horas pasadas')
 assert.equal(masCercana(lista, 19)!.inicio, 18, 'sugiere la libre más cercana')
+assert.deepEqual(
+  ocultarHorariosPasados(
+    [{ inicio: 8, libre: false }, { inicio: 18, libre: false }, { inicio: 19, libre: false }, { inicio: 20, libre: true }],
+    '2026-10-22',
+    new Date('2026-10-22T23:30:00.000Z'),
+  ),
+  [{ inicio: 19, libre: false }, { inicio: 20, libre: true }],
+  'oculta horas pasadas y conserva las futuras aunque estén ocupadas',
+)
 
 assert.equal(rangoHablado(20, 1), 'de 8 a 9 de la noche')
 assert.equal(rangoHablado(11, 2), 'de 11 a 1 de la tarde')

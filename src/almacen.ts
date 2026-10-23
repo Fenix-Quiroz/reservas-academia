@@ -3,7 +3,8 @@ import demo from './data/reservas-demo.json' with { type: 'json' }
 import type { Cliente, EstadoReserva, Reserva, ReservaNueva } from './types.js'
 import { normalizarReserva, puedeCambiarEstado } from './estadoReserva.js'
 import { chocan, activa, fechaISO, sumarDias, sePuedeCancelar, MAX_ACTIVAS } from './reservas.js'
-import { supabaseConfigurado } from './supabase.js'
+import { supabaseFaltaEnProduccion, supabaseConfigurado } from './supabase.js'
+import { normalizarAlias, normalizarCelular, validarAlias, validarCelular } from './validacionCliente.js'
 import type {
   ResultadoCancelacion,
   ResultadoCliente,
@@ -12,17 +13,17 @@ import type {
 } from './supabaseData.js'
 import {
   leerReservasRemotas,
-  crearReservaRemota,
-  cancelarReservaRemota,
+  crearReservaPublicaRemota,
+  cancelarReservaPublicaRemota,
+  cancelarReservaAdminRemota,
   actualizarEstadoReservaRemota,
-  buscarClienteRemoto,
-  registrarClienteRemoto,
-  actualizarClienteRemoto,
 } from './supabaseData.js'
 
 type ReservaDemo = Omit<Reserva, 'id' | 'fecha' | 'estado'> & { dia: number }
 type ReservaGuardada = Omit<Reserva, 'estado'> & { estado?: unknown }
 type ResultadoClienteLocal = ResultadoCliente | { error: 'celular'; alias: string }
+type TokensReserva = Record<string, string>
+const CLAVE_TOKENS_RESERVA = 'reserva-tokens'
 
 function leer<T>(clave: string, porDefecto: T): T {
   try {
@@ -57,15 +58,15 @@ if (supabaseConfigurado) limpiarDatosDemoLocales()
 const reservasDemo = (): Reserva[] =>
   (demo as ReservaDemo[]).map(({ dia, ...r }, i) => ({ ...r, id: `demo-${i}`, fecha: fechaISO(sumarDias(dia)), estado: 'activo' as const }))
 
-export const leerReservas = (): Reserva[] => supabaseConfigurado
+export const leerReservas = (): Reserva[] => supabaseConfigurado || supabaseFaltaEnProduccion
   ? []
   : [...reservasDemo(), ...leer<ReservaGuardada[]>('reservas', []).map(normalizarReserva)]
 
 export const cargarReservas = (): Reserva[] | Promise<Reserva[]> =>
-  supabaseConfigurado ? leerReservasRemotas() : leerReservas()
+  supabaseFaltaEnProduccion ? [] : supabaseConfigurado ? leerReservasRemotas() : leerReservas()
 
 export function limpiarDatosLocales(): void {
-  for (const clave of ['reservas', 'clientes', 'yo']) {
+  for (const clave of ['reservas', 'clientes', 'yo', CLAVE_TOKENS_RESERVA]) {
     try {
       localStorage.removeItem(clave)
     } catch {
@@ -74,9 +75,27 @@ export function limpiarDatosLocales(): void {
   }
 }
 
+export function leerTokensReservas(): string[] {
+  const guardados = leer<TokensReserva>(CLAVE_TOKENS_RESERVA, {})
+  return [...new Set(Object.values(guardados).filter((token) => /^[0-9a-f]{48}$/.test(token)))]
+}
+
+export function tokenReserva(id: string): string | undefined {
+  const guardados = leer<TokensReserva>(CLAVE_TOKENS_RESERVA, {})
+  const token = guardados[id]
+  return typeof token === 'string' && /^[0-9a-f]{48}$/.test(token) ? token : undefined
+}
+
+export function guardarTokenReserva(id: string, token: string): void {
+  if (!id || !/^[0-9a-f]{48}$/.test(token)) return
+  const guardados = leer<TokensReserva>(CLAVE_TOKENS_RESERVA, {})
+  guardar(CLAVE_TOKENS_RESERVA, { ...guardados, [id]: token })
+}
+
 // Vuelve a leer justo antes de guardar: si otra pestaña reservó primero, lo detectamos
 export function crearReserva(nueva: ReservaNueva): ResultadoReserva | Promise<ResultadoReserva> {
-  if (supabaseConfigurado) return crearReservaRemota(nueva)
+  if (supabaseFaltaEnProduccion) return { error: 'conexion' }
+  if (supabaseConfigurado) return crearReservaPublicaRemota(nueva)
 
   const todas = leerReservas()
   if (todas.some((r) => r.estado !== 'cancelado' && chocan(r, nueva))) return { error: 'ocupado' }
@@ -90,7 +109,11 @@ export function crearReserva(nueva: ReservaNueva): ResultadoReserva | Promise<Re
 
 // Las reservas de la demo no están guardadas, así que no se pueden cancelar
 export function cancelarReserva(id: string): ResultadoCancelacion | Promise<ResultadoCancelacion> {
-  if (supabaseConfigurado) return cancelarReservaRemota(id)
+  if (supabaseFaltaEnProduccion) return { error: 'conexion' }
+  if (supabaseConfigurado) {
+    const token = tokenReserva(id)
+    return token ? cancelarReservaPublicaRemota(id, token) : { error: 'no-existe' }
+  }
 
   const guardadas = leer<ReservaGuardada[]>('reservas', []).map(normalizarReserva)
   const reserva = guardadas.find((r) => r.id === id)
@@ -98,6 +121,12 @@ export function cancelarReserva(id: string): ResultadoCancelacion | Promise<Resu
   if (!sePuedeCancelar(reserva)) return { error: 'tarde' }
   guardar('reservas', guardadas.map((r) => r.id === id ? { ...r, estado: 'cancelado' as const } : r))
   return {}
+}
+
+export function cancelarReservaAdmin(id: string): ResultadoCancelacion | Promise<ResultadoCancelacion> {
+  if (supabaseFaltaEnProduccion) return { error: 'conexion' }
+  if (supabaseConfigurado) return cancelarReservaAdminRemota(id)
+  return cancelarReserva(id)
 }
 
 export function actualizarEstadoReserva(id: string, estado: EstadoReserva): ResultadoEstado | Promise<ResultadoEstado> {
@@ -117,17 +146,23 @@ const clientes = (): Cliente[] => {
   return [...demoClientes, ...leer<Cliente[]>('clientes', [])]
 }
 
-export const buscarPorCelular = (celular: string): Cliente | undefined | Promise<Cliente | null> => supabaseConfigurado
-  ? buscarClienteRemoto(celular)
-  : clientes().find((c) => c.celular === celular)
+export const buscarPorCelular = (celular: string): Cliente | undefined => supabaseConfigurado
+  ? undefined
+  : clientes().find((c) => c.celular === normalizarCelular(celular))
 
 export function registrarCliente(alias: string, celular: string): ResultadoClienteLocal | Promise<ResultadoCliente> {
-  if (supabaseConfigurado) return registrarClienteRemoto(alias, celular)
+  const nuevoAlias = normalizarAlias(alias)
+  const nuevoCelular = normalizarCelular(celular)
+  const errorAlias = validarAlias(nuevoAlias)
+  if (errorAlias) return { error: errorAlias }
+  const errorCelular = validarCelular(nuevoCelular)
+  if (errorCelular) return { error: errorCelular }
+  if (supabaseConfigurado || supabaseFaltaEnProduccion) return { error: 'conexion' }
 
-  const porCelular = clientes().find((c) => c.celular === celular)
+  const porCelular = clientes().find((c) => c.celular === nuevoCelular)
   if (porCelular) return { error: 'celular', alias: porCelular.alias }
 
-  const cliente: Cliente = { alias: alias.trim(), celular }
+  const cliente: Cliente = { alias: nuevoAlias, celular: nuevoCelular }
   guardar('clientes', [...leer<Cliente[]>('clientes', []), cliente])
   return { cliente }
 }
@@ -137,16 +172,19 @@ export function actualizarCliente(
   alias: string,
   celular: string,
 ): ResultadoCliente | Promise<ResultadoCliente> {
-  if (supabaseConfigurado) return actualizarClienteRemoto(actualCelular, alias, celular)
+  if (supabaseConfigurado || supabaseFaltaEnProduccion) return { error: 'conexion' }
 
-  const nuevoAlias = alias.trim()
-  if (nuevoAlias.length < 2) return { error: 'alias-invalido' }
-  if (!/^9\d{8}$/.test(celular)) return { error: 'celular-invalido' }
+  const nuevoAlias = normalizarAlias(alias)
+  const nuevoCelular = normalizarCelular(celular)
+  const errorAlias = validarAlias(nuevoAlias)
+  if (errorAlias) return { error: errorAlias }
+  const errorCelular = validarCelular(nuevoCelular)
+  if (errorCelular) return { error: errorCelular }
 
   const otros = clientes().filter((c) => c.celular !== actualCelular)
-  if (otros.some((c) => c.celular === celular)) return { error: 'celular' }
+  if (otros.some((c) => c.celular === nuevoCelular)) return { error: 'celular' }
 
-  const cliente: Cliente = { alias: nuevoAlias, celular }
+  const cliente: Cliente = { alias: nuevoAlias, celular: nuevoCelular }
   const guardados = leer<Cliente[]>('clientes', [])
   const existe = guardados.some((c) => c.celular === actualCelular)
   guardar('clientes', existe

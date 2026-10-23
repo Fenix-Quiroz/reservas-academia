@@ -1,6 +1,6 @@
 import type { RefObject } from 'react'
-import { horarios } from '../../reservas'
-import type { Campo, Reserva } from '../../types.js'
+import type { HorarioDisponible } from '../../reservas'
+import type { Campo } from '../../types.js'
 import { horaVisible, nombreDia, nombreDiaCorto } from '../../utils/fechasReserva'
 
 const DIAS = 7
@@ -13,7 +13,8 @@ const GRUPOS = [
 
 export interface SelectorHorarioProps {
   cancha: Campo
-  reservas: Reserva[]
+  horariosDisponibles: HorarioDisponible[]
+  cargando: boolean
   dia: number
   onDiaChange: (dia: number) => void
   horas: number
@@ -27,7 +28,8 @@ export interface SelectorHorarioProps {
 
 export default function SelectorHorario({
   cancha,
-  reservas,
+  horariosDisponibles,
+  cargando,
   dia,
   onDiaChange,
   horas,
@@ -38,7 +40,7 @@ export default function SelectorHorario({
   onConfirmHour,
   tituloRef,
 }: SelectorHorarioProps) {
-  const lista = horarios(reservas, cancha.id, fecha, horas)
+  const lista = horariosDisponibles
   const hayLibres = lista.some((h) => h.libre)
 
   return (
@@ -74,7 +76,8 @@ export default function SelectorHorario({
 
       <fieldset className="selector-grupo">
         <legend>3. Elige una hora</legend>
-        {!hayLibres && (
+        {cargando && <p className="aviso" role="status">Buscando horas disponibles…</p>}
+        {!cargando && !hayLibres && (
           <div className="aviso" role="status">Ya no quedan horas libres {nombreDia(dia, true)}.
             {dia < DIAS - 1 && (
               <button className="enlace" onClick={() => onDiaChange(dia + 1)}>

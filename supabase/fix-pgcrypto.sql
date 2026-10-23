@@ -1,0 +1,150 @@
+-- Corrige las RPC públicas cuando pgcrypto está instalado en el esquema
+-- `extensions` pero las funciones antiguas solo buscaban en `public`.
+-- Ejecutar una vez en Supabase > SQL Editor.
+
+create extension if not exists pgcrypto with schema extensions;
+
+alter function public.crear_reserva_publica(
+  integer, date, smallint, smallint, text, text
+)
+set search_path = public, extensions, pg_temp;
+
+-- Reemplaza la versión que usaba `on conflict (celular)`. Dentro de una
+-- función que devuelve una columna llamada `celular`, PostgreSQL puede
+-- interpretar ese nombre como variable o columna y producir 42702.
+drop function if exists public.crear_reserva_publica(
+  integer, date, smallint, smallint, text, text
+);
+
+create or replace function public.crear_reserva_publica(
+  p_cancha_id integer,
+  p_fecha date,
+  p_inicio smallint,
+  p_horas smallint,
+  p_alias text,
+  p_celular text
+)
+returns table (
+  id uuid,
+  cancha_id integer,
+  fecha date,
+  inicio smallint,
+  horas smallint,
+  alias text,
+  celular text,
+  estado text,
+  monto_total numeric(10, 2),
+  token text
+)
+language plpgsql
+security definer
+set search_path = public, extensions, pg_temp
+as $function$
+declare
+  v_hoy date := timezone('America/Lima', now())::date;
+  v_hora_actual integer := extract(hour from timezone('America/Lima', now()));
+  v_alias text := regexp_replace(trim(p_alias), '\s+', ' ', 'g');
+  v_celular text := regexp_replace(trim(p_celular), '[[:space:]-]+', '', 'g');
+  v_precio_hora numeric(10, 2);
+  v_monto_total numeric(10, 2);
+  v_token text := encode(gen_random_bytes(24), 'hex');
+  v_reserva public.reservas%rowtype;
+begin
+  v_precio_hora := case p_cancha_id
+    when 1 then 60
+    when 2 then 60
+    when 3 then 90
+    when 4 then 50
+    else null
+  end;
+
+  if v_precio_hora is null then
+    raise exception using errcode = '22023', message = 'cancha_invalida';
+  end if;
+
+  if p_fecha < v_hoy or p_fecha > v_hoy + 6 then
+    raise exception using errcode = '22023', message = 'fecha_invalida';
+  end if;
+
+  if p_inicio not between 8 and 22 or p_horas not in (1, 2) or p_inicio + p_horas > 23 then
+    raise exception using errcode = '22023', message = 'horario_invalido';
+  end if;
+
+  if p_fecha = v_hoy and p_inicio <= v_hora_actual then
+    raise exception using errcode = '22023', message = 'hora_pasada';
+  end if;
+
+  if char_length(v_alias) not between 2 and 24
+     or v_alias !~ '^[[:alpha:]][[:alnum:] ''-]*$' then
+    raise exception using errcode = '22023', message = 'alias_invalido';
+  end if;
+
+  if v_celular !~ '^9[0-9]{8}$' then
+    raise exception using errcode = '22023', message = 'celular_invalido';
+  end if;
+
+  v_monto_total := v_precio_hora * p_horas;
+
+  perform pg_advisory_xact_lock(hashtextextended(v_celular, 0));
+
+  if (
+    select count(*)
+    from public.reservas r
+    where r.celular = v_celular
+      and r.estado not in ('cancelado', 'finalizado')
+      and (
+        r.fecha > v_hoy
+        or (r.fecha = v_hoy and r.inicio + r.horas > v_hora_actual)
+      )
+  ) >= 2 then
+    raise exception using errcode = 'P0001', message = 'limite_reservas';
+  end if;
+
+  insert into public.clientes (alias, celular)
+  select v_alias, v_celular
+  where not exists (
+    select 1
+    from public.clientes as cliente
+    where cliente.celular = v_celular
+  );
+
+  insert into public.reservas (
+    cancha_id, fecha, inicio, horas, alias, celular, token_hash, estado, monto_total
+  )
+  values (
+    p_cancha_id,
+    p_fecha,
+    p_inicio,
+    p_horas,
+    v_alias,
+    v_celular,
+    encode(digest(v_token, 'sha256'), 'hex'),
+    'activo',
+    v_monto_total
+  )
+  returning * into v_reserva;
+
+  return query
+  select
+    v_reserva.id,
+    v_reserva.cancha_id,
+    v_reserva.fecha,
+    v_reserva.inicio,
+    v_reserva.horas,
+    v_reserva.alias,
+    v_reserva.celular,
+    v_reserva.estado,
+    v_reserva.monto_total,
+    v_token;
+end;
+$function$;
+
+grant execute on function public.crear_reserva_publica(
+  integer, date, smallint, smallint, text, text
+) to anon;
+
+alter function public.obtener_mis_reservas_publicas(text[])
+set search_path = public, extensions, pg_temp;
+
+alter function public.cancelar_reserva_publica(uuid, text)
+set search_path = public, extensions, pg_temp;

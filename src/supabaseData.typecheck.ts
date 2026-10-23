@@ -1,15 +1,11 @@
-import type { Cliente, Reserva, ReservaNueva } from './types.js'
+import type { Reserva, ReservaNueva } from './types.js'
 import {
   aReserva,
-  actualizarClienteRemoto,
   actualizarEstadoReservaRemota,
-  buscarClienteRemoto,
-  cancelarReservaRemota,
-  crearReservaRemota,
+  crearReservaPublicaRemota,
   deReserva,
   errorDeSupabase,
   leerReservasRemotas,
-  registrarClienteRemoto,
   suscribirseAReservas,
 } from './supabaseData.js'
 
@@ -39,14 +35,10 @@ const remota: Reserva = deReserva({
   id: 'reserva-1',
   cancha_id: fila.cancha_id,
 })
-const cliente: Promise<Cliente | null> = buscarClienteRemoto(reserva.celular)
 const reservas: Promise<Reserva[]> = leerReservasRemotas()
-const nuevaRemota = crearReservaRemota(nueva)
-const cancelada = cancelarReservaRemota(reserva.id)
+const nuevaRemota = crearReservaPublicaRemota(nueva)
 const estadoActualizado = actualizarEstadoReservaRemota(reserva.id, 'iniciado')
-const registrada = registrarClienteRemoto(reserva.alias, reserva.celular)
-const actualizada = actualizarClienteRemoto(reserva.celular, reserva.alias, reserva.celular)
 const error = errorDeSupabase({ code: '23P01' })
 const dejarDeEscuchar: () => void = suscribirseAReservas(() => {})
 
-void [remota, cliente, reservas, nuevaRemota, cancelada, estadoActualizado, registrada, actualizada, error, dejarDeEscuchar]
+void [remota, reservas, nuevaRemota, estadoActualizado, error, dejarDeEscuchar]

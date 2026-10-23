@@ -15,9 +15,10 @@ Sin esas variables, la aplicación funciona con el modo demo local. Con Supabase
 
 1. Abre el proyecto en Supabase.
 2. En SQL Editor, pega y ejecuta `supabase/schema.sql`.
-3. En Database > Publications, confirma que `reservas` esté en `supabase_realtime`.
-4. En Authentication, crea el usuario del encargado y asígnale `app_metadata.role = admin`.
-5. Reinicia Vite con `npm run dev`.
+3. Si la base ya existía, ejecuta también `supabase/fix-monto-reservas.sql` para que las nuevas reservas guarden su precio real.
+4. En Database > Publications, confirma que `reservas` esté en `supabase_realtime`.
+5. En Authentication, crea el usuario del encargado y asígnale `app_metadata.role = admin`.
+6. Reinicia Vite con `npm run dev`.
 
 El panel se abre en `/admin` y requiere iniciar sesión. La vista pública de clientes no requiere cuenta.
 
@@ -33,4 +34,4 @@ El panel se abre en `/admin` y requiere iniciar sesión. La vista pública de cl
 
 ## Antes de producción
 
-El inicio de sesión del panel ya está implementado. Sin embargo, las políticas SQL del flujo público siguen siendo permisivas para mantener sencilla esta demo. Antes de una publicación abierta conviene endurecer RLS, limitar operaciones anónimas y configurar las variables de Supabase también en Vercel.
+El inicio de sesión del panel está implementado y el flujo público usa funciones RPC protegidas; las tablas no deben quedar abiertas al navegador. Configura las variables de Supabase también en Vercel antes de publicar.

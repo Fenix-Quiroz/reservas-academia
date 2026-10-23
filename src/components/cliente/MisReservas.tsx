@@ -3,6 +3,7 @@ import type { FormEvent, RefObject } from 'react'
 import { capital, diaDe, nombreDia } from '../../utils/fechasReserva'
 import { rangoHablado } from '../../reservas'
 import type { Campo, Cliente, Reserva } from '../../types.js'
+import { ALIAS_MAXIMO } from '../../validacionCliente'
 
 type ErrorAccion =
   | 'ocupado'
@@ -18,8 +19,9 @@ type ResultadoCancelacion = { error?: ErrorAccion }
 
 export interface MisReservasProps {
   reservas: Reserva[]
-  yo: Cliente
+  yo: Cliente | null
   canchas: readonly Campo[]
+  permitirEdicion?: boolean
   onCancel: (id: string) => Promise<ResultadoCancelacion>
   onUpdateData: (datos: { alias: string; celular: string }) => Promise<ResultadoDatos>
   onReserve: () => void
@@ -30,6 +32,7 @@ export default function MisReservas({
   reservas,
   yo,
   canchas,
+  permitirEdicion = true,
   onCancel,
   onUpdateData,
   onReserve,
@@ -38,8 +41,8 @@ export default function MisReservas({
   const reservasVisibles = reservas.filter((reserva) => reserva.estado !== 'cancelado')
   const [porCancelar, setPorCancelar] = useState<string | null>(null)
   const [editando, setEditando] = useState(false)
-  const [alias, setAlias] = useState(yo.alias)
-  const [celular, setCelular] = useState(yo.celular)
+  const [alias, setAlias] = useState(yo?.alias ?? '')
+  const [celular, setCelular] = useState(yo?.celular ?? '')
   const [datosError, setDatosError] = useState('')
   const [error, setError] = useState('')
   const [exito, setExito] = useState('')
@@ -61,7 +64,7 @@ export default function MisReservas({
       const r = await onUpdateData({ alias, celular })
       if ('error' in r) {
         const mensajes: Partial<Record<ErrorAccion, string>> = {
-          'alias-invalido': 'Escribe un nombre o apodo de al menos 2 letras.',
+          'alias-invalido': 'El nombre debe tener entre 2 y 24 caracteres, empezar con una letra y usar solo letras, números, espacios, guiones o apóstrofes.',
           'celular-invalido': 'El celular debe tener 9 números y empezar con 9.',
           celular: 'Ese celular ya está registrado por otra persona.',
           conexion: 'No pudimos guardar los cambios. Revisa tu conexión e inténtalo de nuevo.',
@@ -101,7 +104,7 @@ export default function MisReservas({
       <h1 ref={tituloRef} tabIndex={-1}>Mis reservas</h1>
       <p className="subtitulo">Puedes cancelar tu reserva en cualquier momento.</p>
       {exito && <p className="exito" role="status">{exito}</p>}
-      {editando ? (
+      {permitirEdicion && yo && (editando ? (
         <form className="editor-datos" onSubmit={editarDatos}>
           <h2>Editar mis datos</h2>
           <label>
@@ -114,7 +117,8 @@ export default function MisReservas({
               aria-invalid={Boolean(datosError)}
               aria-describedby={datosError ? 'editar-datos-error' : undefined}
               onChange={(e) => setAlias(e.target.value)}
-              maxLength={20}
+              minLength={2}
+              maxLength={ALIAS_MAXIMO}
               autoComplete="nickname"
             />
           </label>
@@ -145,8 +149,8 @@ export default function MisReservas({
               type="button"
               disabled={guardandoDatos}
               onClick={() => {
-                setAlias(yo.alias)
-                setCelular(yo.celular)
+                setAlias(yo?.alias ?? '')
+                setCelular(yo?.celular ?? '')
                 setDatosError('')
                 setEditando(false)
               }}
@@ -159,7 +163,7 @@ export default function MisReservas({
         <button className="boton-secundario editar-datos" onClick={() => setEditando(true)}>
           ✏️ Editar mis datos
         </button>
-      )}
+      ))}
       {!reservasVisibles.length ? (
         <>
           <h2>Aún no tienes reservas</h2>

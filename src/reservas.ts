@@ -49,6 +49,34 @@ export function horarios(
   return lista
 }
 
+function fechaHoraLima(ahora: Date): { fecha: string; hora: number } {
+  const partes = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'America/Lima',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    hourCycle: 'h23',
+  }).formatToParts(ahora)
+  const valor = (tipo: string): string => partes.find((parte) => parte.type === tipo)?.value ?? ''
+  return {
+    fecha: `${valor('year')}-${valor('month')}-${valor('day')}`,
+    hora: Number(valor('hour')),
+  }
+}
+
+// La API puede devolver horas pasadas como no disponibles. No deben mostrarse
+// como tarjetas: se ocultan aquí también para cubrir una función SQL antigua.
+export function ocultarHorariosPasados(
+  lista: HorarioDisponible[],
+  fecha: string,
+  ahora: Date = new Date(),
+): HorarioDisponible[] {
+  const actual = fechaHoraLima(ahora)
+  if (fecha !== actual.fecha) return lista
+  return lista.filter((horario) => horario.inicio > actual.hora)
+}
+
 // La hora libre más cercana a la que el usuario quería
 export function masCercana(lista: HorarioDisponible[], inicio: number): HorarioDisponible | undefined {
   return lista

@@ -1,4 +1,4 @@
-import type { Campo, Reserva } from '../../types.js'
+import type { Campo } from '../../types.js'
 import SelectorHorario from './SelectorHorario.js'
 
 const cancha: Campo = {
@@ -11,11 +11,10 @@ const cancha: Campo = {
   imagen: '/campos/campo-1-futbol-5.webp',
   oferta: 'Alquila este campo y recibe 1 agua de 625 ml',
 }
-const reservas: Reserva[] = []
-
 const vista = SelectorHorario({
   cancha,
-  reservas,
+  horariosDisponibles: [],
+  cargando: false,
   dia: 0,
   onDiaChange: (dia) => dia,
   horas: 1,
