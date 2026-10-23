@@ -1,6 +1,6 @@
 import type { EstadoReserva, Reserva } from './types.js'
 
-export const ESTADOS_RESERVA = ['activo', 'iniciado', 'finalizado', 'cancelado'] as const satisfies readonly EstadoReserva[]
+export const ESTADOS_RESERVA = ['activo', 'iniciado', 'finalizado', 'cancelado', 'no_asistio'] as const satisfies readonly EstadoReserva[]
 
 export function esEstadoReserva(valor: unknown): valor is EstadoReserva {
   return typeof valor === 'string' && ESTADOS_RESERVA.includes(valor as EstadoReserva)
@@ -20,7 +20,12 @@ export function normalizarReserva(reserva: ReservaConEstadoOpcional): Reserva {
 }
 
 export function puedeCambiarEstado(actual: EstadoReserva, siguiente: EstadoReserva): boolean {
-  if (actual === 'activo') return siguiente === 'iniciado' || siguiente === 'cancelado'
+  if (actual === 'activo') {
+    return siguiente === 'iniciado'
+      || siguiente === 'finalizado'
+      || siguiente === 'cancelado'
+      || siguiente === 'no_asistio'
+  }
   if (actual === 'iniciado') return siguiente === 'finalizado' || siguiente === 'cancelado'
   return false
 }

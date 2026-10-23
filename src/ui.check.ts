@@ -2,6 +2,7 @@ import assert from 'node:assert/strict'
 import fs from 'node:fs'
 
 const app = fs.readFileSync(new URL('./App.tsx', import.meta.url), 'utf8')
+const adminApp = fs.readFileSync(new URL('./AdminApp.tsx', import.meta.url), 'utf8')
 const datosReserva = fs.readFileSync(new URL('./components/cliente/DatosReserva.tsx', import.meta.url), 'utf8')
 const misReservas = fs.readFileSync(new URL('./components/cliente/MisReservas.tsx', import.meta.url), 'utf8')
 const selectorHorario = fs.readFileSync(new URL('./components/cliente/SelectorHorario.tsx', import.meta.url), 'utf8')
@@ -23,7 +24,7 @@ const cliente = [
     ? fs.readFileSync(new URL('./utils/fechasReserva.ts', import.meta.url), 'utf8')
   : source).join('\n')
 const admin = [
-  fs.readFileSync(new URL('./AdminApp.tsx', import.meta.url), 'utf8'),
+  adminApp,
   'AdminMarca.tsx',
   'AdminLogin.tsx',
   'AdminNoAutorizado.tsx',
@@ -33,6 +34,7 @@ const admin = [
   'AdminFiltros.tsx',
   'AdminReservaCard.tsx',
   'AdminListado.tsx',
+  'AdminControlClientes.tsx',
 ].map((source) => (source.endsWith('.jsx') || source.endsWith('.tsx')) && !source.includes('\n')
   ? fs.readFileSync(new URL(`./components/admin/${source}`, import.meta.url), 'utf8')
   : source).join('\n')
@@ -74,10 +76,12 @@ assert.match(cliente, /month: 'long'/)
 assert.match(cliente, /function rangoVisible/)
 assert.match(cliente, /¿Cuánto tiempo quieres jugar\?/)
 assert.match(selectorHorario, /className="duraciones"/)
+assert.match(selectorHorario, /DURACIONES_RESERVA\.map/)
 assert.match(cliente, /Elige una hora/)
 assert.match(cliente, /const textoAccion/)
 assert.match(cliente, /className="hora-rango"/)
 assert.match(cliente, /className="hora-conector"/)
+assert.match(cliente, /hasta: 25/)
 assert.match(cliente, /Hora elegida:/)
 assert.match(cliente, /Continuar/)
 assert.match(cliente, /onConfirmHour/)
@@ -88,6 +92,10 @@ assert.match(app, /onConfirmHour=\{\(\) => setPaso\(3\)\}/)
 assert.match(app, /leerHorariosRemotos/)
 assert.match(app, /leerMisReservasRemotas/)
 assert.match(app, /guardarTokenReserva/)
+assert.match(app, /leerTokensReservas\(leerYo\(\)\?\.celular\)/)
+assert.match(app, /r\.celular === yo\.celular && activa\(r\)/)
+assert.match(app, /guardarTokenReserva\(r\.reserva\.id, r\.token, cliente\.celular\)/)
+assert.match(app, /cancelarReserva\(id, yo\?\.celular\)/)
 assert.match(app, /\}, \[verMias, tokens, intentoCarga\]\)/)
 assert.doesNotMatch(app, /suscribirseAReservas/)
 assert.doesNotMatch(app, /cargarReservas\(\)/)
@@ -159,6 +167,10 @@ assert.match(admin, /Cerrar sesión/)
 assert.match(admin, /No tienes autorización/)
 assert.match(admin, /Revisa las reservas hechas desde este navegador/)
 assert.match(admin, /Próximas reservas/)
+assert.match(admin, /<span>Estado<\/span>/)
+assert.match(admin, /En curso/)
+assert.match(admin, /Finalizadas/)
+assert.match(admin, /Canceladas/)
 assert.match(admin, /Todas las fechas/)
 assert.match(admin, /<span>Campo<\/span>/)
 assert.match(admin, /Todos los campos/)
@@ -175,6 +187,13 @@ assert.match(admin, /Cancelando…/)
 assert.doesNotMatch(admin, /Iniciar turno/)
 assert.match(admin, /Finalizar reserva/)
 assert.match(admin, /onStatus/)
+assert.match(admin, /Bloqueados y confiables/)
+assert.match(admin, /Números bloqueados/)
+assert.match(admin, /Clientes confiables/)
+assert.match(admin, /Marcar no asistió/)
+assert.match(admin, /Finalizar y confirmar pago/)
+assert.ok(adminApp.indexOf('<AdminMetricas resumen') < adminApp.indexOf('<section className="admin-listado">'))
+assert.ok(adminApp.indexOf('<section className="admin-listado">') < adminApp.indexOf('<AdminBalanceMensual reservas'))
 assert.match(admin, /clase: 'iniciado'/)
 assert.match(admin, /clase: 'finalizado'/)
 assert.match(admin, /Balance mensual/)
@@ -305,9 +324,14 @@ for (const imagen of imagenesCampos) {
   assert.ok(imagen.size > 10000)
 }
 assert.match(campos, /"id": 4/)
+assert.match(campos, /"nombre": "Campo de vóley"/)
 assert.match(campos, /"deporte": "Vóley"/)
 assert.match(campos, /"imagen": "\/campos\/campo-4-voley\.webp"/)
 assert.match(campos, /"oferta": "Alquila este campo y recibe 1 agua de 625 ml"/)
+assert.match(campos, /"id": 1[^\n]*"precioHora": 55/)
+assert.match(campos, /"id": 2[^\n]*"precioHora": 50/)
+assert.match(campos, /"id": 3[^\n]*"precioHora": 60/)
+assert.match(campos, /"id": 4[^\n]*"precioHora": 30/)
 assert.match(tokens, /--color-gold-700:\s*#996400/)
 assert.match(tokens, /--color-ink-950:\s*#0b0b0a/)
 assert.match(tokens, /--color-brand-strong:\s*var\(--color-gold-800\)/)

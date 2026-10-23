@@ -33,10 +33,15 @@ export function nombreDia(dia: number, largo = false): string {
 }
 
 export function horaVisible(hora: number): string {
-  const horaDelDia = hora % 24
-  const hora12 = ((horaDelDia + 11) % 12) + 1
-  const periodo = horaDelDia < 12 ? 'a. m.' : 'p. m.'
-  return `${hora12} ${periodo}`
+  const horaDelDia = ((hora % 24) + 24) % 24
+  const horaEntera = Math.floor(horaDelDia)
+  const minutos = Math.round((horaDelDia - horaEntera) * 60)
+  const horaNormalizada = minutos === 60 ? (horaEntera + 1) % 24 : horaEntera
+  const minutosNormalizados = minutos === 60 ? 0 : minutos
+  const hora12 = ((horaNormalizada + 11) % 12) + 1
+  const minutoVisible = minutosNormalizados ? `:${String(minutosNormalizados).padStart(2, '0')}` : ''
+  const periodo = horaNormalizada < 12 ? 'a. m.' : 'p. m.'
+  return `${hora12}${minutoVisible} ${periodo}`
 }
 
 export function rangoVisible(inicio: number, horas: number): string {

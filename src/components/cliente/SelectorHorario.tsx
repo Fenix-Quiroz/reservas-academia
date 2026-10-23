@@ -1,5 +1,5 @@
 import type { RefObject } from 'react'
-import type { HorarioDisponible } from '../../reservas'
+import { DURACIONES_RESERVA, type HorarioDisponible } from '../../reservas'
 import type { Campo } from '../../types.js'
 import { horaVisible, nombreDia, nombreDiaCorto } from '../../utils/fechasReserva'
 
@@ -8,7 +8,7 @@ const GRUPOS = [
   // "En la mañana" y no "Mañana", para no confundir con el día de mañana
   { nombre: 'En la mañana', icono: '🌅', desde: 0, hasta: 12 },
   { nombre: 'En la tarde', icono: '☀️', desde: 12, hasta: 18 },
-  { nombre: 'En la noche', icono: '🌙', desde: 18, hasta: 24 },
+  { nombre: 'En la noche', icono: '🌙', desde: 18, hasta: 25 },
 ] as const
 
 export interface SelectorHorarioProps {
@@ -65,9 +65,9 @@ export default function SelectorHorario({
       <fieldset className="selector-grupo">
         <legend>2. ¿Cuánto tiempo quieres jugar?</legend>
         <div className="duraciones">
-          {[1, 2].map((duracion) => (
+          {DURACIONES_RESERVA.map((duracion) => (
             <button key={duracion} className="chip grande" aria-pressed={duracion === horas} onClick={() => onHorasChange(duracion)}>
-              {duracion === 1 ? '1 hora' : '2 horas'}
+              {duracion === 1 ? '1 hora' : duracion === 1.5 ? '1 hora y media' : `${duracion} horas`}
               <small>S/ {cancha.precioHora * duracion}</small>
             </button>
           ))}

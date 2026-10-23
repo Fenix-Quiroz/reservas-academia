@@ -1,6 +1,6 @@
 [
-  { "id": 1, "nombre": "Campo 1", "deporte": "Fútbol 5", "jugadores": 5, "precioHora": 60, "color": "#a97818", "imagen": "/campos/campo-1-futbol-5.webp", "oferta": "Alquila este campo y recibe 1 agua de 625 ml" },
-  { "id": 2, "nombre": "Campo 2", "deporte": "Fútbol 5", "jugadores": 5, "precioHora": 60, "color": "#c58b1d", "imagen": "/campos/campo-2-futbol-5.webp", "oferta": "Alquila este campo y recibe 1 agua de 625 ml" },
-  { "id": 3, "nombre": "Campo 3", "deporte": "Fútbol 7", "jugadores": 7, "precioHora": 90, "color": "#e0a72f", "imagen": "/campos/campo-3-futbol-7.webp", "oferta": "Alquila este campo y recibe 1 agua de 625 ml" },
-  { "id": 4, "nombre": "Campo 4", "deporte": "Vóley", "jugadores": 6, "precioHora": 50, "color": "#8f6416", "imagen": "/campos/campo-4-voley.webp", "oferta": "Alquila este campo y recibe 1 agua de 625 ml" }
+  { "id": 1, "nombre": "Campo 1", "deporte": "Fútbol 5", "jugadores": 5, "precioHora": 55, "color": "#a97818", "imagen": "/campos/campo-1-futbol-5.webp", "oferta": "Alquila este campo y recibe 1 agua de 625 ml" },
+  { "id": 2, "nombre": "Campo 2", "deporte": "Fútbol 5", "jugadores": 5, "precioHora": 50, "color": "#c58b1d", "imagen": "/campos/campo-2-futbol-5.webp", "oferta": "Alquila este campo y recibe 1 agua de 625 ml" },
+  { "id": 3, "nombre": "Campo 3", "deporte": "Fútbol 7", "jugadores": 7, "precioHora": 60, "color": "#e0a72f", "imagen": "/campos/campo-3-futbol-7.webp", "oferta": "Alquila este campo y recibe 1 agua de 625 ml" },
+  { "id": 4, "nombre": "Campo de vóley", "deporte": "Vóley", "jugadores": 6, "precioHora": 30, "color": "#8f6416", "imagen": "/campos/campo-4-voley.webp", "oferta": "Alquila este campo y recibe 1 agua de 625 ml" }
 ]

@@ -16,10 +16,12 @@
     "check:admin": "tsx src/admin.check.ts",
     "check:validacion": "tsx src/validacionCliente.check.ts",
     "check:tokens": "tsx src/tokensReserva.check.ts",
+    "check:control-clientes": "tsx src/controlClientes.check.ts",
     "check:supabase": "tsx src/supabase.check.ts",
     "check:balance": "tsx src/balanceMensual.check.ts",
     "check:estado": "tsx src/estadoReserva.check.ts",
     "check:alarm": "tsx src/utils/alarmaTurno.check.ts",
+    "check:eventos": "tsx src/eventos.check.ts",
     "check:typescript": "tsx src/typescript.check.ts"
   },
   "dependencies": {

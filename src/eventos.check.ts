@@ -1,0 +1,67 @@
+import assert from 'node:assert/strict'
+import { eventoBloquea, eventoChocaConEntrenamiento, esRangoEventoValido } from './eventos'
+import { horarios } from './reservas'
+import { crearBloqueoEventoLocal, crearReserva, limpiarDatosLocales } from './almacen'
+import type { BloqueoEvento } from './types'
+
+const evento: BloqueoEvento = {
+  id: 'evento-1',
+  canchaId: 1,
+  fecha: '2099-01-04',
+  inicio: 10,
+  fin: 15,
+  nombre: 'Torneo escolar',
+  celular: '',
+  notas: '',
+  estado: 'activo',
+}
+
+assert.equal(esRangoEventoValido(7, 12), true)
+assert.equal(esRangoEventoValido(20, 25), true)
+assert.equal(esRangoEventoValido(7, 11), false)
+assert.equal(esRangoEventoValido(23, 26), false)
+assert.equal(eventoBloquea(evento, 1, '2099-01-04', 9, 1), false)
+assert.equal(eventoBloquea(evento, 1, '2099-01-04', 9.5, 1), true)
+assert.equal(eventoBloquea({ ...evento, estado: 'cancelado' }, 1, '2099-01-04', 10, 3), false)
+assert.equal(eventoChocaConEntrenamiento({ ...evento, fecha: '2099-01-05', inicio: 16, fin: 21 }), true)
+
+const disponibles = horarios(
+  [],
+  1,
+  '2099-01-04',
+  1,
+  new Date('2090-01-01T12:00:00'),
+  [evento],
+)
+assert.equal(disponibles.find((hora) => hora.inicio === 10)?.libre, false)
+assert.equal(disponibles.find((hora) => hora.inicio === 15)?.libre, true)
+
+const datosLocales = new Map<string, string>()
+Object.defineProperty(globalThis, 'localStorage', {
+  configurable: true,
+  value: {
+    getItem: (clave: string) => datosLocales.get(clave) ?? null,
+    setItem: (clave: string, valor: string) => datosLocales.set(clave, valor),
+    removeItem: (clave: string) => datosLocales.delete(clave),
+  },
+})
+limpiarDatosLocales()
+assert.ok(!('error' in crearBloqueoEventoLocal({
+  canchaId: 1,
+  fecha: evento.fecha,
+  inicio: evento.inicio,
+  fin: evento.fin,
+  nombre: evento.nombre,
+  celular: '',
+  notas: '',
+})))
+assert.deepEqual(crearReserva({
+  canchaId: 1,
+  fecha: evento.fecha,
+  inicio: 11,
+  horas: 1,
+  alias: 'Prueba',
+  celular: '912345678',
+}), { error: 'ocupado' })
+
+console.log('✔ eventos.check.ts OK')

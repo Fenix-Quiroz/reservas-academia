@@ -1,11 +1,17 @@
-import type { Reserva } from './types.js'
+import type { BloqueoEvento, Reserva } from './types.js'
 import { puedeCambiarEstado } from './estadoReserva.js'
+import { entrenamientoBloquea } from './horariosEntrenamiento.js'
+import { eventoBloquea } from './eventos.js'
 
 // Lógica pura de reservas: no sabe de dónde vienen los datos.
 // Cuando conectemos Supabase, este archivo se queda igual.
 
-export const ABRE = 8
-export const CIERRA = 23
+export const ABRE = 7
+export const CIERRA = 25
+export const DURACIONES_RESERVA = [1, 1.5, 2, 3] as const
+
+export const esDuracionValida = (horas: number): boolean =>
+  DURACIONES_RESERVA.includes(horas as (typeof DURACIONES_RESERVA)[number])
 
 type ReservaHorario = Pick<Reserva, 'canchaId' | 'fecha' | 'inicio' | 'horas'> & Partial<Pick<Reserva, 'estado'>>
 
@@ -38,12 +44,18 @@ export function horarios(
   fecha: string,
   horas: number,
   ahora: Date = new Date(),
+  bloqueosEventos: readonly BloqueoEvento[] = [],
 ): HorarioDisponible[] {
+  if (!esDuracionValida(horas)) return []
   const esHoy = fecha === fechaISO(ahora)
+  const diaSemana = new Date(`${fecha}T12:00:00`).getDay()
   const lista: HorarioDisponible[] = []
   for (let inicio = ABRE; inicio + horas <= CIERRA; inicio++) {
-    if (esHoy && inicio <= ahora.getHours()) continue
-    const libre = !reservas.some((r) => r.estado !== 'cancelado' && chocan(r, { canchaId, fecha, inicio, horas }))
+    const horaActual = ahora.getHours() + ahora.getMinutes() / 60
+    if (esHoy && inicio <= horaActual) continue
+    const libre = !entrenamientoBloquea(canchaId, diaSemana, inicio, horas)
+      && !bloqueosEventos.some((evento) => eventoBloquea(evento, canchaId, fecha, inicio, horas))
+      && !reservas.some((r) => r.estado !== 'cancelado' && chocan(r, { canchaId, fecha, inicio, horas }))
     lista.push({ inicio, libre })
   }
   return lista
@@ -88,8 +100,9 @@ export function masCercana(lista: HorarioDisponible[], inicio: number): HorarioD
 export const activa = (r: ReservaHorario, ahora: Date = new Date()): boolean =>
   r.estado !== 'cancelado' &&
   r.estado !== 'finalizado' &&
+  r.estado !== 'no_asistio' &&
   (r.fecha > fechaISO(ahora) ||
-    (r.fecha === fechaISO(ahora) && r.inicio + r.horas > ahora.getHours()))
+    (r.fecha === fechaISO(ahora) && r.inicio + r.horas > ahora.getHours() + ahora.getMinutes() / 60))
 
 export const MAX_ACTIVAS = 2
 
@@ -107,12 +120,20 @@ export const deCliente = (
 export const sePuedeCancelar = (r?: Reserva, _ahora: Date = new Date()): boolean =>
   Boolean(r && puedeCambiarEstado(r.estado, 'cancelado'))
 
-// 8 → "8", 13 → "1", 24 → "12"
-const hora12 = (h: number): number => ((h + 11) % 12) + 1
+// 8 → "8", 13 → "1", 24.5 → "12:30"
+const hora12 = (h: number): string => {
+  const horaDelDia = ((h % 24) + 24) % 24
+  const horaEntera = Math.floor(horaDelDia)
+  const minutos = Math.round((horaDelDia - horaEntera) * 60)
+  const horaNormalizada = minutos === 60 ? (horaEntera + 1) % 24 : horaEntera
+  const minutosNormalizados = minutos === 60 ? 0 : minutos
+  const minutoVisible = minutosNormalizados ? `:${String(minutosNormalizados).padStart(2, '0')}` : ''
+  return `${((horaNormalizada + 11) % 12) + 1}${minutoVisible}`
+}
 
 export function momento(h: number): string {
   if (h < 12) return 'de la mañana'
-  if (h === 12) return 'del mediodía'
+  if (h < 13) return 'del mediodía'
   if (h < 19) return 'de la tarde'
   return 'de la noche'
 }

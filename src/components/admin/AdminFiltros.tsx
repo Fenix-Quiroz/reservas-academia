@@ -13,9 +13,14 @@ export default function AdminFiltros({ filtros, onChange, canchas }: AdminFiltro
   return (
     <div className="admin-filtros">
       <label>
-        <span>Ver</span>
+        <span>Estado</span>
         <select value={filtros.vista} onChange={(e) => onChange({ vista: e.target.value as FiltrosAdmin['vista'] })}>
           <option value="proximas">Próximas</option>
+          <option value="en-curso">En curso</option>
+          <option value="por-revisar">Por revisar</option>
+          <option value="finalizadas">Finalizadas</option>
+          <option value="no-asistieron">No asistieron</option>
+          <option value="canceladas">Canceladas</option>
           <option value="todas">Todas</option>
         </select>
       </label>

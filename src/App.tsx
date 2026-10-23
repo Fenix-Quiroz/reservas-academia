@@ -8,12 +8,12 @@ import type { HorarioDisponible } from './reservas'
 import {
   leerReservas, crearReserva, cancelarReserva, registrarCliente, actualizarCliente, buscarPorCelular,
   leerTokensReservas, guardarTokenReserva,
-  leerYo, guardarYo, olvidarYo,
+  leerYo, guardarYo, olvidarYo, leerBloqueosEventos,
 } from './almacen'
 import { supabaseFaltaEnProduccion, supabaseConfigurado } from './supabase'
 import { leerHorariosRemotos, leerMisReservasRemotas } from './supabaseData'
 import type { ErrorReserva, ResultadoCancelacion, ResultadoCliente } from './supabaseData'
-import type { Campo, Cliente, Reserva } from './types.js'
+import type { BloqueoEvento, Campo, Cliente, Reserva } from './types.js'
 import CabeceraCliente from './components/cliente/CabeceraCliente'
 import ProgresoReserva from './components/cliente/ProgresoReserva'
 import SelectorCampos from './components/cliente/SelectorCampos'
@@ -36,19 +36,20 @@ export default function App() {
   const [horas, setHoras] = useState(1)
   const [inicio, setInicio] = useState<number | null>(null)
   const [reservas, setReservas] = useState<Reserva[]>(leerReservas)
+  const [bloqueosEventos, setBloqueosEventos] = useState<BloqueoEvento[]>(leerBloqueosEventos)
   const [yo, setYo] = useState<Cliente | null>(leerYo)
   const [hecha, setHecha] = useState<Reserva | null>(null)
   const [errorConexion, setErrorConexion] = useState('')
   const [horariosDisponibles, setHorariosDisponibles] = useState<HorarioDisponible[]>([])
   const [cargandoHorarios, setCargandoHorarios] = useState(false)
-  const [tokens, setTokens] = useState<string[]>(leerTokensReservas)
+  const [tokens, setTokens] = useState<string[]>(() => leerTokensReservas(leerYo()?.celular))
   const [cargandoMias, setCargandoMias] = useState(false)
   const [intentoCarga, setIntentoCarga] = useState(0)
   // "Mis reservas" se abre encima del paso actual, así al volver no se pierde lo elegido
   const [verMias, setVerMias] = useState(false)
   const tituloRef = useRef<HTMLHeadingElement>(null)
   const mias = supabaseConfigurado
-    ? reservas.filter((r) => activa(r))
+    ? yo ? reservas.filter((r) => r.celular === yo.celular && activa(r)) : []
     : yo ? deCliente(reservas, yo.celular) : []
   const clienteMias = yo ?? (mias[0] ? { alias: mias[0].alias, celular: mias[0].celular } : null)
   const fecha = fechaISO(sumarDias(dia))
@@ -58,6 +59,7 @@ export default function App() {
   useEffect(() => {
     const alCambiar = () => {
       if (!supabaseConfigurado) setReservas(leerReservas())
+      if (!supabaseConfigurado) setBloqueosEventos(leerBloqueosEventos())
       setYo(leerYo())
     }
     if (!supabaseConfigurado) setReservas(leerReservas())
@@ -90,6 +92,10 @@ export default function App() {
   }, [verMias, tokens, intentoCarga])
 
   useEffect(() => {
+    setTokens(leerTokensReservas(yo?.celular))
+  }, [yo?.celular])
+
+  useEffect(() => {
     if (paso !== 2 || !cancha) {
       setHorariosDisponibles([])
       setCargandoHorarios(false)
@@ -102,7 +108,7 @@ export default function App() {
       try {
         const actuales = supabaseConfigurado
           ? await leerHorariosRemotos(cancha.id, fecha, horas)
-          : horarios(reservas, cancha.id, fecha, horas)
+          : horarios(reservas, cancha.id, fecha, horas, new Date(), bloqueosEventos)
         if (!montado) return
         setHorariosDisponibles(actuales)
         setErrorConexion('')
@@ -116,7 +122,7 @@ export default function App() {
     return () => {
       montado = false
     }
-  }, [paso, cancha, fecha, horas, reservas, intentoCarga])
+  }, [paso, cancha, fecha, horas, reservas, bloqueosEventos, intentoCarga])
 
   useEffect(() => {
     const frame = window.requestAnimationFrame(() => tituloRef.current?.focus())
@@ -135,11 +141,13 @@ export default function App() {
   function recordarCliente(cliente: Cliente): void {
     guardarYo(cliente)
     setYo(cliente)
+    setTokens(leerTokensReservas(cliente.celular))
   }
 
   function olvidarCliente(): void {
     olvidarYo()
     setYo(null)
+    setTokens([])
   }
 
   async function crearCliente(alias: string, celular: string): Promise<ResultadoCliente> {
@@ -166,8 +174,8 @@ export default function App() {
         ...cliente,
       }))
       if ('token' in r && r.token) {
-        guardarTokenReserva(r.reserva.id, r.token)
-        setTokens(leerTokensReservas())
+        guardarTokenReserva(r.reserva.id, r.token, cliente.celular)
+        setTokens(leerTokensReservas(cliente.celular))
       }
       if (!supabaseConfigurado) setReservas(leerReservas())
       if ('error' in r && r.error === 'ocupado') {
@@ -192,12 +200,12 @@ export default function App() {
   }
 
   async function cancelarCliente(id: string): Promise<ResultadoCancelacion> {
-    return Promise.resolve(cancelarReserva(id)).then(async (r) => {
+    return Promise.resolve(cancelarReserva(id, yo?.celular)).then(async (r) => {
       if (!r.error) {
         if (!supabaseConfigurado) setReservas(leerReservas())
         else {
           try {
-            setReservas(await leerMisReservasRemotas(leerTokensReservas()))
+            setReservas(await leerMisReservasRemotas(leerTokensReservas(yo?.celular)))
           } catch {
             return { error: 'conexion' as const }
           }
@@ -286,7 +294,7 @@ export default function App() {
                 const primerLibre = supabaseConfigurado
                   ? 0
                   : Array.from({ length: DIAS }, (_, d) => d).find((d) =>
-                    horarios(reservas, c.id, fechaISO(sumarDias(d)), horas).some((h) => h.libre),
+                    horarios(reservas, c.id, fechaISO(sumarDias(d)), horas, new Date(), bloqueosEventos).some((h) => h.libre),
                   )
                 setDia(primerLibre ?? 0)
                 setCancha(c)

@@ -14,7 +14,9 @@ export interface Cliente {
   celular: string
 }
 
-export type EstadoReserva = 'activo' | 'iniciado' | 'finalizado' | 'cancelado'
+export type EstadoReserva = 'activo' | 'iniciado' | 'finalizado' | 'cancelado' | 'no_asistio'
+
+export type EstadoBloqueoEvento = 'activo' | 'cancelado'
 
 export interface Reserva {
   id: string
@@ -29,9 +31,22 @@ export interface Reserva {
   nombre?: string
 }
 
+export interface BloqueoEvento {
+  id: string
+  canchaId: number
+  fecha: string
+  inicio: number
+  fin: number
+  nombre: string
+  celular: string
+  notas: string
+  estado: EstadoBloqueoEvento
+  createdAt?: string
+}
+
 export type ReservaNueva = Omit<Reserva, 'id' | 'estado'>
 
-export type VistaAdmin = 'proximas' | 'todas'
+export type VistaAdmin = 'proximas' | 'en-curso' | 'por-revisar' | 'finalizadas' | 'no-asistieron' | 'canceladas' | 'todas'
 export type FiltroFecha = 'todas' | string
 export type FiltroCancha = 'todas' | number | string
 

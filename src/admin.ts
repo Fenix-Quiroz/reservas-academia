@@ -19,6 +19,23 @@ export const precioDeReserva = (reserva: Reserva, canchas: CanchaAdmin[]): numbe
 export const ordenarReservas = (a: Reserva, b: Reserva): number =>
   a.fecha.localeCompare(b.fecha) || a.inicio - b.inicio || a.canchaId - b.canchaId
 
+const enCursoPorHora = (reserva: Reserva, ahora: Date): boolean =>
+  reserva.fecha === fechaISO(ahora)
+  && reserva.inicio <= ahora.getHours() + ahora.getMinutes() / 60
+  && reserva.inicio + reserva.horas > ahora.getHours() + ahora.getMinutes() / 60
+
+const esEnCurso = (reserva: Reserva, ahora: Date): boolean =>
+  reserva.estado === 'iniciado' || (reserva.estado === 'activo' && enCursoPorHora(reserva, ahora))
+
+const esFinalizada = (reserva: Reserva, ahora: Date): boolean =>
+  reserva.estado === 'finalizado'
+
+const esPorRevisar = (reserva: Reserva, ahora: Date): boolean =>
+  reserva.estado === 'activo' && !activa(reserva, ahora)
+
+const esProxima = (reserva: Reserva, ahora: Date): boolean =>
+  reserva.estado === 'activo' && activa(reserva, ahora) && !esEnCurso(reserva, ahora)
+
 export function filtrarReservas(
   reservas: Reserva[],
   filtros: Partial<FiltrosAdmin> = {},
@@ -29,7 +46,15 @@ export function filtrarReservas(
   const termino = texto(buscar)
 
   return reservas
-    .filter((r) => vista !== 'proximas' || activa(r, ahora))
+    .filter((r) => {
+      if (vista === 'todas') return true
+      if (vista === 'proximas') return esProxima(r, ahora)
+      if (vista === 'en-curso') return esEnCurso(r, ahora)
+      if (vista === 'por-revisar') return esPorRevisar(r, ahora)
+      if (vista === 'finalizadas') return esFinalizada(r, ahora)
+      if (vista === 'no-asistieron') return r.estado === 'no_asistio'
+      return r.estado === 'cancelado'
+    })
     .filter((r) => fecha === 'todas' || r.fecha === fecha)
     .filter((r) => canchaId === 'todas' || String(r.canchaId) === String(canchaId))
     .filter((r) => {
@@ -41,7 +66,7 @@ export function filtrarReservas(
 }
 
 export function resumenAdmin(reservas: Reserva[], ahora: Date = new Date()): ResumenAdmin {
-  const proximas = reservas.filter((r) => activa(r, ahora))
+  const proximas = reservas.filter((r) => esProxima(r, ahora))
   const hoy = fechaISO(ahora)
 
   return {

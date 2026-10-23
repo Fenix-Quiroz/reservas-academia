@@ -8,10 +8,12 @@ import { ALIAS_MAXIMO } from '../../validacionCliente'
 type ErrorAccion =
   | 'ocupado'
   | 'limite'
+  | 'celular-bloqueado'
   | 'celular'
   | 'conexion'
   | 'no-existe'
   | 'tarde'
+  | 'duracion-invalida'
   | 'alias-invalido'
   | 'celular-invalido'
 type ResultadoDatos = { cliente: Cliente } | { error: ErrorAccion }

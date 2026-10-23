@@ -7,10 +7,10 @@ alter table public.reservas
 
 update public.reservas
 set monto_total = case cancha_id
-  when 1 then 60 * horas
-  when 2 then 60 * horas
-  when 3 then 90 * horas
-  when 4 then 50 * horas
+  when 1 then 55 * horas
+  when 2 then 50 * horas
+  when 3 then 60 * horas
+  when 4 then 30 * horas
   else null
 end
 where monto_total is null or monto_total = 0;
@@ -18,12 +18,15 @@ where monto_total is null or monto_total = 0;
 drop function if exists public.crear_reserva_publica(
   integer, date, smallint, smallint, text, text
 );
+drop function if exists public.crear_reserva_publica(
+  integer, date, smallint, numeric, text, text
+);
 
 create function public.crear_reserva_publica(
   p_cancha_id integer,
   p_fecha date,
   p_inicio smallint,
-  p_horas smallint,
+  p_horas numeric(2,1),
   p_alias text,
   p_celular text
 )
@@ -32,7 +35,7 @@ returns table (
   cancha_id integer,
   fecha date,
   inicio smallint,
-  horas smallint,
+  horas numeric(2,1),
   alias text,
   celular text,
   estado text,
@@ -54,10 +57,10 @@ declare
   v_reserva public.reservas%rowtype;
 begin
   v_precio_hora := case p_cancha_id
-    when 1 then 60
-    when 2 then 60
-    when 3 then 90
-    when 4 then 50
+    when 1 then 55
+    when 2 then 50
+    when 3 then 60
+    when 4 then 30
     else null
   end;
 
@@ -69,7 +72,7 @@ begin
     raise exception using errcode = '22023', message = 'fecha_invalida';
   end if;
 
-  if p_inicio not between 8 and 22 or p_horas not in (1, 2) or p_inicio + p_horas > 23 then
+  if p_inicio not between 7 and 24 or p_horas not in (1, 1.5, 2, 3) or p_inicio + p_horas > 25 then
     raise exception using errcode = '22023', message = 'horario_invalido';
   end if;
 
@@ -145,9 +148,9 @@ end;
 $function$;
 
 revoke all on function public.crear_reserva_publica(
-  integer, date, smallint, smallint, text, text
+  integer, date, smallint, numeric, text, text
 ) from public, anon, authenticated;
 
 grant execute on function public.crear_reserva_publica(
-  integer, date, smallint, smallint, text, text
+  integer, date, smallint, numeric, text, text
 ) to anon;

@@ -1,6 +1,13 @@
 import { useEffect, useRef, useState } from 'react'
 import type { Campo, Reserva } from '../../types.js'
-import { finDeReserva, ordenarPorFin, patronAlarma, reservasDePrueba } from '../../utils/alarmaTurno'
+import {
+  filtrarAlertasCanceladas,
+  finDeReserva,
+  ordenarPorFin,
+  patronAlarma,
+  reservasDePrueba,
+  reservasTerminadasParaAlerta,
+} from '../../utils/alarmaTurno'
 
 export interface AdminAlarmaTurnoProps {
   reservas: readonly Reserva[]
@@ -41,16 +48,18 @@ export default function AdminAlarmaTurno({ reservas, canchas }: AdminAlarmaTurno
   useEffect(() => {
     const ahora = Date.now()
 
+    setAlertas((actuales) => filtrarAlertasCanceladas(actuales, reservas))
+
     // Las reservas que ya terminaron antes de abrir el panel no generan una alarma atrasada.
     for (const reserva of reservas) {
-      if (finDeReserva(reserva).getTime() <= ahora) emitidas.current.add(reserva.id)
+      if (reserva.estado !== 'cancelado' && finDeReserva(reserva).getTime() <= ahora) {
+        emitidas.current.add(reserva.id)
+      }
     }
 
     const revisarTurnos = () => {
       const instante = Date.now()
-      const terminadas = reservas.filter((reserva) => (
-        !emitidas.current.has(reserva.id) && finDeReserva(reserva).getTime() <= instante
-      ))
+      const terminadas = reservasTerminadasParaAlerta(reservas, emitidas.current, instante)
 
       if (terminadas.length === 0) return
 

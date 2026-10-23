@@ -1,5 +1,11 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
-import type { Cliente, EstadoReserva, Reserva, ReservaNueva } from './types.js'
+import type { BloqueoEvento, Cliente, EstadoReserva, Reserva, ReservaNueva } from './types.js'
+import { validarBloqueoEvento, type BloqueoEventoNuevo, type ErrorEvento, type ResultadoCancelacionEvento, type ResultadoEvento } from './eventos.js'
+import type {
+  NumeroBloqueado,
+  NumeroConfiable,
+  ResultadoControlCliente,
+} from './controlClientes.js'
 import { normalizarReserva, puedeCambiarEstado } from './estadoReserva.js'
 import { ocultarHorariosPasados, sePuedeCancelar, type HorarioDisponible } from './reservas.js'
 import { supabase, supabasePublic } from './supabase.js'
@@ -8,10 +14,12 @@ import { normalizarAlias, normalizarCelular, validarAlias, validarCelular } from
 export type ErrorReserva =
   | 'ocupado'
   | 'limite'
+  | 'celular-bloqueado'
   | 'celular'
   | 'conexion'
   | 'no-existe'
   | 'tarde'
+  | 'duracion-invalida'
   | 'alias-invalido'
   | 'celular-invalido'
 
@@ -39,6 +47,19 @@ interface FilaReserva {
 interface FilaHorarioPublico {
   inicio: number | string
   libre: boolean
+}
+
+interface FilaBloqueoEvento {
+  id: string
+  cancha_id: number | string
+  fecha: string
+  inicio: number | string
+  fin: number | string
+  nombre: string
+  celular?: string | null
+  notas?: string | null
+  estado: 'activo' | 'cancelado'
+  created_at?: string
 }
 
 interface ErrorSupabase {
@@ -89,13 +110,35 @@ export function errorDeSupabase(error?: ErrorSupabase): ErrorReserva {
   if (error?.code === '23P01') return 'ocupado'
   if (error?.code === '23505' && String(error.message).includes('celular')) return 'celular'
   if (error?.message?.includes('limite_reservas')) return 'limite'
+  if (error?.message?.includes('celular_bloqueado')) return 'celular-bloqueado'
   if (error?.message?.includes('alias_invalido')) return 'alias-invalido'
   if (error?.message?.includes('celular_invalido')) return 'celular-invalido'
   if (error?.message?.includes('hora_pasada')) return 'tarde'
   if (error?.message?.includes('fecha_invalida')) return 'tarde'
   if (error?.message?.includes('horario_invalido')) return 'tarde'
+  if (error?.message?.includes('duracion_invalida')) return 'duracion-invalida'
   return 'conexion'
 }
+
+export function errorDeSupabaseEvento(error?: ErrorSupabase): ErrorEvento {
+  if (error?.code === '23P01' || error?.message?.includes('evento_ocupado')) return 'ocupado'
+  if (error?.code === '22023' && error?.message?.includes('evento_invalido')) return 'datos-invalidos'
+  if (error?.message?.includes('no_existe')) return 'no-existe'
+  return 'conexion'
+}
+
+export const deBloqueoEvento = (fila: FilaBloqueoEvento): BloqueoEvento => ({
+  id: fila.id,
+  canchaId: Number(fila.cancha_id),
+  fecha: fila.fecha,
+  inicio: Number(fila.inicio),
+  fin: Number(fila.fin),
+  nombre: fila.nombre,
+  celular: fila.celular?.trim() ?? '',
+  notas: fila.notas?.trim() ?? '',
+  estado: fila.estado,
+  ...(fila.created_at ? { createdAt: fila.created_at } : {}),
+})
 
 function clienteSupabase(): SupabaseClient {
   if (!supabase) throw new Error('supabase-no-configurado')
@@ -219,6 +262,34 @@ export async function cancelarReservaAdminRemota(id: string): Promise<ResultadoC
   return actualizada ? {} : { error: 'conexion' }
 }
 
+export async function leerBloqueosEventosRemotos(): Promise<BloqueoEvento[]> {
+  const { data, error } = await clienteSupabase().rpc('obtener_bloqueos_eventos_admin')
+  if (error) throw error
+  return (data as FilaBloqueoEvento[] | null ?? []).map(deBloqueoEvento)
+}
+
+export async function crearBloqueoEventoRemoto(nuevo: BloqueoEventoNuevo): Promise<ResultadoEvento> {
+  if (!validarBloqueoEvento(nuevo)) return { error: 'datos-invalidos' }
+  const { data, error } = await clienteSupabase().rpc('crear_bloqueo_evento_admin', {
+    p_cancha_id: nuevo.canchaId,
+    p_fecha: nuevo.fecha,
+    p_inicio: nuevo.inicio,
+    p_fin: nuevo.fin,
+    p_nombre: nuevo.nombre,
+    p_celular: nuevo.celular,
+    p_notas: nuevo.notas,
+  })
+  if (error) return { error: errorDeSupabaseEvento(error) }
+  const fila = (Array.isArray(data) ? data[0] : data) as FilaBloqueoEvento | null | undefined
+  return fila ? { evento: deBloqueoEvento(fila) } : { error: 'conexion' }
+}
+
+export async function cancelarBloqueoEventoRemoto(id: string): Promise<ResultadoCancelacionEvento> {
+  const { data, error } = await clienteSupabase().rpc('cancelar_bloqueo_evento_admin', { p_id: id })
+  if (error) return { error: errorDeSupabaseEvento(error) }
+  return data === true ? {} : { error: 'no-existe' }
+}
+
 export async function actualizarEstadoReservaRemota(id: string, estado: EstadoReserva): Promise<ResultadoEstado> {
   const cliente = clienteSupabase()
   const { data, error: lecturaError } = await cliente
@@ -258,4 +329,106 @@ export function suscribirseAReservas(alCambiar: () => void): () => void {
   return () => {
     void canal.unsubscribe()
   }
+}
+
+interface FilaNumeroBloqueado {
+  celular: string
+  motivo: string
+  inasistencias: number
+  activo: boolean
+  created_at?: string
+}
+
+interface FilaNumeroConfiable {
+  celular: string
+  alias: string
+  activo: boolean
+  created_at?: string
+}
+
+const deNumeroBloqueado = (fila: FilaNumeroBloqueado): NumeroBloqueado => ({
+  celular: fila.celular,
+  motivo: fila.motivo,
+  inasistencias: Number(fila.inasistencias) || 0,
+  activo: fila.activo,
+  ...(fila.created_at ? { createdAt: fila.created_at } : {}),
+})
+
+const deNumeroConfiable = (fila: FilaNumeroConfiable): NumeroConfiable => ({
+  celular: fila.celular,
+  alias: fila.alias,
+  activo: fila.activo,
+  ...(fila.created_at ? { createdAt: fila.created_at } : {}),
+})
+
+export async function leerNumerosBloqueadosRemotos(): Promise<NumeroBloqueado[]> {
+  const { data, error } = await clienteSupabase()
+    .from('numeros_bloqueados')
+    .select('celular, motivo, inasistencias, activo, created_at')
+    .order('activo', { ascending: false })
+    .order('created_at', { ascending: false })
+
+  if (error) throw error
+  return (data as FilaNumeroBloqueado[] | null ?? []).map(deNumeroBloqueado)
+}
+
+export async function bloquearNumeroRemoto(
+  celular: string,
+  motivo: string,
+  inasistencias = 2,
+): Promise<ResultadoControlCliente> {
+  const nuevoCelular = normalizarCelular(celular)
+  if (validarCelular(nuevoCelular)) return { error: 'celular-invalido' }
+  const { error } = await clienteSupabase()
+    .from('numeros_bloqueados')
+    .upsert({
+      celular: nuevoCelular,
+      motivo: motivo.trim() || 'Bloqueado por administración',
+      inasistencias: Math.max(0, inasistencias),
+      activo: true,
+    }, { onConflict: 'celular' })
+  return error ? { error: 'conexion' } : {}
+}
+
+export async function desbloquearNumeroRemoto(celular: string): Promise<ResultadoControlCliente> {
+  const nuevoCelular = normalizarCelular(celular)
+  const { error } = await clienteSupabase()
+    .from('numeros_bloqueados')
+    .update({ activo: false })
+    .eq('celular', nuevoCelular)
+  return error ? { error: 'conexion' } : {}
+}
+
+export async function leerNumerosConfiablesRemotos(): Promise<NumeroConfiable[]> {
+  const { data, error } = await clienteSupabase()
+    .from('numeros_confiables')
+    .select('celular, alias, activo, created_at')
+    .order('activo', { ascending: false })
+    .order('created_at', { ascending: false })
+
+  if (error) throw error
+  return (data as FilaNumeroConfiable[] | null ?? []).map(deNumeroConfiable)
+}
+
+export async function agregarNumeroConfiableRemoto(
+  celular: string,
+  alias: string,
+): Promise<ResultadoControlCliente> {
+  const nuevoCelular = normalizarCelular(celular)
+  const nuevoAlias = normalizarAlias(alias) || 'Cliente confiable'
+  if (validarCelular(nuevoCelular)) return { error: 'celular-invalido' }
+  if (validarAlias(nuevoAlias)) return { error: 'alias-invalido' }
+  const { error } = await clienteSupabase()
+    .from('numeros_confiables')
+    .upsert({ celular: nuevoCelular, alias: nuevoAlias, activo: true }, { onConflict: 'celular' })
+  return error ? { error: 'conexion' } : {}
+}
+
+export async function quitarNumeroConfiableRemoto(celular: string): Promise<ResultadoControlCliente> {
+  const nuevoCelular = normalizarCelular(celular)
+  const { error } = await clienteSupabase()
+    .from('numeros_confiables')
+    .update({ activo: false })
+    .eq('celular', nuevoCelular)
+  return error ? { error: 'conexion' } : {}
 }

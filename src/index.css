@@ -1908,6 +1908,16 @@ button:disabled {
   color: #fecaca;
 }
 
+.estado-pendiente {
+  background: var(--color-gold-950);
+  color: var(--color-gold-200);
+}
+
+.estado-no-asistio {
+  background: #431d1b;
+  color: #fecaca;
+}
+
 .admin-reserva-acciones {
   display: grid;
   justify-items: end;
@@ -1926,6 +1936,20 @@ button:disabled {
 
 .admin-estado-accion:hover:not(:disabled) {
   background: var(--color-gold-800);
+}
+
+.admin-no-asistio {
+  min-height: 38px;
+  padding: 0 10px;
+  border: 1px solid #9f2d24;
+  border-radius: 9px;
+  background: transparent;
+  color: #fecaca;
+  font-weight: 700;
+}
+
+.admin-no-asistio:hover:not(:disabled) {
+  background: #431d1b;
 }
 
 .admin-cancelar {
@@ -1981,6 +2005,266 @@ button:disabled {
   border-radius: 12px;
   color: var(--color-ink-300);
   font-weight: 700;
+}
+
+.admin-control-clientes {
+  display: grid;
+  gap: 16px;
+  margin-bottom: 20px;
+  padding: 20px;
+  border: 1px solid var(--color-ink-700);
+  border-radius: var(--radio);
+  background: var(--color-ink-900);
+}
+
+.admin-control-cabecera h2 {
+  margin: 4px 0 0;
+}
+
+.admin-control-ayuda,
+.admin-control-card p {
+  margin: 6px 0 0;
+  color: var(--color-ink-300);
+}
+
+.admin-control-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.admin-control-card {
+  display: grid;
+  align-content: start;
+  gap: 14px;
+  min-width: 0;
+  padding: 16px;
+  border: 1px solid var(--color-ink-700);
+  border-radius: 12px;
+  background: var(--color-ink-800);
+}
+
+.admin-control-card h3 {
+  margin: 0;
+  color: var(--color-ink-100);
+}
+
+.admin-control-form {
+  display: grid;
+  grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.2fr) auto;
+  align-items: end;
+  gap: 10px;
+}
+
+.admin-control-form label {
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+  color: var(--color-ink-200);
+  font-size: 0.85rem;
+  font-weight: 700;
+}
+
+.admin-control-form input {
+  width: 100%;
+  min-width: 0;
+  min-height: 44px;
+  padding: 0 10px;
+  border: 1px solid var(--color-ink-600);
+  border-radius: 10px;
+  background: var(--color-ink-950);
+  color: var(--color-ink-50);
+  font: inherit;
+}
+
+.admin-control-form input:focus-visible {
+  border-color: var(--color-gold-500);
+}
+
+.admin-control-primario,
+.admin-control-secundario {
+  min-height: 44px;
+  white-space: normal;
+}
+
+.admin-control-primario {
+  background: var(--color-gold-500);
+  color: var(--color-ink-950);
+}
+
+.admin-control-primario:hover:not(:disabled) {
+  background: var(--color-gold-400);
+}
+
+.admin-control-secundario {
+  border-color: var(--color-gold-700);
+  background: transparent;
+  color: var(--color-gold-200);
+}
+
+.admin-control-secundario:hover:not(:disabled) {
+  background: var(--color-gold-950);
+}
+
+.admin-control-lista {
+  display: grid;
+  gap: 8px;
+}
+
+.admin-control-lista > p {
+  margin: 0;
+}
+
+.admin-control-fila {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px;
+  border: 1px solid var(--color-ink-700);
+  border-radius: 10px;
+  background: var(--color-ink-900);
+}
+
+.admin-control-fila > div {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.admin-control-fila strong,
+.admin-control-fila span {
+  overflow-wrap: anywhere;
+}
+
+.admin-control-fila strong {
+  color: var(--color-ink-100);
+}
+
+.admin-control-fila span {
+  color: var(--color-ink-300);
+  font-size: 0.85rem;
+}
+
+.admin-eventos {
+  display: grid;
+  gap: 16px;
+  margin-bottom: 20px;
+  padding: 20px;
+  border: 1px solid var(--color-ink-700);
+  border-radius: var(--radio);
+  background: var(--color-ink-900);
+}
+
+.admin-eventos-cabecera h2 {
+  margin: 4px 0 0;
+}
+
+.admin-eventos-ayuda {
+  margin: 6px 0 0;
+  color: var(--color-ink-300);
+}
+
+.admin-eventos-form {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+  padding: 16px;
+  border: 1px solid var(--color-ink-700);
+  border-radius: 12px;
+  background: var(--color-ink-800);
+}
+
+.admin-eventos-form label {
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+  color: var(--color-ink-200);
+  font-size: 0.85rem;
+  font-weight: 700;
+}
+
+.admin-eventos-form input,
+.admin-eventos-form select,
+.admin-eventos-form textarea {
+  width: 100%;
+  min-width: 0;
+  min-height: 44px;
+  padding: 9px 10px;
+  border: 1px solid var(--color-ink-600);
+  border-radius: 10px;
+  background: var(--color-ink-950);
+  color: var(--color-ink-50);
+  font: inherit;
+}
+
+.admin-eventos-form textarea {
+  resize: vertical;
+}
+
+.admin-eventos-form input:focus-visible,
+.admin-eventos-form select:focus-visible,
+.admin-eventos-form textarea:focus-visible {
+  border-color: var(--color-gold-500);
+  outline: 2px solid var(--color-gold-500);
+  outline-offset: 1px;
+}
+
+.admin-eventos-notas {
+  grid-column: span 2;
+}
+
+.admin-eventos-guardar {
+  align-self: end;
+  min-height: 48px;
+  grid-column: span 2;
+}
+
+.admin-eventos-lista {
+  display: grid;
+  gap: 8px;
+}
+
+.admin-eventos-lista h3 {
+  margin: 0;
+  color: var(--color-ink-100);
+  font-size: 1rem;
+}
+
+.admin-eventos-lista > p {
+  margin: 0;
+  color: var(--color-ink-300);
+}
+
+.admin-evento-fila {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px;
+  border: 1px solid var(--color-ink-700);
+  border-radius: 10px;
+  background: var(--color-ink-800);
+}
+
+.admin-evento-fila > div {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.admin-evento-fila strong,
+.admin-evento-fila span {
+  overflow-wrap: anywhere;
+}
+
+.admin-evento-fila strong {
+  color: var(--color-ink-100);
+}
+
+.admin-evento-fila span {
+  color: var(--color-ink-300);
+  font-size: 0.85rem;
 }
 
 @media (max-width: 760px) {
@@ -2040,6 +2324,42 @@ button:disabled {
     width: 100%;
   }
 
+  .admin-control-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .admin-eventos-form {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .admin-eventos-notas,
+  .admin-eventos-guardar {
+    grid-column: 1 / -1;
+  }
+
+  .admin-control-form {
+    grid-template-columns: 1fr;
+  }
+
+  .admin-control-form .admin-boton,
+  .admin-control-fila .admin-boton {
+    width: 100%;
+  }
+
+  .admin-control-fila {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .admin-evento-fila {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .admin-evento-fila .admin-boton {
+    width: 100%;
+  }
+
   .admin-acciones,
   .admin-filtros {
     justify-content: stretch;
@@ -2082,8 +2402,19 @@ button:disabled {
     grid-column: 1 / -1;
     display: flex;
     align-items: center;
+    flex-wrap: wrap;
     justify-content: space-between;
     text-align: left;
+  }
+
+  .admin-reserva-acciones {
+    flex: 1 1 100%;
+    width: 100%;
+    justify-items: stretch;
+  }
+
+  .admin-reserva-acciones button {
+    width: 100%;
   }
 }
 
@@ -2116,6 +2447,15 @@ button:disabled {
 
   .admin-listado {
     padding: 14px;
+  }
+
+  .admin-eventos-form {
+    grid-template-columns: 1fr;
+  }
+
+  .admin-eventos-notas,
+  .admin-eventos-guardar {
+    grid-column: auto;
   }
 }
 

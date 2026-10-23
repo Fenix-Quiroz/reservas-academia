@@ -1,0 +1,23 @@
+[
+  { "canchaId": 1, "diaSemana": 1, "inicioMinuto": 960, "finMinuto": 1225 },
+  { "canchaId": 2, "diaSemana": 1, "inicioMinuto": 960, "finMinuto": 1225 },
+  { "canchaId": 3, "diaSemana": 1, "inicioMinuto": 1050, "finMinuto": 1225 },
+  { "canchaId": 4, "diaSemana": 1, "inicioMinuto": 1080, "finMinuto": 1165 },
+  { "canchaId": 1, "diaSemana": 2, "inicioMinuto": 930, "finMinuto": 1195 },
+  { "canchaId": 2, "diaSemana": 2, "inicioMinuto": 930, "finMinuto": 1195 },
+  { "canchaId": 3, "diaSemana": 2, "inicioMinuto": 1020, "finMinuto": 1195 },
+  { "canchaId": 4, "diaSemana": 2, "inicioMinuto": 990, "finMinuto": 1165 },
+  { "canchaId": 1, "diaSemana": 3, "inicioMinuto": 960, "finMinuto": 1225 },
+  { "canchaId": 2, "diaSemana": 3, "inicioMinuto": 960, "finMinuto": 1225 },
+  { "canchaId": 3, "diaSemana": 3, "inicioMinuto": 1050, "finMinuto": 1225 },
+  { "canchaId": 4, "diaSemana": 3, "inicioMinuto": 1080, "finMinuto": 1165 },
+  { "canchaId": 1, "diaSemana": 4, "inicioMinuto": 930, "finMinuto": 1195 },
+  { "canchaId": 2, "diaSemana": 4, "inicioMinuto": 930, "finMinuto": 1195 },
+  { "canchaId": 3, "diaSemana": 4, "inicioMinuto": 1020, "finMinuto": 1195 },
+  { "canchaId": 4, "diaSemana": 4, "inicioMinuto": 990, "finMinuto": 1165 },
+  { "canchaId": 1, "diaSemana": 5, "inicioMinuto": 960, "finMinuto": 1225 },
+  { "canchaId": 2, "diaSemana": 5, "inicioMinuto": 960, "finMinuto": 1225 },
+  { "canchaId": 3, "diaSemana": 5, "inicioMinuto": 1050, "finMinuto": 1225 },
+  { "canchaId": 4, "diaSemana": 5, "inicioMinuto": 1080, "finMinuto": 1165 },
+  { "canchaId": 4, "diaSemana": 6, "inicioMinuto": 1260, "finMinuto": 1435 }
+]

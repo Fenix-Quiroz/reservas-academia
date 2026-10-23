@@ -1,7 +1,7 @@
 import { activa, rangoHablado } from '../../reservas'
 import type { Campo, EstadoReserva, Reserva } from '../../types.js'
 
-type EtiquetaEstado = 'Finalizada' | 'Demo' | 'Activa' | 'Iniciada' | 'Cancelada'
+type EtiquetaEstado = 'Finalizada' | 'Demo' | 'Activa' | 'Iniciada' | 'Cancelada' | 'No asistió' | 'Por revisar'
 
 export interface AdminReservaCardProps {
   reserva: Reserva
@@ -29,7 +29,8 @@ function estadoReserva(reserva: Reserva): { etiqueta: EtiquetaEstado; clase: str
   if (reserva.estado === 'iniciado') return { etiqueta: 'Iniciada', clase: 'iniciado' }
   if (reserva.estado === 'finalizado') return { etiqueta: 'Finalizada', clase: 'finalizado' }
   if (reserva.estado === 'cancelado') return { etiqueta: 'Cancelada', clase: 'cancelada' }
-  if (!activa(reserva)) return { etiqueta: 'Finalizada', clase: 'finalizado' }
+  if (reserva.estado === 'no_asistio') return { etiqueta: 'No asistió', clase: 'no-asistio' }
+  if (!activa(reserva)) return { etiqueta: 'Por revisar', clase: 'pendiente' }
   return { etiqueta: 'Activa', clase: 'activa' }
 }
 
@@ -73,6 +74,16 @@ export default function AdminReservaCard({
               </button>
               <button className="chip" disabled={Boolean(cancelando || actualizandoEstado)} onClick={onCancelRequest}>No</button>
             </div>
+          </div>
+        ) : !esDemo && reserva.estado === 'activo' && !activa(reserva) ? (
+          <div className="admin-reserva-acciones">
+            <button className="admin-estado-accion" disabled={procesando} onClick={() => onStatus(reserva.id, 'finalizado')}>
+              {actualizandoEstado === reserva.id ? 'Guardando…' : 'Finalizar y confirmar pago'}
+            </button>
+            <button className="admin-no-asistio" disabled={procesando} onClick={() => onStatus(reserva.id, 'no_asistio')}>
+              {actualizandoEstado === reserva.id ? 'Guardando…' : 'Marcar no asistió'}
+            </button>
+            {puedeCancelar && <button className="admin-cancelar" disabled={procesando} onClick={onRequestCancel}>Cancelar</button>}
           </div>
         ) : !esDemo && reserva.estado === 'activo' ? (
           puedeCancelar ? <button className="admin-cancelar" disabled={procesando} onClick={onRequestCancel}>Cancelar</button> : null

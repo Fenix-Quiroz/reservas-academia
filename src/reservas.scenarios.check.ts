@@ -74,11 +74,22 @@ assert.ok(primera.reserva.id)
 // Si todas las horas posibles están ocupadas, no se ofrece una alternativa.
 const todasOcupadas = Array.from({ length: 15 }, (_, i) => ({
   canchaId: 1,
-  fecha: '2099-05-18',
-  inicio: 8 + i,
+  fecha: '2099-05-17',
+  inicio: 7 + i,
   horas: 1,
 }))
-const sinDisponibilidad = horarios(todasOcupadas, 1, '2099-05-18', 1)
+const todasOcupadasHastaLaUna = Array.from({ length: 3 }, (_, i) => ({
+  canchaId: 1,
+  fecha: '2099-05-17',
+  inicio: 22 + i,
+  horas: 1,
+}))
+const sinDisponibilidad = horarios(
+  [...todasOcupadas, ...todasOcupadasHastaLaUna],
+  1,
+  '2099-05-17',
+  1,
+)
 assert.equal(sinDisponibilidad.some((h) => h.libre), false)
 assert.equal(masCercana(sinDisponibilidad, 14), undefined)
 
@@ -88,6 +99,9 @@ await crearReserva(reserva({ celular: '955555554', fecha: '2099-05-15', canchaId
 await crearReserva(reserva({ celular: '955555554', fecha: '2099-05-16', canchaId: 3 }))
 const tercera = conError(await crearReserva(reserva({ celular: '955555554', fecha: '2099-05-17', canchaId: 2 })))
 assert.equal(tercera.error, 'limite')
+
+const duracionInvalida = conError(await crearReserva(reserva({ horas: 3.5, celular: '955555556' })))
+assert.equal(duracionInvalida.error, 'duracion-invalida')
 
 // Registrar, buscar y rechazar celulares duplicados conserva el primer registro; los alias pueden repetirse.
 resetStorage()

@@ -17,10 +17,12 @@ type ErrorAccion =
   | 'ocupado'
   | 'limite'
   | 'limite-intentos'
+  | 'celular-bloqueado'
   | 'celular'
   | 'conexion'
   | 'no-existe'
   | 'tarde'
+  | 'duracion-invalida'
   | 'alias-invalido'
   | 'celular-invalido'
 type ResultadoClienteAccion = { cliente: Cliente } | { error: ErrorAccion }
@@ -96,8 +98,16 @@ export default function DatosReserva({
           setError('Hiciste varios intentos seguidos. Espera 10 minutos y vuelve a intentarlo.')
           return false
         }
+        if (r.error === 'celular-bloqueado') {
+          setError('Este celular está bloqueado para nuevas reservas. Comunícate con la administración.')
+          return false
+        }
         if (r.error === 'tarde') {
           setError('La fecha o la hora ya no está disponible. Elige otro turno.')
+          return false
+        }
+        if (r.error === 'duracion-invalida') {
+          setError('Elige una duración válida para la reserva.')
           return false
         }
         setError('No pudimos guardar la reserva. Revisa tu conexión e inténtalo de nuevo.')

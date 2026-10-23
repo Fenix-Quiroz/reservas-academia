@@ -10,13 +10,34 @@ export const patronAlarma = {
 
 export function finDeReserva(reserva: Pick<Reserva, 'fecha' | 'inicio' | 'horas'>): Date {
   const [anio, mes, dia] = reserva.fecha.split('-').map(Number)
-  return new Date(anio, mes - 1, dia, reserva.inicio + reserva.horas)
+  const finMinutos = Math.round((reserva.inicio + reserva.horas) * 60)
+  return new Date(anio, mes - 1, dia, Math.floor(finMinutos / 60), finMinutos % 60)
 }
 
 export function ordenarPorFin<T extends Pick<Reserva, 'fecha' | 'inicio' | 'horas'>>(
   reservas: readonly T[],
 ): T[] {
   return [...reservas].sort((a, b) => finDeReserva(a).getTime() - finDeReserva(b).getTime())
+}
+
+export function reservasTerminadasParaAlerta(
+  reservas: readonly Reserva[],
+  emitidas: ReadonlySet<string>,
+  instante: number,
+): Reserva[] {
+  return reservas.filter((reserva) => (
+    reserva.estado !== 'cancelado'
+    && !emitidas.has(reserva.id)
+    && finDeReserva(reserva).getTime() <= instante
+  ))
+}
+
+export function filtrarAlertasCanceladas(
+  alertas: readonly Reserva[],
+  reservas: readonly Reserva[],
+): Reserva[] {
+  const canceladas = new Set(reservas.filter((reserva) => reserva.estado === 'cancelado').map(({ id }) => id))
+  return alertas.filter(({ id }) => !canceladas.has(id))
 }
 
 export function reservaDePrueba(ahora: Date = new Date()): Reserva {

@@ -1,10 +1,37 @@
 import { useEffect, useMemo, useState } from 'react'
 import canchas from './data/canchas.json'
-import type { Campo, EstadoReserva, FiltrosAdmin, Reserva } from './types.js'
+import type { BloqueoEvento, EstadoReserva, FiltrosAdmin, Reserva } from './types.js'
+import type { NumeroBloqueado, NumeroConfiable, ResultadoControlCliente } from './controlClientes.js'
 import type { UsuarioAdmin } from './adminAuth.js'
-import { actualizarEstadoReserva, cancelarReservaAdmin, cargarReservas, leerReservas, limpiarDatosLocales } from './almacen'
+import {
+  actualizarEstadoReserva,
+  agregarNumeroConfiable,
+  bloquearNumero,
+  cancelarReservaAdmin,
+  cargarReservas,
+  cancelarBloqueoEventoLocal,
+  crearBloqueoEventoLocal,
+  leerBloqueosEventos,
+  desbloquearNumero,
+  leerNumerosBloqueados,
+  leerNumerosConfiables,
+  leerReservas,
+  limpiarDatosLocales,
+  quitarNumeroConfiable,
+} from './almacen'
 import { supabase, supabaseFaltaEnProduccion, supabaseConfigurado } from './supabase'
-import { suscribirseAReservas } from './supabaseData'
+import {
+  agregarNumeroConfiableRemoto,
+  bloquearNumeroRemoto,
+  cancelarBloqueoEventoRemoto,
+  crearBloqueoEventoRemoto,
+  desbloquearNumeroRemoto,
+  leerBloqueosEventosRemotos,
+  leerNumerosBloqueadosRemotos,
+  leerNumerosConfiablesRemotos,
+  quitarNumeroConfiableRemoto,
+  suscribirseAReservas,
+} from './supabaseData'
 import { filtrarReservas, resumenAdmin } from './admin'
 import { esAdmin } from './adminAuth'
 import AdminLogin from './components/admin/AdminLogin'
@@ -15,6 +42,8 @@ import AdminFiltros from './components/admin/AdminFiltros'
 import AdminListado from './components/admin/AdminListado'
 import AdminAlarmaTurno from './components/admin/AdminAlarmaTurno'
 import AdminBalanceMensual from './components/admin/AdminBalanceMensual'
+import AdminControlClientes from './components/admin/AdminControlClientes'
+import AdminEventos from './components/admin/AdminEventos'
 
 type EstadoConexion = 'sincronizando' | 'demo' | 'error' | 'sincronizado'
 
@@ -42,6 +71,13 @@ export default function AdminApp() {
   const [estadoConexion, setEstadoConexion] = useState<EstadoConexion>(supabaseConfigurado ? 'sincronizando' : 'demo')
   const [cancelando, setCancelando] = useState<string | null>(null)
   const [actualizandoEstado, setActualizandoEstado] = useState<string | null>(null)
+  const [numerosBloqueados, setNumerosBloqueados] = useState<NumeroBloqueado[]>([])
+  const [numerosConfiables, setNumerosConfiables] = useState<NumeroConfiable[]>([])
+  const [cargandoControl, setCargandoControl] = useState(false)
+  const [procesandoControl, setProcesandoControl] = useState(false)
+  const [eventos, setEventos] = useState<BloqueoEvento[]>(leerBloqueosEventos)
+  const [cargandoEventos, setCargandoEventos] = useState(false)
+  const [procesandoEvento, setProcesandoEvento] = useState(false)
 
   useEffect(() => {
     if (!mensaje) return undefined
@@ -90,9 +126,13 @@ export default function AdminApp() {
     if (supabaseConfigurado) setEstadoConexion('sincronizando')
     const refrescar = async () => {
       try {
-        const actuales = await cargarReservas()
+        const [actuales, eventosActuales] = await Promise.all([
+          cargarReservas(),
+          supabaseConfigurado ? leerBloqueosEventosRemotos() : Promise.resolve(leerBloqueosEventos()),
+        ])
         if (montado) {
           setReservas(actuales)
+          setEventos(eventosActuales)
           setEstadoConexion(supabaseConfigurado ? 'sincronizado' : 'demo')
         }
       } catch {
@@ -115,6 +155,40 @@ export default function AdminApp() {
     }
   }, [usuario])
 
+  async function cargarControlClientes(): Promise<boolean> {
+    setCargandoControl(true)
+    try {
+      const [bloqueados, confiables] = supabaseConfigurado
+        ? await Promise.all([leerNumerosBloqueadosRemotos(), leerNumerosConfiablesRemotos()])
+        : [leerNumerosBloqueados(), leerNumerosConfiables()]
+      setNumerosBloqueados(bloqueados)
+      setNumerosConfiables(confiables)
+      return true
+    } catch {
+      setError('No pudimos cargar el control de clientes. Revisa la conexión con Supabase.')
+      return false
+    } finally {
+      setCargandoControl(false)
+    }
+  }
+
+  async function cargarEventos(): Promise<BloqueoEvento[]> {
+    setCargandoEventos(true)
+    try {
+      const actuales = supabaseConfigurado ? await leerBloqueosEventosRemotos() : leerBloqueosEventos()
+      setEventos(actuales)
+      return actuales
+    } finally {
+      setCargandoEventos(false)
+    }
+  }
+
+  useEffect(() => {
+    if (supabaseConfigurado && !esAdmin(usuario)) return undefined
+    void cargarControlClientes()
+    return undefined
+  }, [usuario])
+
   const resumen = useMemo(() => resumenAdmin(reservas), [reservas])
   const visibles = useMemo(() => filtrarReservas(reservas, filtros, canchas), [reservas, filtros])
 
@@ -129,6 +203,8 @@ export default function AdminApp() {
     if (supabaseConfigurado) setEstadoConexion('sincronizando')
     try {
       setReservas(await cargarReservas())
+      await cargarEventos()
+      await cargarControlClientes()
     } catch {
       setEstadoConexion(supabaseConfigurado ? 'error' : 'demo')
       setError('No pudimos actualizar la lista. Revisa la conexión con Supabase.')
@@ -189,7 +265,12 @@ export default function AdminApp() {
         return
       }
       setReservas(await cargarReservas())
-      setMensaje(estado === 'iniciado' ? 'Turno iniciado.' : 'Reserva finalizada y pago confirmado.')
+      if (estado === 'no_asistio') await cargarControlClientes()
+      setMensaje(estado === 'iniciado'
+        ? 'Turno iniciado.'
+        : estado === 'no_asistio'
+          ? 'Reserva marcada como inasistencia.'
+          : 'Reserva finalizada y pago confirmado.')
       setError('')
     } catch {
       setError('No pudimos actualizar el estado. Revisa tu conexión e inténtalo de nuevo.')
@@ -202,6 +283,7 @@ export default function AdminApp() {
   function limpiar(): void {
     limpiarDatosLocales()
     setReservas(leerReservas())
+    setEventos(leerBloqueosEventos())
     setPorLimpiar(false)
     setMensaje('Datos locales eliminados. La demo está lista para empezar de cero.')
     setError('')
@@ -209,6 +291,38 @@ export default function AdminApp() {
 
   async function cerrarSesion(): Promise<void> {
     if (supabase) await supabase.auth.signOut()
+  }
+
+  async function ejecutarControl(
+    accion: () => Promise<ResultadoControlCliente> | ResultadoControlCliente,
+  ): Promise<ResultadoControlCliente> {
+    if (procesandoControl) return { error: 'conexion' }
+    setProcesandoControl(true)
+    try {
+      const resultado = await accion()
+      if (!('error' in resultado)) await cargarControlClientes()
+      return resultado
+    } catch {
+      return { error: 'conexion' }
+    } finally {
+      setProcesandoControl(false)
+    }
+  }
+
+  async function ejecutarEvento<T>(
+    accion: () => Promise<T> | T,
+  ): Promise<T> {
+    if (procesandoEvento) return { error: 'conexion' } as T
+    setProcesandoEvento(true)
+    try {
+      const resultado = await accion()
+      if (!(typeof resultado === 'object' && resultado !== null && 'error' in resultado)) await cargarEventos()
+      return resultado
+    } catch {
+      return { error: 'conexion' } as T
+    } finally {
+      setProcesandoEvento(false)
+    }
   }
 
   if (supabaseConfigurado && cargandoAuth) {
@@ -265,9 +379,20 @@ export default function AdminApp() {
 
       <AdminAlarmaTurno reservas={reservas} canchas={canchas} />
 
-      <AdminMetricas resumen={resumen} />
+      <AdminEventos
+        eventos={eventos}
+        canchas={canchas}
+        cargando={cargandoEventos}
+        procesando={procesandoEvento}
+        onCrear={(nuevo) => ejecutarEvento(() => supabaseConfigurado
+          ? crearBloqueoEventoRemoto(nuevo)
+          : crearBloqueoEventoLocal(nuevo, reservas))}
+        onCancelar={(id) => ejecutarEvento(() => supabaseConfigurado
+          ? cancelarBloqueoEventoRemoto(id)
+          : cancelarBloqueoEventoLocal(id))}
+      />
 
-      <AdminBalanceMensual reservas={reservas} canchas={canchas} />
+      <AdminMetricas resumen={resumen} />
 
       <section className="admin-listado">
         <div className="admin-listado-cabecera">
@@ -295,6 +420,27 @@ export default function AdminApp() {
           actualizandoEstado={actualizandoEstado}
         />
       </section>
+
+      <AdminBalanceMensual reservas={reservas} canchas={canchas} />
+
+      <AdminControlClientes
+        bloqueados={numerosBloqueados}
+        confiables={numerosConfiables}
+        cargando={cargandoControl}
+        procesando={procesandoControl}
+        onBloquear={(celular, motivo) => ejecutarControl(() => supabaseConfigurado
+          ? bloquearNumeroRemoto(celular, motivo)
+          : bloquearNumero(celular, motivo))}
+        onDesbloquear={(celular) => ejecutarControl(() => supabaseConfigurado
+          ? desbloquearNumeroRemoto(celular)
+          : desbloquearNumero(celular))}
+        onAgregarConfiable={(celular, alias) => ejecutarControl(() => supabaseConfigurado
+          ? agregarNumeroConfiableRemoto(celular, alias)
+          : agregarNumeroConfiable(celular, alias))}
+        onQuitarConfiable={(celular) => ejecutarControl(() => supabaseConfigurado
+          ? quitarNumeroConfiableRemoto(celular)
+          : quitarNumeroConfiable(celular))}
+      />
     </main>
   )
 }

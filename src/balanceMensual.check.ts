@@ -49,6 +49,16 @@ const reservas: Reserva[] = [
     estado: 'finalizado',
   },
   {
+    id: 'finalizada-3',
+    canchaId: 2,
+    fecha: '2026-10-07',
+    inicio: 10,
+    horas: 1.5,
+    alias: 'Equipo Media Hora',
+    celular: '988888887',
+    estado: 'finalizado',
+  },
+  {
     id: 'iniciada',
     canchaId: 1,
     fecha: '2026-10-07',
@@ -75,28 +85,29 @@ const reservas: Reserva[] = [
 const balance = construirBalanceMensual('2026-10', reservas, canchas)
 
 assert.equal(balance.mes, '2026-10')
-assert.equal(balance.reservasFinalizadas, 2)
-assert.equal(balance.horasAlquiladas, 3)
-assert.equal(balance.ingresosTotales, 180)
+assert.equal(balance.reservasFinalizadas, 3)
+assert.equal(balance.horasAlquiladas, 4.5)
+assert.equal(balance.ingresosTotales, 270)
 assert.deepEqual(balance.porCampo, [
   { campoId: 1, campo: 'Campo 1', deporte: 'Fútbol 5', reservas: 1, horas: 2, ingresos: 120 },
-  { campoId: 2, campo: 'Campo 2', deporte: 'Fútbol 5', reservas: 1, horas: 1, ingresos: 60 },
+  { campoId: 2, campo: 'Campo 2', deporte: 'Fútbol 5', reservas: 2, horas: 2.5, ingresos: 150 },
 ])
 assert.deepEqual(balance.detalle.map(({ id, campo, horas, monto }) => ({ id, campo, horas, monto })), [
   { id: 'finalizada-1', campo: 'Campo 1', horas: 2, monto: 120 },
   { id: 'finalizada-2', campo: 'Campo 2', horas: 1, monto: 60 },
+  { id: 'finalizada-3', campo: 'Campo 2', horas: 1.5, monto: 90 },
 ])
 
 const libro = await crearLibroBalance(balance)
 assert.deepEqual(libro.SheetNames, ['Resumen mensual', 'Detalle diario'])
 assert.equal(libro.Sheets['Resumen mensual']['A1'].v, 'BALANCE MENSUAL DE RESERVAS')
 assert.equal(libro.Sheets['Resumen mensual']['A7'].v, 'Reservas finalizadas')
-assert.equal(libro.Sheets['Resumen mensual']['B7'].v, 2)
+assert.equal(libro.Sheets['Resumen mensual']['B7'].v, 3)
 assert.equal(libro.Sheets['Resumen mensual']['C12'].v, 'Reservas realizadas')
 assert.equal(libro.Sheets['Resumen mensual']['C13'].v, 1)
 assert.equal(libro.Sheets['Detalle diario']['A4'].v, 'Fecha')
-assert.equal(libro.Sheets['Detalle diario']['J6'].v, 60)
-assert.equal(libro.Sheets['Detalle diario']['!autofilter']?.ref, 'A4:J6')
+assert.equal(libro.Sheets['Detalle diario']['J7'].v, 90)
+assert.equal(libro.Sheets['Detalle diario']['!autofilter']?.ref, 'A4:J7')
 assert.equal(libro.Sheets['Resumen mensual']['A1'].s?.fill?.fgColor?.rgb, '0B0B0A')
 assert.equal(libro.Sheets['Resumen mensual']['A11'].s?.fill?.fgColor?.rgb, 'D99A0B')
 assert.equal(libro.Sheets['Detalle diario']['A4'].s?.fill?.fgColor?.rgb, 'D99A0B')

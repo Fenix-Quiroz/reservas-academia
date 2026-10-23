@@ -4,23 +4,21 @@
 
 create extension if not exists pgcrypto with schema extensions;
 
-alter function public.crear_reserva_publica(
-  integer, date, smallint, smallint, text, text
-)
-set search_path = public, extensions, pg_temp;
-
 -- Reemplaza la versión que usaba `on conflict (celular)`. Dentro de una
 -- función que devuelve una columna llamada `celular`, PostgreSQL puede
 -- interpretar ese nombre como variable o columna y producir 42702.
 drop function if exists public.crear_reserva_publica(
   integer, date, smallint, smallint, text, text
 );
+drop function if exists public.crear_reserva_publica(
+  integer, date, smallint, numeric, text, text
+);
 
 create or replace function public.crear_reserva_publica(
   p_cancha_id integer,
   p_fecha date,
   p_inicio smallint,
-  p_horas smallint,
+  p_horas numeric(2,1),
   p_alias text,
   p_celular text
 )
@@ -29,7 +27,7 @@ returns table (
   cancha_id integer,
   fecha date,
   inicio smallint,
-  horas smallint,
+  horas numeric(2,1),
   alias text,
   celular text,
   estado text,
@@ -51,10 +49,10 @@ declare
   v_reserva public.reservas%rowtype;
 begin
   v_precio_hora := case p_cancha_id
-    when 1 then 60
-    when 2 then 60
-    when 3 then 90
-    when 4 then 50
+    when 1 then 55
+    when 2 then 50
+    when 3 then 60
+    when 4 then 30
     else null
   end;
 
@@ -66,7 +64,7 @@ begin
     raise exception using errcode = '22023', message = 'fecha_invalida';
   end if;
 
-  if p_inicio not between 8 and 22 or p_horas not in (1, 2) or p_inicio + p_horas > 23 then
+  if p_inicio not between 7 and 24 or p_horas not in (1, 1.5, 2, 3) or p_inicio + p_horas > 25 then
     raise exception using errcode = '22023', message = 'horario_invalido';
   end if;
 
@@ -140,7 +138,7 @@ end;
 $function$;
 
 grant execute on function public.crear_reserva_publica(
-  integer, date, smallint, smallint, text, text
+  integer, date, smallint, numeric, text, text
 ) to anon;
 
 alter function public.obtener_mis_reservas_publicas(text[])
