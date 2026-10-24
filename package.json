@@ -22,6 +22,7 @@
     "check:estado": "tsx src/estadoReserva.check.ts",
     "check:alarm": "tsx src/utils/alarmaTurno.check.ts",
     "check:eventos": "tsx src/eventos.check.ts",
+    "check:balance-demo": "tsx src/balanceDemo.check.ts",
     "check:typescript": "tsx src/typescript.check.ts"
   },
   "dependencies": {

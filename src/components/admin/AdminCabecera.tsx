@@ -27,7 +27,7 @@ export default function AdminCabecera({
         <AdminMarca />
         <p className="admin-kicker">Panel privado</p>
         <h1>Reservas del polideportivo</h1>
-        <p className="subtitulo">Revisa las reservas hechas desde este navegador.</p>
+        <p className="subtitulo">Gestiona las reservas del polideportivo.</p>
       </div>
       <div className="admin-acciones">
         {!supabaseConfigurado && (porLimpiar ? (

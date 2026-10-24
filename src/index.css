@@ -1641,31 +1641,6 @@ button:disabled {
   background: var(--color-gold-400);
 }
 
-.admin-metricas {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 12px;
-  margin: 20px 0;
-}
-
-.admin-metrica {
-  display: grid;
-  gap: 6px;
-  padding: 18px;
-  border: 1px solid var(--color-ink-700);
-  border-radius: var(--radio);
-  background: var(--color-ink-900);
-}
-
-.admin-metrica span {
-  color: var(--color-ink-300);
-  font-weight: 700;
-}
-
-.admin-metrica strong {
-  font-size: 1.8rem;
-}
-
 .admin-balance {
   display: grid;
   gap: 18px;
@@ -2149,6 +2124,7 @@ button:disabled {
 .admin-eventos {
   display: grid;
   gap: 16px;
+  margin-top: 20px;
   margin-bottom: 20px;
   padding: 20px;
   border: 1px solid var(--color-ink-700);
@@ -2439,10 +2415,6 @@ button:disabled {
   .admin-app {
     padding-right: 12px;
     padding-left: 12px;
-  }
-
-  .admin-metricas {
-    grid-template-columns: 1fr;
   }
 
   .admin-listado {

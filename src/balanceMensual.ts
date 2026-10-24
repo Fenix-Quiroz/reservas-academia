@@ -10,10 +10,21 @@ export interface BalancePorCampo {
   ingresos: number
 }
 
+export interface BalancePorDia {
+  fecha: string
+  dia: string
+  campoId: number
+  campo: string
+  reservas: number
+  horas: number
+  ingresos: number
+}
+
 export interface BalanceDetalle {
   id: string
   fecha: string
   dia: string
+  campoId: number
   campo: string
   deporte: string
   horario: string
@@ -30,6 +41,7 @@ export interface BalanceMensual {
   horasAlquiladas: number
   ingresosTotales: number
   porCampo: BalancePorCampo[]
+  porDia: BalancePorDia[]
   detalle: BalanceDetalle[]
 }
 
@@ -70,6 +82,7 @@ export function construirBalanceMensual(
       id: reserva.id,
       fecha: reserva.fecha,
       dia: diaVisible(reserva.fecha),
+      campoId: reserva.canchaId,
       campo: cancha?.nombre ?? 'Campo desconocido',
       deporte: cancha?.deporte ?? 'Sin deporte',
       horario: rangoHablado(reserva.inicio, reserva.horas),
@@ -95,12 +108,34 @@ export function construirBalanceMensual(
     })
     .filter((fila) => fila.horas > 0 || fila.ingresos > 0)
 
+  const porDiaMap = new Map<string, BalancePorDia>()
+  for (const fila of detalle) {
+    const clave = `${fila.fecha}:${fila.campoId}`
+    const actual = porDiaMap.get(clave)
+    if (actual) {
+      actual.reservas += 1
+      actual.horas += fila.horas
+      actual.ingresos = redondear(actual.ingresos + fila.monto)
+    } else {
+      porDiaMap.set(clave, {
+        fecha: fila.fecha,
+        dia: fila.dia,
+        campoId: fila.campoId,
+        campo: fila.campo,
+        reservas: 1,
+        horas: fila.horas,
+        ingresos: fila.monto,
+      })
+    }
+  }
+
   return {
     mes,
     reservasFinalizadas: detalle.length,
     horasAlquiladas: detalle.reduce((total, fila) => total + fila.horas, 0),
     ingresosTotales: redondear(detalle.reduce((total, fila) => total + fila.monto, 0)),
     porCampo,
+    porDia: [...porDiaMap.values()],
     detalle,
   }
 }

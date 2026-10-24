@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import type { FormEvent } from 'react'
 import type { BloqueoEvento, Campo } from '../../types.js'
 import {
@@ -57,6 +57,12 @@ export default function AdminEventos({
   const [notas, setNotas] = useState('')
   const [error, setError] = useState('')
   const [exito, setExito] = useState('')
+
+  useEffect(() => {
+    if (!exito) return undefined
+    const temporizador = window.setTimeout(() => setExito(''), 3000)
+    return () => window.clearTimeout(temporizador)
+  }, [exito])
 
   const inicioNumero = Number(inicio)
   const finalesDisponibles = useMemo(

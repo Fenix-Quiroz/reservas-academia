@@ -72,12 +72,22 @@ function aplicarEstiloFilaAlterna(XLSX: ModuloXlsx, hoja: WorkSheet, fila: numbe
   })
 }
 
-function aplicarEstilosResumen(XLSX: ModuloXlsx, hoja: WorkSheet, filasPorCampo: number): void {
-  aplicarEstiloRango(XLSX, hoja, 'A1:E14', {
+function aplicarEstilosResumen(
+  XLSX: ModuloXlsx,
+  hoja: WorkSheet,
+  filasPorCampo: number,
+  filasPorDia: number,
+): void {
+  const filaSeccionDia = 14 + filasPorCampo
+  const filaCabeceraDia = filaSeccionDia + 1
+  const filaDatosDia = filaCabeceraDia + 1
+  const ultimaFila = Math.max(14, filaCabeceraDia, filaDatosDia + filasPorDia - 1)
+
+  aplicarEstiloRango(XLSX, hoja, `A1:F${ultimaFila}`, {
     font: { name: 'Arial', sz: 10, color: rgb(colores.negro) },
     alignment: { vertical: 'center' },
   })
-  aplicarEstiloRango(XLSX, hoja, 'A1:E1', {
+  aplicarEstiloRango(XLSX, hoja, 'A1:F1', {
     fill: { patternType: 'solid', fgColor: rgb(colores.negro) },
     font: { name: 'Arial', sz: 16, bold: true, color: rgb(colores.crema) },
     alignment: { horizontal: 'left', vertical: 'center' },
@@ -129,6 +139,31 @@ function aplicarEstilosResumen(XLSX: ModuloXlsx, hoja: WorkSheet, filasPorCampo:
       alignment: { horizontal: 'right', vertical: 'center' },
     })
   }
+
+  aplicarEstiloRango(XLSX, hoja, `A${filaSeccionDia}:F${filaSeccionDia}`, {
+    fill: { patternType: 'solid', fgColor: rgb(colores.dorado) },
+    font: { name: 'Arial', sz: 11, bold: true, color: rgb(colores.negro) },
+  })
+  aplicarEstiloRango(XLSX, hoja, `A${filaCabeceraDia}:F${filaCabeceraDia}`, {
+    fill: { patternType: 'solid', fgColor: rgb(colores.negroSuave) },
+    font: { name: 'Arial', sz: 10, bold: true, color: rgb(colores.crema) },
+    alignment: { horizontal: 'center', vertical: 'center', wrapText: true },
+  })
+  if (filasPorDia > 0) {
+    const ultimaFilaDia = filaDatosDia + filasPorDia - 1
+    aplicarEstiloRango(XLSX, hoja, `A${filaDatosDia}:F${ultimaFilaDia}`, {
+      fill: { patternType: 'solid', fgColor: rgb('FFFFFF') },
+      font: { name: 'Arial', sz: 10, color: rgb(colores.negro) },
+      alignment: { vertical: 'center' },
+      border: { bottom: { style: 'thin', color: rgb(colores.grisClaro) } },
+    })
+    for (let fila = filaDatosDia; fila <= ultimaFilaDia; fila += 1) {
+      if (fila % 2 === 1) aplicarEstiloFilaAlterna(XLSX, hoja, fila, 'F')
+    }
+    aplicarEstiloRango(XLSX, hoja, `D${filaDatosDia}:F${ultimaFilaDia}`, {
+      alignment: { horizontal: 'right', vertical: 'center' },
+    })
+  }
 }
 
 function aplicarEstilosDetalle(XLSX: ModuloXlsx, hoja: WorkSheet, filas: number): void {
@@ -173,6 +208,9 @@ function aplicarEstilosDetalle(XLSX: ModuloXlsx, hoja: WorkSheet, filas: number)
 }
 
 function crearLibroConModulo(XLSX: ModuloXlsx, balance: BalanceMensual): WorkBook {
+  const filaSeccionDia = 14 + balance.porCampo.length
+  const filaCabeceraDia = filaSeccionDia + 1
+  const filaDatosDia = filaCabeceraDia + 1
   const resumen = XLSX.utils.aoa_to_sheet([
     ['BALANCE MENSUAL DE RESERVAS'],
     ['Periodo', periodoVisible(balance.mes)],
@@ -187,13 +225,26 @@ function crearLibroConModulo(XLSX: ModuloXlsx, balance: BalanceMensual): WorkBoo
     ['RESULTADOS POR CAMPO'],
     ['Campo', 'Deporte', 'Reservas realizadas', 'Horas alquiladas', 'Ingresos generados (S/)'],
     ...balance.porCampo.map((fila) => [fila.campo, fila.deporte, fila.reservas, fila.horas, fila.ingresos]),
+    [],
+    ['RESULTADOS POR DÍA'],
+    ['Fecha', 'Día', 'Campo', 'Reservas finalizadas', 'Horas alquiladas', 'Ingresos generados (S/)'],
+    ...balance.porDia.map((fila) => [
+      new Date(`${fila.fecha}T12:00:00`),
+      fila.dia,
+      fila.campo,
+      fila.reservas,
+      fila.horas,
+      fila.ingresos,
+    ]),
   ])
-  ajustarColumnas(resumen, [28, 24, 18, 18, 24])
-  resumen['!merges'] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: 4 } }]
+  ajustarColumnas(resumen, [28, 24, 22, 18, 18, 24])
+  resumen['!merges'] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: 5 } }]
   resumen['!autofilter'] = { ref: `A12:E${Math.max(12, balance.porCampo.length + 12)}` }
   resumen['!freeze'] = { xSplit: 0, ySplit: 12 }
   aplicarFormato(resumen, ['B9', ...balance.porCampo.map((_fila, indice) => `E${indice + 13}`)], '0.00')
-  aplicarEstilosResumen(XLSX, resumen, balance.porCampo.length)
+  aplicarFormato(resumen, balance.porDia.map((_fila, indice) => `A${indice + filaDatosDia}`), 'dd/mm/yyyy')
+  aplicarFormato(resumen, balance.porDia.map((_fila, indice) => `F${indice + filaDatosDia}`), '0.00')
+  aplicarEstilosResumen(XLSX, resumen, balance.porCampo.length, balance.porDia.length)
 
   const detalle = XLSX.utils.aoa_to_sheet([
     ['DETALLE DIARIO DE RESERVAS'],

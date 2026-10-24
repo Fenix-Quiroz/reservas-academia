@@ -29,7 +29,6 @@ const admin = [
   'AdminLogin.tsx',
   'AdminNoAutorizado.tsx',
   'AdminCabecera.tsx',
-  'AdminMetricas.tsx',
   'AdminBalanceMensual.tsx',
   'AdminFiltros.tsx',
   'AdminReservaCard.tsx',
@@ -165,8 +164,7 @@ assert.match(adminAuth, /app_metadata/)
 assert.match(admin, /Iniciar sesión/)
 assert.match(admin, /Cerrar sesión/)
 assert.match(admin, /No tienes autorización/)
-assert.match(admin, /Revisa las reservas hechas desde este navegador/)
-assert.match(admin, /Próximas reservas/)
+assert.match(admin, /Gestiona las reservas del polideportivo/)
 assert.match(admin, /<span>Estado<\/span>/)
 assert.match(admin, /En curso/)
 assert.match(admin, /Finalizadas/)
@@ -192,8 +190,8 @@ assert.match(admin, /Números bloqueados/)
 assert.match(admin, /Clientes confiables/)
 assert.match(admin, /Marcar no asistió/)
 assert.match(admin, /Finalizar y confirmar pago/)
-assert.ok(adminApp.indexOf('<AdminMetricas resumen') < adminApp.indexOf('<section className="admin-listado">'))
 assert.ok(adminApp.indexOf('<section className="admin-listado">') < adminApp.indexOf('<AdminBalanceMensual reservas'))
+assert.ok(adminApp.indexOf('<section className="admin-listado">') < adminApp.indexOf('<AdminEventos'))
 assert.match(admin, /clase: 'iniciado'/)
 assert.match(admin, /clase: 'finalizado'/)
 assert.match(admin, /Balance mensual/)
@@ -284,7 +282,6 @@ assert.match(css, /\.demo-aviso\s*\{/)
 assert.match(css, /\.chip\.dia\s*\{/)
 assert.match(css, /\.admin-app\s*\{/)
 assert.match(css, /\.admin-marca\s*\{/)
-assert.match(css, /\.admin-metricas\s*\{/)
 assert.match(css, /\.admin-balance\s*\{/)
 assert.match(css, /\.admin-balance-controles\s*\{/)
 assert.match(css, /\.admin-balance-controles\s*>\s*\*\s*\{[\s\S]*min-width:\s*0/)
@@ -295,7 +292,6 @@ assert.match(css, /\.admin-balance-resumen\s*\{/)
 assert.match(css, /\.admin-auth-shell\s*\{[\s\S]*background:\s*var\(--color-ink-950\)/)
 assert.match(css, /\.admin-auth-card\s*\{[\s\S]*border:\s*1px solid var\(--color-gold-700\)[\s\S]*background:\s*var\(--color-ink-900\)/)
 assert.match(css, /\.admin-app\s*\{[\s\S]*color:\s*var\(--color-ink-50\)/)
-assert.match(css, /\.admin-metrica\s*\{[\s\S]*border:\s*1px solid var\(--color-ink-700\)[\s\S]*background:\s*var\(--color-ink-900\)/)
 assert.match(css, /\.admin-listado\s*\{[\s\S]*border:\s*1px solid var\(--color-ink-700\)[\s\S]*background:\s*var\(--color-ink-900\)/)
 assert.match(css, /\.admin-filtros select,\s*\.admin-filtros input\s*\{[\s\S]*border:\s*1px solid var\(--color-ink-600\)[\s\S]*background:\s*var\(--color-ink-800\)/)
 assert.match(css, /\.admin-reserva\s*\{[\s\S]*border:\s*1px solid var\(--color-ink-700\)[\s\S]*background:\s*var\(--color-ink-800\)/)

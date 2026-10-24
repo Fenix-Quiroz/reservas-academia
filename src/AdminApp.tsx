@@ -32,12 +32,12 @@ import {
   quitarNumeroConfiableRemoto,
   suscribirseAReservas,
 } from './supabaseData'
-import { filtrarReservas, resumenAdmin } from './admin'
+import { filtrarReservas } from './admin'
+import { fechaISO } from './reservas'
 import { esAdmin } from './adminAuth'
 import AdminLogin from './components/admin/AdminLogin'
 import AdminNoAutorizado from './components/admin/AdminNoAutorizado'
 import AdminCabecera from './components/admin/AdminCabecera'
-import AdminMetricas from './components/admin/AdminMetricas'
 import AdminFiltros from './components/admin/AdminFiltros'
 import AdminListado from './components/admin/AdminListado'
 import AdminAlarmaTurno from './components/admin/AdminAlarmaTurno'
@@ -62,7 +62,7 @@ export default function AdminApp() {
   const [cargandoAuth, setCargandoAuth] = useState(supabaseConfigurado)
   const [authError, setAuthError] = useState('')
   const [reservas, setReservas] = useState<Reserva[]>(leerReservas)
-  const [filtros, setFiltros] = useState<FiltrosAdmin>({ vista: 'proximas', fecha: 'todas', canchaId: 'todas', buscar: '' })
+  const [filtros, setFiltros] = useState<FiltrosAdmin>({ vista: 'proximas', fecha: fechaISO(new Date()), canchaId: 'todas', buscar: '' })
   const [porCancelar, setPorCancelar] = useState<string | null>(null)
   const [porLimpiar, setPorLimpiar] = useState(false)
   const [mensaje, setMensaje] = useState('')
@@ -189,7 +189,6 @@ export default function AdminApp() {
     return undefined
   }, [usuario])
 
-  const resumen = useMemo(() => resumenAdmin(reservas), [reservas])
   const visibles = useMemo(() => filtrarReservas(reservas, filtros, canchas), [reservas, filtros])
 
   async function ingresar(email: string, password: string) {
@@ -371,28 +370,13 @@ export default function AdminApp() {
             ? 'No pudimos sincronizar las reservas. Pulsa “Actualizar” para reintentar.'
             : estadoConexion === 'sincronizando'
               ? 'Estamos actualizando las reservas compartidas.'
-              : 'El panel y los clientes comparten las reservas de Supabase.'}</span>
+              : ''}</span>
       </div>
 
       {mensaje && <p className="exito" role="status">{mensaje}</p>}
       {error && <p className="error" role="alert">{error}</p>}
 
       <AdminAlarmaTurno reservas={reservas} canchas={canchas} />
-
-      <AdminEventos
-        eventos={eventos}
-        canchas={canchas}
-        cargando={cargandoEventos}
-        procesando={procesandoEvento}
-        onCrear={(nuevo) => ejecutarEvento(() => supabaseConfigurado
-          ? crearBloqueoEventoRemoto(nuevo)
-          : crearBloqueoEventoLocal(nuevo, reservas))}
-        onCancelar={(id) => ejecutarEvento(() => supabaseConfigurado
-          ? cancelarBloqueoEventoRemoto(id)
-          : cancelarBloqueoEventoLocal(id))}
-      />
-
-      <AdminMetricas resumen={resumen} />
 
       <section className="admin-listado">
         <div className="admin-listado-cabecera">
@@ -420,6 +404,19 @@ export default function AdminApp() {
           actualizandoEstado={actualizandoEstado}
         />
       </section>
+
+      <AdminEventos
+        eventos={eventos}
+        canchas={canchas}
+        cargando={cargandoEventos}
+        procesando={procesandoEvento}
+        onCrear={(nuevo) => ejecutarEvento(() => supabaseConfigurado
+          ? crearBloqueoEventoRemoto(nuevo)
+          : crearBloqueoEventoLocal(nuevo, reservas))}
+        onCancelar={(id) => ejecutarEvento(() => supabaseConfigurado
+          ? cancelarBloqueoEventoRemoto(id)
+          : cancelarBloqueoEventoLocal(id))}
+      />
 
       <AdminBalanceMensual reservas={reservas} canchas={canchas} />
 

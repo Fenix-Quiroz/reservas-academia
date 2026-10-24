@@ -22,7 +22,6 @@ const admin = [
   'src/components/admin/AdminLogin.tsx',
   'src/components/admin/AdminNoAutorizado.tsx',
   'src/components/admin/AdminCabecera.tsx',
-  'src/components/admin/AdminMetricas.tsx',
   'src/components/admin/AdminBalanceMensual.tsx',
   'src/components/admin/AdminFiltros.tsx',
   'src/components/admin/AdminReservaCard.tsx',
@@ -43,7 +42,7 @@ for (const name of ['CabeceraCliente', 'ProgresoReserva', 'SelectorCampos', 'Sel
   assert.match(app, new RegExp(`import .*${name}.* from`), `App.tsx debe importar ${name}`)
 }
 
-for (const name of ['AdminLogin', 'AdminNoAutorizado', 'AdminCabecera', 'AdminMetricas', 'AdminBalanceMensual', 'AdminFiltros', 'AdminListado', 'AdminAlarmaTurno', 'AdminControlClientes', 'AdminEventos']) {
+for (const name of ['AdminLogin', 'AdminNoAutorizado', 'AdminCabecera', 'AdminBalanceMensual', 'AdminFiltros', 'AdminListado', 'AdminAlarmaTurno', 'AdminControlClientes', 'AdminEventos']) {
   assert.match(adminApp, new RegExp(`import .*${name}.* from`), `AdminApp.tsx debe importar ${name}`)
 }
 

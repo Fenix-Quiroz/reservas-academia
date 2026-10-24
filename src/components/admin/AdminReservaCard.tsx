@@ -62,9 +62,11 @@ export default function AdminReservaCard({
         <span className="precio">S/ {reserva.montoTotal ?? (cancha?.precioHora ?? 0) * reserva.horas} · {cancha?.jugadores} contra {cancha?.jugadores}</span>
       </div>
       <div className="admin-reserva-estado">
-        <span className={`estado estado-${estado.clase}`}>
-          {estado.etiqueta}
-        </span>
+        {estado.etiqueta !== 'Activa' && (
+          <span className={`estado estado-${estado.clase}`}>
+            {estado.etiqueta}
+          </span>
+        )}
         {porCancelar === reserva.id ? (
           <div className="admin-confirmar" role="group" aria-labelledby={`confirmar-admin-${reserva.id}`}>
             <span id={`confirmar-admin-${reserva.id}`}>¿Cancelar esta reserva?</span>
