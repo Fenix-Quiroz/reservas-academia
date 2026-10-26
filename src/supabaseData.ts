@@ -1,5 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
-import type { BloqueoEvento, Cliente, EstadoReserva, Reserva, ReservaNueva } from './types.js'
+import type { BloqueoEvento, Cliente, ComprobanteAdmin, EstadoPago, EstadoReserva, Reserva, ReservaNueva } from './types.js'
 import { validarBloqueoEvento, type BloqueoEventoNuevo, type ErrorEvento, type ResultadoCancelacionEvento, type ResultadoEvento } from './eventos.js'
 import type {
   NumeroBloqueado,
@@ -7,8 +7,9 @@ import type {
   ResultadoControlCliente,
 } from './controlClientes.js'
 import { normalizarReserva, puedeCambiarEstado } from './estadoReserva.js'
-import { ocultarHorariosPasados, sePuedeCancelar, type HorarioDisponible } from './reservas.js'
-import { supabase, supabasePublic } from './supabase.js'
+import { DURACION_BLOQUE, ocultarHorariosPasados, sePuedeCancelar, type HorarioDisponible } from './reservas.js'
+import { SUPABASE_PUBLISHABLE_KEY, SUPABASE_URL, supabase, supabasePublic } from './supabase.js'
+import { validarComprobante } from './pagos.js'
 import { normalizarAlias, normalizarCelular, validarAlias, validarCelular } from './validacionCliente.js'
 
 export type ErrorReserva =
@@ -22,6 +23,7 @@ export type ErrorReserva =
   | 'duracion-invalida'
   | 'alias-invalido'
   | 'celular-invalido'
+  | 'numero-no-confiable'
 
 export type ResultadoError = { error: ErrorReserva }
 export type ErrorReservaPublica = ErrorReserva | 'limite-intentos'
@@ -30,6 +32,19 @@ export type ResultadoCliente = { cliente: Cliente } | ResultadoError
 export type ResultadoCancelacion = Record<string, never> | ResultadoError
 export type ErrorEstado = ErrorReserva | 'estado-invalido'
 export type ResultadoEstado = Record<string, never> | { error: ErrorEstado }
+export type ErrorPagoAdmin = 'conexion' | 'no-existe' | 'no-confirmable' | 'sin-comprobante' | 'reserva-no-activa'
+export type ResultadoPagoAdmin = Record<string, never> | { error: ErrorPagoAdmin }
+export type ResultadoLimpiezaDatos =
+  | { eliminados: Record<string, number> }
+  | { error: 'conexion' | 'no-autorizado' | 'limpieza-fallida' }
+export type ErrorPago =
+  | 'archivo-invalido'
+  | 'reserva-no-autorizada'
+  | 'pago-expirado'
+  | 'pago-ya-confirmado'
+  | 'idempotencia-repetida'
+  | 'conexion'
+export type ResultadoPago = Record<string, never> | { error: ErrorPago }
 
 interface FilaReserva {
   id?: string
@@ -40,6 +55,7 @@ interface FilaReserva {
   alias: string
   celular: string
   estado?: unknown
+  pago_estado?: unknown
   monto_total?: number | string | null
   token?: unknown
 }
@@ -62,6 +78,21 @@ interface FilaBloqueoEvento {
   created_at?: string
 }
 
+interface FilaComprobanteAdmin {
+  id: string
+  storage_path: string
+  mime_type: 'image/jpeg' | 'image/png' | 'image/webp'
+  size_bytes: number | string
+  created_at?: string
+}
+
+interface FilaPagoAdmin {
+  id: string
+  reserva_id: string
+  estado: ComprobanteAdmin['estado']
+  pago_comprobantes?: FilaComprobanteAdmin[] | null
+}
+
 interface ErrorSupabase {
   code?: string
   message?: string
@@ -71,6 +102,9 @@ interface ErrorSupabase {
 
 export const deReserva = (fila: FilaReserva): Reserva => {
   const montoTotal = Number(fila.monto_total)
+  const pagoEstado = ['no_requerido', 'pendiente', 'confirmado', 'rechazado'].includes(String(fila.pago_estado))
+    ? String(fila.pago_estado) as EstadoPago
+    : undefined
   return normalizarReserva({
     id: fila.id as string,
     canchaId: Number(fila.cancha_id),
@@ -80,6 +114,7 @@ export const deReserva = (fila: FilaReserva): Reserva => {
     alias: fila.alias,
     celular: fila.celular,
     estado: fila.estado,
+    ...(pagoEstado ? { pagoEstado } : {}),
     ...(Number.isFinite(montoTotal) ? { montoTotal } : {}),
   })
 }
@@ -111,6 +146,7 @@ export function errorDeSupabase(error?: ErrorSupabase): ErrorReserva {
   if (error?.code === '23505' && String(error.message).includes('celular')) return 'celular'
   if (error?.message?.includes('limite_reservas')) return 'limite'
   if (error?.message?.includes('celular_bloqueado')) return 'celular-bloqueado'
+  if (error?.message?.includes('numero_no_confiable')) return 'numero-no-confiable'
   if (error?.message?.includes('alias_invalido')) return 'alias-invalido'
   if (error?.message?.includes('celular_invalido')) return 'celular-invalido'
   if (error?.message?.includes('hora_pasada')) return 'tarde'
@@ -154,7 +190,7 @@ export async function leerReservasRemotas(): Promise<Reserva[]> {
   const cliente = clienteSupabase()
   const { data, error } = await cliente
     .from('reservas')
-    .select('id, cancha_id, fecha, inicio, horas, alias, celular, estado, monto_total')
+    .select('id, cancha_id, fecha, inicio, horas, alias, celular, estado, pago_estado, monto_total')
     .order('fecha')
     .order('inicio')
 
@@ -162,12 +198,81 @@ export async function leerReservasRemotas(): Promise<Reserva[]> {
   return (data as FilaReserva[]).map(deReserva)
 }
 
-export async function leerHorariosRemotos(canchaId: number, fecha: string, horas: number): Promise<HorarioDisponible[]> {
+export async function leerComprobantesAdminRemotos(): Promise<ComprobanteAdmin[]> {
+  const cliente = clienteSupabase()
+  const { data, error } = await cliente
+    .from('pagos_reserva')
+    .select('id, reserva_id, estado, pago_comprobantes(id, storage_path, mime_type, size_bytes, created_at)')
+    .eq('tipo', 'adelanto')
+    .order('created_at', { ascending: false })
+
+  if (error) throw error
+  return (data as FilaPagoAdmin[] | null ?? []).flatMap((pago) => {
+    const comprobante = pago.pago_comprobantes?.[0]
+    if (!comprobante) return []
+    return [{
+      pagoId: pago.id,
+      reservaId: pago.reserva_id,
+      estado: pago.estado,
+      storagePath: comprobante.storage_path,
+      mimeType: comprobante.mime_type,
+      sizeBytes: Number(comprobante.size_bytes),
+      ...(comprobante.created_at ? { createdAt: comprobante.created_at } : {}),
+    }]
+  })
+}
+
+export function nombreDescargaComprobante(storagePath: string): string {
+  const extension = storagePath.split('.').pop()?.toLowerCase()
+  if (!extension || !['jpg', 'jpeg', 'png', 'webp'].includes(extension)) return 'comprobante-pago'
+  return `comprobante-pago.${extension}`
+}
+
+export async function crearUrlComprobanteAdminRemota(storagePath: string, descargar = false): Promise<string> {
+  const opciones = descargar ? { download: nombreDescargaComprobante(storagePath) } : undefined
+  const { data, error } = await clienteSupabase().storage
+    .from('comprobantes-pago')
+    .createSignedUrl(storagePath, 300, opciones)
+  if (error || !data?.signedUrl) throw error ?? new Error('url-comprobante-no-creada')
+  return data.signedUrl
+}
+
+export async function confirmarPagoAdminRemoto(pagoId: string): Promise<ResultadoPagoAdmin> {
+  const { data, error } = await clienteSupabase().rpc('confirmar_pago_admin', { p_pago_id: pagoId })
+  if (error) {
+    const mensaje = error.message ?? ''
+    if (mensaje.includes('pago_no_existe')) return { error: 'no-existe' }
+    if (mensaje.includes('pago_no_confirmable')) return { error: 'no-confirmable' }
+    if (mensaje.includes('comprobante_no_existe')) return { error: 'sin-comprobante' }
+    if (mensaje.includes('reserva_no_activa')) return { error: 'reserva-no-activa' }
+    return { error: 'conexion' }
+  }
+  return data === true ? {} : { error: 'conexion' }
+}
+
+export async function limpiarDatosPruebaRemoto(): Promise<ResultadoLimpiezaDatos> {
+  try {
+    const { data, error } = await clienteSupabase().functions.invoke('limpiar-datos-prueba', { body: {} })
+    if (error) return { error: 'conexion' }
+    const payload = data as { ok?: unknown; eliminados?: Record<string, unknown>; error?: unknown } | null
+    if (payload?.error === 'no_autorizado') return { error: 'no-autorizado' }
+    if (payload?.ok !== true || !payload.eliminados) return { error: 'limpieza-fallida' }
+    return {
+      eliminados: Object.fromEntries(
+        Object.entries(payload.eliminados).map(([clave, valor]) => [clave, Number(valor) || 0]),
+      ),
+    }
+  } catch {
+    return { error: 'conexion' }
+  }
+}
+
+export async function leerHorariosRemotos(canchaId: number, fecha: string): Promise<HorarioDisponible[]> {
   const cliente = clienteSupabasePublic()
   const { data, error } = await cliente.rpc('obtener_horarios_publicos', {
     p_cancha_id: canchaId,
     p_fecha: fecha,
-    p_horas: horas,
+    p_horas: DURACION_BLOQUE,
   })
 
   if (error) throw error
@@ -177,7 +282,23 @@ export async function leerHorariosRemotos(canchaId: number, fecha: string, horas
   )
 }
 
-export async function crearReservaPublicaRemota(reserva: ReservaNueva): Promise<ResultadoReserva> {
+export async function verificarNumeroConfiableRemoto(celular: string): Promise<boolean> {
+  const nuevoCelular = normalizarCelular(celular)
+  if (validarCelular(nuevoCelular)) return false
+  try {
+    const { data, error } = await clienteSupabasePublic().rpc('es_numero_confiable_publico', {
+      p_celular: nuevoCelular,
+    })
+    return !error && data === true
+  } catch {
+    return false
+  }
+}
+
+export async function crearReservaPublicaRemota(
+  reserva: ReservaNueva,
+  sinAdelanto = false,
+): Promise<ResultadoReserva> {
   const nuevoAlias = normalizarAlias(reserva.alias)
   const nuevoCelular = normalizarCelular(reserva.celular)
   const errorAlias = validarAlias(nuevoAlias)
@@ -193,6 +314,7 @@ export async function crearReservaPublicaRemota(reserva: ReservaNueva): Promise<
     p_horas: reserva.horas,
     p_alias: nuevoAlias,
     p_celular: nuevoCelular,
+    p_sin_adelanto: sinAdelanto,
   })
 
   if (error) {
@@ -231,6 +353,77 @@ export async function cancelarReservaPublicaRemota(id: string, token: string): P
 
   if (error) return { error: errorDeSupabase(error) }
   return data === true ? {} : { error: 'no-existe' }
+}
+
+const ERRORES_PAGO: readonly ErrorPago[] = [
+  'archivo-invalido',
+  'reserva-no-autorizada',
+  'pago-expirado',
+  'pago-ya-confirmado',
+  'idempotencia-repetida',
+  'conexion',
+]
+
+function esErrorPago(valor: unknown): valor is ErrorPago {
+  return typeof valor === 'string' && ERRORES_PAGO.includes(valor as ErrorPago)
+}
+
+async function errorPagoDesdeFuncion(error: unknown): Promise<ErrorPago> {
+  const respuesta = (error as { context?: Response } | null)?.context
+  if (respuesta) {
+    try {
+      const cuerpo = await respuesta.clone().json() as { error?: unknown }
+      const errorNormalizado = typeof cuerpo.error === 'string'
+        ? cuerpo.error.replaceAll('_', '-')
+        : cuerpo.error
+      if (esErrorPago(errorNormalizado)) return errorNormalizado
+      if (cuerpo.error === 'pago_no_registrado' || cuerpo.error === 'configuracion_invalida') return 'conexion'
+    } catch {
+      // La función puede responder con un cuerpo no JSON o sin cuerpo.
+    }
+    if (respuesta.status === 409) return 'pago-expirado'
+    if (respuesta.status === 400) return 'archivo-invalido'
+    if (respuesta.status === 403) return 'reserva-no-autorizada'
+  }
+  return 'conexion'
+}
+
+export async function registrarAdelantoYapeRemoto(
+  reservaId: string,
+  token: string,
+  comprobante: File,
+  idempotencia: string,
+): Promise<ResultadoPago> {
+  const errorArchivo = validarComprobante(comprobante)
+  if (errorArchivo) return { error: 'archivo-invalido' }
+
+  const formulario = new FormData()
+  formulario.append('reserva_id', reservaId)
+  formulario.append('token', token)
+  formulario.append('idempotencia', idempotencia)
+  formulario.append('comprobante', comprobante, comprobante.name)
+
+  try {
+    const { error } = await clienteSupabasePublic().functions.invoke('registrar-adelanto-yape', {
+      body: formulario,
+    })
+    return error ? { error: await errorPagoDesdeFuncion(error) } : {}
+  } catch {
+    return { error: 'conexion' }
+  }
+}
+
+export async function precalentarRegistrarAdelantoYapeRemoto(): Promise<void> {
+  if (!SUPABASE_URL || !SUPABASE_PUBLISHABLE_KEY) return
+  try {
+    await fetch(`${SUPABASE_URL}/functions/v1/registrar-adelanto-yape`, {
+      method: 'OPTIONS',
+      headers: { apikey: SUPABASE_PUBLISHABLE_KEY },
+      cache: 'no-store',
+    })
+  } catch {
+    // El precalentamiento es opcional: el envío real debe seguir funcionando.
+  }
 }
 
 export async function cancelarReservaAdminRemota(id: string): Promise<ResultadoCancelacion> {
@@ -321,12 +514,28 @@ export async function actualizarEstadoReservaRemota(id: string, estado: EstadoRe
 
 export function suscribirseAReservas(alCambiar: () => void): () => void {
   if (!supabase) return () => {}
+
+  let temporizador: ReturnType<typeof setTimeout> | null = null
+  const notificarCambio = () => {
+    if (temporizador !== null) return
+    temporizador = setTimeout(() => {
+      temporizador = null
+      alCambiar()
+    }, 150)
+  }
+
   const canal = supabase
     .channel('reservas-en-tiempo-real')
-    .on('postgres_changes', { event: '*', schema: 'public', table: 'reservas' }, () => alCambiar())
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'reservas' }, notificarCambio)
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'pagos_reserva' }, notificarCambio)
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'pago_comprobantes' }, notificarCambio)
     .subscribe()
 
   return () => {
+    if (temporizador !== null) {
+      clearTimeout(temporizador)
+      temporizador = null
+    }
     void canal.unsubscribe()
   }
 }
@@ -392,11 +601,16 @@ export async function bloquearNumeroRemoto(
 
 export async function desbloquearNumeroRemoto(celular: string): Promise<ResultadoControlCliente> {
   const nuevoCelular = normalizarCelular(celular)
-  const { error } = await clienteSupabase()
+  const { data, error } = await clienteSupabase()
     .from('numeros_bloqueados')
-    .update({ activo: false })
+    .update({ activo: false, updated_at: new Date().toISOString() })
     .eq('celular', nuevoCelular)
-  return error ? { error: 'conexion' } : {}
+    .select('celular')
+    .maybeSingle()
+
+  if (error) return { error: 'conexion' }
+  if (!data) return { error: 'no-existe' }
+  return {}
 }
 
 export async function leerNumerosConfiablesRemotos(): Promise<NumeroConfiable[]> {

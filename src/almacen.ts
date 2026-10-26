@@ -274,9 +274,9 @@ export function guardarTokenReserva(id: string, token: string, celular: string):
 }
 
 // Vuelve a leer justo antes de guardar: si otra pestaña reservó primero, lo detectamos
-export function crearReserva(nueva: ReservaNueva): ResultadoReserva | Promise<ResultadoReserva> {
+export function crearReserva(nueva: ReservaNueva, sinAdelanto = false): ResultadoReserva | Promise<ResultadoReserva> {
   if (supabaseFaltaEnProduccion) return { error: 'conexion' }
-  if (supabaseConfigurado) return crearReservaPublicaRemota(nueva)
+  if (supabaseConfigurado) return crearReservaPublicaRemota(nueva, sinAdelanto)
   if (!esDuracionValida(nueva.horas)) return { error: 'duracion-invalida' }
 
   const todas = leerReservas()
@@ -290,7 +290,12 @@ export function crearReserva(nueva: ReservaNueva): ResultadoReserva | Promise<Re
   if (todas.filter((r) => r.celular === nueva.celular && activa(r)).length >= MAX_ACTIVAS)
     return { error: 'limite' }
 
-  const reserva: Reserva = { ...nueva, id: crypto.randomUUID(), estado: 'activo' }
+  const reserva: Reserva = {
+    ...nueva,
+    id: crypto.randomUUID(),
+    estado: 'activo',
+    pagoEstado: sinAdelanto ? 'no_requerido' : 'pendiente',
+  }
   guardar('reservas', [...leer<Reserva[]>('reservas', []), reserva])
   return { reserva }
 }
@@ -340,10 +345,6 @@ const clientes = (): Cliente[] => {
   const demoClientes = (demo as Array<Pick<Reserva, 'alias' | 'celular'>>).map(({ alias, celular }) => ({ alias, celular }))
   return [...demoClientes, ...leer<Cliente[]>('clientes', [])]
 }
-
-export const buscarPorCelular = (celular: string): Cliente | undefined => supabaseConfigurado
-  ? undefined
-  : clientes().find((c) => c.celular === normalizarCelular(celular))
 
 export function registrarCliente(alias: string, celular: string): ResultadoClienteLocal | Promise<ResultadoCliente> {
   const nuevoAlias = normalizarAlias(alias)

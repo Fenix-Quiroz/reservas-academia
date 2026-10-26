@@ -5,7 +5,6 @@ import {
   actualizarEstadoReserva,
   leerReservas,
   registrarCliente,
-  buscarPorCelular,
   limpiarDatosLocales,
   actualizarCliente,
 } from './almacen'
@@ -103,11 +102,14 @@ assert.equal(tercera.error, 'limite')
 const duracionInvalida = conError(await crearReserva(reserva({ horas: 3.5, celular: '955555556' })))
 assert.equal(duracionInvalida.error, 'duracion-invalida')
 
-// Registrar, buscar y rechazar celulares duplicados conserva el primer registro; los alias pueden repetirse.
+resetStorage()
+const mediaHora = conReserva(await crearReserva(reserva({ horas: 0.5, inicio: 18, celular: '955555557' })))
+assert.equal(mediaHora.reserva.horas, 0.5, 'el almacenamiento local conserva una reserva aislada de media hora')
+
+// Registrar y rechazar celulares duplicados conserva el primer registro; los alias pueden repetirse.
 resetStorage()
 const cliente = conCliente(await registrarCliente('Equipo Luna', '966666666'))
 assert.deepEqual(cliente.cliente, { alias: 'Equipo Luna', celular: '966666666' })
-assert.equal((await buscarPorCelular('966666666'))?.alias, 'Equipo Luna')
 assert.equal(conError(await registrarCliente('Otro nombre', '966666666')).error, 'celular')
 assert.deepEqual(conCliente(await registrarCliente(' equipo luna ', '977777777')).cliente, { alias: 'equipo luna', celular: '977777777' })
 

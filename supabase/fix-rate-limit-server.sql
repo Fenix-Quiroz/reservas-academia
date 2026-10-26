@@ -7,11 +7,14 @@ drop function if exists public.crear_reserva_publica(
 drop function if exists public.crear_reserva_publica(
   integer, date, smallint, numeric, text, text
 );
+drop function if exists public.crear_reserva_publica(
+  integer, date, numeric, numeric, text, text
+);
 
 create or replace function public.crear_reserva_publica(
   p_cancha_id integer,
   p_fecha date,
-  p_inicio smallint,
+  p_inicio numeric,
   p_horas numeric(2,1),
   p_alias text,
   p_celular text
@@ -20,7 +23,7 @@ returns table (
   id uuid,
   cancha_id integer,
   fecha date,
-  inicio smallint,
+  inicio numeric,
   horas numeric(2,1),
   alias text,
   celular text,
@@ -34,7 +37,8 @@ set search_path = public, extensions, pg_temp
 as $function$
 declare
   v_hoy date := timezone('America/Lima', now())::date;
-  v_hora_actual integer := extract(hour from timezone('America/Lima', now()));
+  v_hora_actual numeric := extract(hour from timezone('America/Lima', now()))
+    + extract(minute from timezone('America/Lima', now())) / 60.0;
   v_alias text := regexp_replace(trim(p_alias), '\s+', ' ', 'g');
   v_celular text := regexp_replace(trim(p_celular), '[[:space:]-]+', '', 'g');
   v_precio_hora numeric(10, 2);
@@ -54,11 +58,14 @@ begin
     raise exception using errcode = '22023', message = 'cancha_invalida';
   end if;
 
-  if p_fecha < v_hoy or p_fecha > v_hoy + 6 then
+  if p_fecha < v_hoy or p_fecha > v_hoy + 13 then
     raise exception using errcode = '22023', message = 'fecha_invalida';
   end if;
 
-  if p_inicio not between 7 and 24 or p_horas not in (1, 1.5, 2, 3) or p_inicio + p_horas > 25 then
+  if p_inicio not between 7 and 24
+     or p_inicio * 2 <> trunc(p_inicio * 2)
+     or p_horas not in (0.5, 1, 1.5, 2, 2.5, 3)
+     or p_inicio + p_horas > 25 then
     raise exception using errcode = '22023', message = 'horario_invalido';
   end if;
 
@@ -137,5 +144,5 @@ $function$;
 
 -- El navegador solo necesita ejecutar crear_reserva_publica.
 revoke all on function public.registrar_intento_reserva(text) from public, anon, authenticated;
-revoke all on function public.crear_reserva_publica(integer, date, smallint, numeric, text, text) from public, anon, authenticated;
-grant execute on function public.crear_reserva_publica(integer, date, smallint, numeric, text, text) to anon;
+revoke all on function public.crear_reserva_publica(integer, date, numeric, numeric, text, text) from public, anon, authenticated;
+grant execute on function public.crear_reserva_publica(integer, date, numeric, numeric, text, text) to anon;

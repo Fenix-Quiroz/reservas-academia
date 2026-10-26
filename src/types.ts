@@ -16,6 +16,20 @@ export interface Cliente {
 
 export type EstadoReserva = 'activo' | 'iniciado' | 'finalizado' | 'cancelado' | 'no_asistio'
 
+export type EstadoPago = 'no_requerido' | 'pendiente' | 'confirmado' | 'rechazado'
+
+export type EstadoPagoAdmin = 'pendiente' | 'confirmado' | 'rechazado' | 'anulado'
+
+export interface ComprobanteAdmin {
+  pagoId: string
+  reservaId: string
+  estado: EstadoPagoAdmin
+  storagePath: string
+  mimeType: 'image/jpeg' | 'image/png' | 'image/webp'
+  sizeBytes: number
+  createdAt?: string
+}
+
 export type EstadoBloqueoEvento = 'activo' | 'cancelado'
 
 export interface Reserva {
@@ -27,6 +41,7 @@ export interface Reserva {
   alias: string
   celular: string
   estado: EstadoReserva
+  pagoEstado?: EstadoPago
   montoTotal?: number
   nombre?: string
 }

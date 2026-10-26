@@ -47,11 +47,13 @@ set motivo = excluded.motivo,
 
 alter table public.reservas drop constraint if exists reservas_disponibilidad_excl;
 alter table public.reservas
+  alter column inicio type numeric(4,1) using inicio::numeric;
+alter table public.reservas
   alter column horas type numeric(2,1) using horas::numeric;
 alter table public.reservas drop constraint if exists reservas_horas_check;
 alter table public.reservas drop constraint if exists reservas_horas_validas_check;
 alter table public.reservas add constraint reservas_horas_validas_check
-  check (horas in (1, 1.5, 2, 3));
+  check (horas in (0.5, 1, 1.5, 2, 2.5, 3));
 alter table public.reservas drop constraint if exists reservas_disponibilidad_excl;
 alter table public.reservas add constraint reservas_disponibilidad_excl exclude using gist (
   cancha_id with =,
@@ -62,7 +64,7 @@ alter table public.reservas add constraint reservas_disponibilidad_excl exclude 
 alter table public.reservas drop constraint if exists reservas_inicio_check;
 alter table public.reservas drop constraint if exists reservas_inicio_horario_check;
 alter table public.reservas add constraint reservas_inicio_horario_check
-  check (inicio between 7 and 24);
+  check (inicio between 7 and 24 and inicio * 2 = trunc(inicio * 2));
 
 alter table public.horarios_bloqueados enable row level security;
 revoke all on table public.horarios_bloqueados from public, anon, authenticated;
@@ -80,7 +82,7 @@ create policy "admin administra horarios bloqueados" on public.horarios_bloquead
 create or replace function public.horario_entrenamiento_bloqueado(
   p_cancha_id integer,
   p_fecha date,
-  p_inicio smallint,
+  p_inicio numeric,
   p_horas numeric(2,1)
 )
 returns boolean
@@ -100,7 +102,7 @@ as $function$
   );
 $function$;
 
-revoke all on function public.horario_entrenamiento_bloqueado(integer, date, smallint, numeric)
+revoke all on function public.horario_entrenamiento_bloqueado(integer, date, numeric, numeric)
   from public, anon, authenticated;
 
 -- Reservas especiales de eventos. Sus detalles solo están disponibles para
@@ -143,7 +145,7 @@ create policy "admin administra bloqueos eventos" on public.bloqueos_eventos
 create or replace function public.evento_bloquea(
   p_cancha_id integer,
   p_fecha date,
-  p_inicio smallint,
+  p_inicio numeric,
   p_horas numeric(2,1)
 )
 returns boolean
@@ -163,7 +165,7 @@ as $function$
   );
 $function$;
 
-revoke all on function public.evento_bloquea(integer, date, smallint, numeric)
+revoke all on function public.evento_bloquea(integer, date, numeric, numeric)
   from public, anon, authenticated;
 
 drop function if exists public.crear_bloqueo_evento_admin(integer, date, smallint, smallint, text, text, text);
@@ -285,36 +287,37 @@ create or replace function public.obtener_horarios_publicos(
   p_fecha date,
   p_horas numeric(2,1)
 )
-returns table (inicio smallint, libre boolean)
+returns table (inicio numeric, libre boolean)
 language plpgsql
 security definer
 set search_path = public, pg_temp
 as $function$
 declare
   v_hoy date := timezone('America/Lima', now())::date;
-  v_hora_actual integer := extract(hour from timezone('America/Lima', now()));
+  v_hora_actual numeric := extract(hour from timezone('America/Lima', now()))
+    + extract(minute from timezone('America/Lima', now())) / 60.0;
 begin
   if p_cancha_id not between 1 and 4 then
     raise exception using errcode = '22023', message = 'cancha_invalida';
   end if;
 
-  if p_fecha < v_hoy or p_fecha > v_hoy + 6 then
+  if p_fecha < v_hoy or p_fecha > v_hoy + 13 then
     raise exception using errcode = '22023', message = 'fecha_invalida';
   end if;
 
-  if p_horas not in (1, 1.5, 2, 3) then
+  if p_horas not in (0.5, 1, 1.5, 2, 2.5, 3) then
     raise exception using errcode = '22023', message = 'duracion_invalida';
   end if;
 
   return query
   select
-    serie.inicio::smallint,
-    (p_fecha <> v_hoy or serie.inicio > v_hora_actual)
+    (serie.media_hora / 2.0)::numeric(4,1),
+    (p_fecha <> v_hoy or serie.media_hora / 2.0 > v_hora_actual)
       and not public.horario_entrenamiento_bloqueado(
-        p_cancha_id, p_fecha, serie.inicio::smallint, p_horas
+        p_cancha_id, p_fecha, serie.media_hora / 2.0, p_horas
       )
       and not public.evento_bloquea(
-        p_cancha_id, p_fecha, serie.inicio::smallint, p_horas
+        p_cancha_id, p_fecha, serie.media_hora / 2.0, p_horas
       )
       and not exists (
         select 1
@@ -323,21 +326,22 @@ begin
           and reserva.fecha = p_fecha
           and reserva.estado <> 'cancelado'
           and numrange(reserva.inicio::numeric, reserva.inicio::numeric + reserva.horas, '[)')
-            && numrange(serie.inicio::numeric, serie.inicio::numeric + p_horas, '[)')
+            && numrange(serie.media_hora / 2.0, serie.media_hora / 2.0 + p_horas, '[)')
       ) as libre
-  from generate_series(7, floor(25 - p_horas)::integer) as serie(inicio)
-  where (p_fecha <> v_hoy or serie.inicio > v_hora_actual)
-  order by serie.inicio;
+  from generate_series(14, floor((25 - p_horas) * 2)::integer) as serie(media_hora)
+  where (p_fecha <> v_hoy or serie.media_hora / 2.0 > v_hora_actual)
+  order by serie.media_hora;
 end;
 $function$;
 
 drop function if exists public.crear_reserva_publica(integer, date, smallint, smallint, text, text);
 drop function if exists public.crear_reserva_publica(integer, date, smallint, numeric, text, text);
+drop function if exists public.crear_reserva_publica(integer, date, numeric, numeric, text, text);
 
 create or replace function public.crear_reserva_publica(
   p_cancha_id integer,
   p_fecha date,
-  p_inicio smallint,
+  p_inicio numeric,
   p_horas numeric(2,1),
   p_alias text,
   p_celular text
@@ -346,7 +350,7 @@ returns table (
   id uuid,
   cancha_id integer,
   fecha date,
-  inicio smallint,
+  inicio numeric,
   horas numeric(2,1),
   alias text,
   celular text,
@@ -360,7 +364,8 @@ set search_path = public, extensions, pg_temp
 as $function$
 declare
   v_hoy date := timezone('America/Lima', now())::date;
-  v_hora_actual integer := extract(hour from timezone('America/Lima', now()));
+  v_hora_actual numeric := extract(hour from timezone('America/Lima', now()))
+    + extract(minute from timezone('America/Lima', now())) / 60.0;
   v_alias text := regexp_replace(trim(p_alias), '\s+', ' ', 'g');
   v_celular text := regexp_replace(trim(p_celular), '[[:space:]-]+', '', 'g');
   v_precio_hora numeric(10, 2);
@@ -380,11 +385,14 @@ begin
     raise exception using errcode = '22023', message = 'cancha_invalida';
   end if;
 
-  if p_fecha < v_hoy or p_fecha > v_hoy + 6 then
+  if p_fecha < v_hoy or p_fecha > v_hoy + 13 then
     raise exception using errcode = '22023', message = 'fecha_invalida';
   end if;
 
-  if p_inicio not between 7 and 24 or p_horas not in (1, 1.5, 2, 3) or p_inicio + p_horas > 25 then
+  if p_inicio not between 7 and 24
+     or p_inicio * 2 <> trunc(p_inicio * 2)
+     or p_horas not in (0.5, 1, 1.5, 2, 2.5, 3)
+     or p_inicio + p_horas > 25 then
     raise exception using errcode = '22023', message = 'horario_invalido';
   end if;
 
@@ -475,11 +483,12 @@ returns table (
   id uuid,
   cancha_id integer,
   fecha date,
-  inicio smallint,
+  inicio numeric,
   horas numeric(2,1),
   alias text,
   celular text,
-  estado text
+  estado text,
+  pago_estado text
 )
 language plpgsql
 security definer
@@ -505,7 +514,7 @@ begin
   from unnest(p_tokens) as token(valor);
 
   return query
-  select r.id, r.cancha_id, r.fecha, r.inicio, r.horas, r.alias, r.celular, r.estado
+  select r.id, r.cancha_id, r.fecha, r.inicio, r.horas, r.alias, r.celular, r.estado, r.pago_estado
   from public.reservas r
   where r.token_hash = any(v_hashes)
   order by r.fecha, r.inicio;
@@ -515,9 +524,9 @@ $function$;
 revoke all on function public.obtener_horarios_publicos(integer, date, numeric)
   from public, anon, authenticated;
 grant execute on function public.obtener_horarios_publicos(integer, date, numeric) to anon;
-revoke all on function public.crear_reserva_publica(integer, date, smallint, numeric, text, text)
+revoke all on function public.crear_reserva_publica(integer, date, numeric, numeric, text, text)
   from public, anon, authenticated;
-grant execute on function public.crear_reserva_publica(integer, date, smallint, numeric, text, text) to anon;
+grant execute on function public.crear_reserva_publica(integer, date, numeric, numeric, text, text) to anon;
 revoke all on function public.obtener_mis_reservas_publicas(text[])
   from public, anon, authenticated;
 grant execute on function public.obtener_mis_reservas_publicas(text[]) to anon;

@@ -1,11 +1,13 @@
 import { sePuedeCancelar } from '../../reservas'
-import type { Campo, EstadoReserva, Reserva } from '../../types.js'
+import type { Campo, ComprobanteAdmin, EstadoReserva, Reserva } from '../../types.js'
 import AdminReservaCard from './AdminReservaCard'
 
 export interface AdminListadoProps {
   visibles: readonly Reserva[]
-  cargando: boolean
+  cargandoInicial: boolean
+  actualizando: boolean
   canchas: readonly Campo[]
+  comprobantes: readonly ComprobanteAdmin[]
   porCancelar: string | null
   cancelando: string | null
   onRequestCancel: (id: string) => void
@@ -13,12 +15,18 @@ export interface AdminListadoProps {
   onCancelRequest: () => void
   onStatus: (id: string, estado: EstadoReserva) => void | Promise<void>
   actualizandoEstado: string | null
+  procesandoComprobante: string | null
+  onViewComprobante: (comprobante: ComprobanteAdmin) => void
+  onDownloadComprobante: (comprobante: ComprobanteAdmin) => void
+  onConfirmarComprobante: (pagoId: string) => void
 }
 
 export default function AdminListado({
   visibles,
-  cargando,
+  cargandoInicial,
+  actualizando,
   canchas,
+  comprobantes,
   porCancelar,
   cancelando,
   onRequestCancel,
@@ -26,8 +34,12 @@ export default function AdminListado({
   onCancelRequest,
   onStatus,
   actualizandoEstado,
+  procesandoComprobante,
+  onViewComprobante,
+  onDownloadComprobante,
+  onConfirmarComprobante,
 }: AdminListadoProps) {
-  if (cargando) return <div className="admin-cargando" role="status">Cargando reservas…</div>
+  if (cargandoInicial) return <div className="admin-cargando" role="status">Cargando reservas…</div>
 
   if (visibles.length === 0) {
     return (
@@ -39,25 +51,33 @@ export default function AdminListado({
   }
 
   return (
-    <div className="admin-reservas">
-      {visibles.map((reserva) => {
-        const cancha = canchas.find((c) => c.id === reserva.canchaId)
-        return (
-          <AdminReservaCard
-            key={reserva.id}
-            reserva={reserva}
-            cancha={cancha}
-            puedeCancelar={!reserva.id.startsWith('demo-') && sePuedeCancelar(reserva)}
-            porCancelar={porCancelar}
-            cancelando={cancelando}
-            onRequestCancel={() => onRequestCancel(reserva.id)}
-            onCancel={onCancel}
-            onCancelRequest={onCancelRequest}
-            onStatus={onStatus}
-            actualizandoEstado={actualizandoEstado}
-          />
-        )
-      })}
-    </div>
+    <>
+      {actualizando && <p className="admin-listado-actualizando" role="status">Actualizando reservas…</p>}
+      <div className="admin-reservas">
+        {visibles.map((reserva) => {
+          const cancha = canchas.find((c) => c.id === reserva.canchaId)
+          return (
+            <AdminReservaCard
+              key={reserva.id}
+              reserva={reserva}
+              cancha={cancha}
+              comprobante={comprobantes.find((item) => item.reservaId === reserva.id)}
+              puedeCancelar={!reserva.id.startsWith('demo-') && sePuedeCancelar(reserva)}
+              porCancelar={porCancelar}
+              cancelando={cancelando}
+              onRequestCancel={() => onRequestCancel(reserva.id)}
+              onCancel={onCancel}
+              onCancelRequest={onCancelRequest}
+              onStatus={onStatus}
+              actualizandoEstado={actualizandoEstado}
+              procesandoComprobante={procesandoComprobante}
+              onViewComprobante={onViewComprobante}
+              onDownloadComprobante={onDownloadComprobante}
+              onConfirmarComprobante={onConfirmarComprobante}
+            />
+          )
+        })}
+      </div>
+    </>
   )
 }

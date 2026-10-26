@@ -40,8 +40,10 @@ const filtrosNode = AdminFiltros({
 
 const listadoNode = AdminListado({
   visibles: [reserva],
-  cargando: false,
+  cargandoInicial: false,
+  actualizando: false,
   canchas: [cancha],
+  comprobantes: [],
   porCancelar: null,
   cancelando: null,
   onRequestCancel: (_id: string) => undefined,
@@ -49,11 +51,16 @@ const listadoNode = AdminListado({
   onCancelRequest: () => undefined,
   onStatus: async (_id: string, _estado: EstadoReserva) => undefined,
   actualizandoEstado: null,
+  procesandoComprobante: null,
+  onViewComprobante: () => undefined,
+  onDownloadComprobante: () => undefined,
+  onConfirmarComprobante: () => undefined,
 })
 
 const cardNode = AdminReservaCard({
   reserva,
   cancha,
+  comprobante: undefined,
   puedeCancelar: true,
   porCancelar: null,
   cancelando: null,
@@ -62,6 +69,10 @@ const cardNode = AdminReservaCard({
   onCancelRequest: () => undefined,
   onStatus: async (_id: string, _estado: EstadoReserva) => undefined,
   actualizandoEstado: null,
+  procesandoComprobante: null,
+  onViewComprobante: () => undefined,
+  onDownloadComprobante: () => undefined,
+  onConfirmarComprobante: () => undefined,
 })
 
 void [filtrosNode, listadoNode, cardNode]

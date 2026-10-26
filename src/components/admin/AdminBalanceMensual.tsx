@@ -1,8 +1,9 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import type { Campo, Reserva } from '../../types.js'
 import reservasDemoJson from '../../data/reservasBalanceDemo.json'
 import { construirBalanceMensual, mesActual } from '../../balanceMensual.js'
 import { descargarBalanceMensual } from '../../exportarBalance.js'
+import { crearBloqueoAccion } from '../../accionUnica'
 
 export interface AdminBalanceMensualProps {
   reservas: readonly Reserva[]
@@ -15,11 +16,13 @@ export default function AdminBalanceMensual({ reservas, canchas }: AdminBalanceM
   const [mes, setMes] = useState(mesActual)
   const [descargando, setDescargando] = useState(false)
   const [errorDescarga, setErrorDescarga] = useState('')
+  const bloqueoDescarga = useRef(crearBloqueoAccion())
   const esModoDemo = import.meta.env.DEV || import.meta.env.VITE_BALANCE_DEMO === 'true'
   const reservasParaBalance = esModoDemo ? reservasBalanceDemo : reservas
   const balance = useMemo(() => construirBalanceMensual(mes, reservasParaBalance, canchas), [mes, reservasParaBalance, canchas])
 
   async function descargar(): Promise<void> {
+    if (!bloqueoDescarga.current.adquirir()) return
     setErrorDescarga('')
     setDescargando(true)
     try {
@@ -28,6 +31,7 @@ export default function AdminBalanceMensual({ reservas, canchas }: AdminBalanceM
       setErrorDescarga('No pudimos descargar el balance. Inténtalo de nuevo.')
     } finally {
       setDescargando(false)
+      bloqueoDescarga.current.liberar()
     }
   }
 

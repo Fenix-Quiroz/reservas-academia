@@ -30,8 +30,9 @@ export default function SelectorCampos({ campos = canchasPorDefecto, onSelect, t
                     <path d="m20.59 13.41-8.3 8.3L3 12.41V4h8.41l9.18 9.18a1.75 1.75 0 0 1 0 2.48Z" />
                     <circle cx="7.5" cy="7.5" r="1.1" />
                   </svg>
-                  <strong>Oferta</strong>
+                  <strong>Gratis</strong>
                 </span>
+                <img className="oferta-imagen" src="/ofertas/agua-cielo-2-5l.png" alt="" aria-hidden="true" />
                 <span>{c.oferta}</span>
               </span>
               <span className="seleccionar-cancha">

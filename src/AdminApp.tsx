@@ -1,6 +1,6 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import canchas from './data/canchas.json'
-import type { BloqueoEvento, EstadoReserva, FiltrosAdmin, Reserva } from './types.js'
+import type { BloqueoEvento, ComprobanteAdmin, EstadoReserva, FiltrosAdmin, Reserva } from './types.js'
 import type { NumeroBloqueado, NumeroConfiable, ResultadoControlCliente } from './controlClientes.js'
 import type { UsuarioAdmin } from './adminAuth.js'
 import {
@@ -24,9 +24,14 @@ import {
   agregarNumeroConfiableRemoto,
   bloquearNumeroRemoto,
   cancelarBloqueoEventoRemoto,
+  confirmarPagoAdminRemoto,
+  crearUrlComprobanteAdminRemota,
+  nombreDescargaComprobante,
   crearBloqueoEventoRemoto,
   desbloquearNumeroRemoto,
+  leerComprobantesAdminRemotos,
   leerBloqueosEventosRemotos,
+  limpiarDatosPruebaRemoto,
   leerNumerosBloqueadosRemotos,
   leerNumerosConfiablesRemotos,
   quitarNumeroConfiableRemoto,
@@ -44,6 +49,7 @@ import AdminAlarmaTurno from './components/admin/AdminAlarmaTurno'
 import AdminBalanceMensual from './components/admin/AdminBalanceMensual'
 import AdminControlClientes from './components/admin/AdminControlClientes'
 import AdminEventos from './components/admin/AdminEventos'
+import { crearBloqueoAccion } from './accionUnica'
 
 type EstadoConexion = 'sincronizando' | 'demo' | 'error' | 'sincronizado'
 
@@ -62,15 +68,19 @@ export default function AdminApp() {
   const [cargandoAuth, setCargandoAuth] = useState(supabaseConfigurado)
   const [authError, setAuthError] = useState('')
   const [reservas, setReservas] = useState<Reserva[]>(leerReservas)
+  const [comprobantesAdmin, setComprobantesAdmin] = useState<ComprobanteAdmin[]>([])
   const [filtros, setFiltros] = useState<FiltrosAdmin>({ vista: 'proximas', fecha: fechaISO(new Date()), canchaId: 'todas', buscar: '' })
   const [porCancelar, setPorCancelar] = useState<string | null>(null)
   const [porLimpiar, setPorLimpiar] = useState(false)
+  const [limpiandoDatosPrueba, setLimpiandoDatosPrueba] = useState(false)
   const [mensaje, setMensaje] = useState('')
   const [error, setError] = useState('')
   const [cargando, setCargando] = useState(true)
+  const [listaCargada, setListaCargada] = useState(!supabaseConfigurado)
   const [estadoConexion, setEstadoConexion] = useState<EstadoConexion>(supabaseConfigurado ? 'sincronizando' : 'demo')
   const [cancelando, setCancelando] = useState<string | null>(null)
   const [actualizandoEstado, setActualizandoEstado] = useState<string | null>(null)
+  const [procesandoComprobante, setProcesandoComprobante] = useState<string | null>(null)
   const [numerosBloqueados, setNumerosBloqueados] = useState<NumeroBloqueado[]>([])
   const [numerosConfiables, setNumerosConfiables] = useState<NumeroConfiable[]>([])
   const [cargandoControl, setCargandoControl] = useState(false)
@@ -78,6 +88,12 @@ export default function AdminApp() {
   const [eventos, setEventos] = useState<BloqueoEvento[]>(leerBloqueosEventos)
   const [cargandoEventos, setCargandoEventos] = useState(false)
   const [procesandoEvento, setProcesandoEvento] = useState(false)
+  const bloqueoActualizar = useRef(crearBloqueoAccion())
+  const bloqueoCancelar = useRef(crearBloqueoAccion())
+  const bloqueoEstado = useRef(crearBloqueoAccion())
+  const bloqueoComprobante = useRef(crearBloqueoAccion())
+  const bloqueoControl = useRef(crearBloqueoAccion())
+  const bloqueoEvento = useRef(crearBloqueoAccion())
 
   useEffect(() => {
     if (!mensaje) return undefined
@@ -130,8 +146,10 @@ export default function AdminApp() {
           cargarReservas(),
           supabaseConfigurado ? leerBloqueosEventosRemotos() : Promise.resolve(leerBloqueosEventos()),
         ])
+        const comprobantesActuales = supabaseConfigurado ? await leerComprobantesAdminRemotos() : []
         if (montado) {
           setReservas(actuales)
+          setComprobantesAdmin(comprobantesActuales)
           setEventos(eventosActuales)
           setEstadoConexion(supabaseConfigurado ? 'sincronizado' : 'demo')
         }
@@ -141,7 +159,10 @@ export default function AdminApp() {
           setError('No pudimos cargar las reservas. Ejecuta primero el esquema de Supabase.')
         }
       } finally {
-        if (montado) setCargando(false)
+        if (montado) {
+          setListaCargada(true)
+          setCargando(false)
+        }
       }
     }
     void refrescar()
@@ -197,11 +218,20 @@ export default function AdminApp() {
   }
 
   async function actualizar(): Promise<void> {
-    if (cargando) return
+    if (!bloqueoActualizar.current.adquirir()) return
+    if (cargando) {
+      bloqueoActualizar.current.liberar()
+      return
+    }
     setCargando(true)
     if (supabaseConfigurado) setEstadoConexion('sincronizando')
     try {
-      setReservas(await cargarReservas())
+      const [actuales, comprobantesActuales] = await Promise.all([
+        cargarReservas(),
+        supabaseConfigurado ? leerComprobantesAdminRemotos() : Promise.resolve([]),
+      ])
+      setReservas(actuales)
+      setComprobantesAdmin(comprobantesActuales)
       await cargarEventos()
       await cargarControlClientes()
     } catch {
@@ -209,6 +239,8 @@ export default function AdminApp() {
       setError('No pudimos actualizar la lista. Revisa la conexión con Supabase.')
       setCargando(false)
       return
+    } finally {
+      bloqueoActualizar.current.liberar()
     }
     setEstadoConexion(supabaseConfigurado ? 'sincronizado' : 'demo')
     setCargando(false)
@@ -217,7 +249,7 @@ export default function AdminApp() {
   }
 
   async function cancelar(id: string): Promise<void> {
-    if (cancelando) return
+    if (!bloqueoCancelar.current.adquirir()) return
     setCancelando(id)
     try {
       const resultado = await cancelarReservaAdmin(id)
@@ -245,11 +277,12 @@ export default function AdminApp() {
       setMensaje('')
     } finally {
       setCancelando(null)
+      bloqueoCancelar.current.liberar()
     }
   }
 
   async function cambiarEstado(id: string, estado: EstadoReserva): Promise<void> {
-    if (actualizandoEstado) return
+    if (!bloqueoEstado.current.adquirir()) return
     setActualizandoEstado(id)
     setPorCancelar(null)
     try {
@@ -276,10 +309,106 @@ export default function AdminApp() {
       setMensaje('')
     } finally {
       setActualizandoEstado(null)
+      bloqueoEstado.current.liberar()
     }
   }
 
-  function limpiar(): void {
+  function mensajeErrorComprobanteAdmin(error: string): string {
+    if (error === 'no-existe') return 'El comprobante ya no existe.'
+    if (error === 'no-confirmable') return 'Este comprobante ya no puede confirmarse.'
+    if (error === 'sin-comprobante') return 'No encontramos la imagen del comprobante.'
+    if (error === 'reserva-no-activa') return 'La reserva ya no está activa.'
+    return 'No pudimos procesar el comprobante. Revisa la conexión.'
+  }
+
+  async function abrirComprobante(comprobante: ComprobanteAdmin, descargar: boolean): Promise<void> {
+    const accion = `${descargar ? 'descargar' : 'ver'}:${comprobante.pagoId}`
+    if (!bloqueoComprobante.current.adquirir()) return
+    setProcesandoComprobante(accion)
+    const ventana = descargar ? null : window.open('', '_blank')
+    if (ventana) ventana.opener = null
+    try {
+      const url = await crearUrlComprobanteAdminRemota(comprobante.storagePath, descargar)
+      if (descargar) {
+        const enlace = document.createElement('a')
+        enlace.href = url
+        enlace.download = nombreDescargaComprobante(comprobante.storagePath)
+        enlace.rel = 'noreferrer'
+        document.body.appendChild(enlace)
+        enlace.click()
+        enlace.remove()
+      } else if (ventana) {
+        ventana.location.href = url
+      } else {
+        const enlace = document.createElement('a')
+        enlace.href = url
+        enlace.target = '_blank'
+        enlace.rel = 'noopener noreferrer'
+        document.body.appendChild(enlace)
+        enlace.click()
+        enlace.remove()
+      }
+    } catch {
+      ventana?.close()
+      setError('No pudimos abrir el comprobante. Revisa la conexión.')
+      setMensaje('')
+    } finally {
+      setProcesandoComprobante(null)
+      bloqueoComprobante.current.liberar()
+    }
+  }
+
+  async function confirmarComprobante(pagoId: string): Promise<void> {
+    if (!bloqueoComprobante.current.adquirir()) return
+    setProcesandoComprobante(`confirmar:${pagoId}`)
+    try {
+      const resultado = supabaseConfigurado
+        ? await confirmarPagoAdminRemoto(pagoId)
+        : { error: 'conexion' as const }
+      if ('error' in resultado) {
+        setError(mensajeErrorComprobanteAdmin(resultado.error))
+        setMensaje('')
+        return
+      }
+      const [actuales, comprobantesActuales] = await Promise.all([
+        cargarReservas(),
+        leerComprobantesAdminRemotos(),
+      ])
+      setReservas(actuales)
+      setComprobantesAdmin(comprobantesActuales)
+      setMensaje('Comprobante confirmado. La reserva sigue activa.')
+      setError('')
+    } catch {
+      setError('No pudimos confirmar el comprobante. Revisa la conexión.')
+      setMensaje('')
+    } finally {
+      setProcesandoComprobante(null)
+      bloqueoComprobante.current.liberar()
+    }
+  }
+
+  async function limpiar(): Promise<void> {
+    if (supabaseConfigurado) {
+      setLimpiandoDatosPrueba(true)
+      try {
+        const resultado = await limpiarDatosPruebaRemoto()
+        if ('error' in resultado) {
+          setError(resultado.error === 'no-autorizado'
+            ? 'No tienes autorización para limpiar los datos de prueba.'
+            : 'No pudimos limpiar los datos de prueba. Revisa la función de Supabase.')
+          setMensaje('')
+          return
+        }
+        await actualizar()
+        setMensaje('Datos de prueba eliminados. La aplicación está lista para probar de nuevo.')
+        setError('')
+      } finally {
+        setLimpiandoDatosPrueba(false)
+        setPorLimpiar(false)
+      }
+      return
+    }
+
     limpiarDatosLocales()
     setReservas(leerReservas())
     setEventos(leerBloqueosEventos())
@@ -295,7 +424,7 @@ export default function AdminApp() {
   async function ejecutarControl(
     accion: () => Promise<ResultadoControlCliente> | ResultadoControlCliente,
   ): Promise<ResultadoControlCliente> {
-    if (procesandoControl) return { error: 'conexion' }
+    if (!bloqueoControl.current.adquirir()) return { error: 'conexion' }
     setProcesandoControl(true)
     try {
       const resultado = await accion()
@@ -305,13 +434,14 @@ export default function AdminApp() {
       return { error: 'conexion' }
     } finally {
       setProcesandoControl(false)
+      bloqueoControl.current.liberar()
     }
   }
 
   async function ejecutarEvento<T>(
     accion: () => Promise<T> | T,
   ): Promise<T> {
-    if (procesandoEvento) return { error: 'conexion' } as T
+    if (!bloqueoEvento.current.adquirir()) return { error: 'conexion' } as T
     setProcesandoEvento(true)
     try {
       const resultado = await accion()
@@ -321,6 +451,7 @@ export default function AdminApp() {
       return { error: 'conexion' } as T
     } finally {
       setProcesandoEvento(false)
+      bloqueoEvento.current.liberar()
     }
   }
 
@@ -349,10 +480,11 @@ export default function AdminApp() {
       <AdminCabecera
         supabaseConfigurado={supabaseConfigurado}
         porLimpiar={porLimpiar}
+        limpiandoDatosPrueba={limpiandoDatosPrueba}
         cargando={cargando}
         onClearRequest={() => setPorLimpiar(true)}
         onClearCancel={() => setPorLimpiar(false)}
-        onClearConfirm={limpiar}
+        onClearConfirm={() => void limpiar()}
         onRefresh={actualizar}
         onLogout={cerrarSesion}
       />
@@ -393,8 +525,10 @@ export default function AdminApp() {
 
         <AdminListado
           visibles={visibles}
-          cargando={cargando}
+          cargandoInicial={cargando && !listaCargada}
+          actualizando={cargando}
           canchas={canchas}
+          comprobantes={comprobantesAdmin}
           porCancelar={porCancelar}
           cancelando={cancelando}
           onRequestCancel={(id) => setPorCancelar(id)}
@@ -402,6 +536,10 @@ export default function AdminApp() {
           onCancelRequest={() => setPorCancelar(null)}
           onStatus={cambiarEstado}
           actualizandoEstado={actualizandoEstado}
+          procesandoComprobante={procesandoComprobante}
+          onViewComprobante={(comprobante) => void abrirComprobante(comprobante, false)}
+          onDownloadComprobante={(comprobante) => void abrirComprobante(comprobante, true)}
+          onConfirmarComprobante={(pagoId) => void confirmarComprobante(pagoId)}
         />
       </section>
 

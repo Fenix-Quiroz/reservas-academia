@@ -30,8 +30,10 @@ const vista = DatosReserva({
   tituloRef: ref,
   actions: {
     createClient: async () => ({ cliente: { alias: 'Juan', celular: '987654321' } }),
-    findClient: async (): Promise<Cliente | null> => null,
     reserve: async () => ({ reserva: { id: '1', canchaId: 1, fecha: '2026-10-21', inicio: 10, horas: 1, alias: 'Juan', celular: '987654321', estado: 'activo' } }),
+    checkTrustedNumber: async () => false,
+    prewarmPayment: async () => {},
+    submitPayment: async () => ({}),
   },
 })
 

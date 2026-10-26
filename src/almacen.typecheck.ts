@@ -2,7 +2,6 @@ import type { Cliente, Reserva, ReservaNueva } from './types.js'
 import {
   actualizarCliente,
   actualizarEstadoReserva,
-  buscarPorCelular,
   cancelarReserva,
   cargarReservas,
   crearReserva,
@@ -28,7 +27,6 @@ const carga = cargarReservas()
 const creada = crearReserva(nueva)
 const cancelada = cancelarReserva('reserva-1')
 const estadoActualizado = actualizarEstadoReserva('reserva-1', 'iniciado')
-const encontrada = buscarPorCelular(cliente.celular)
 const registrada = registrarCliente(cliente.alias, cliente.celular)
 const actualizada = actualizarCliente(cliente.celular, cliente.alias, cliente.celular)
 const yo: Cliente | null = leerYo()
@@ -36,4 +34,4 @@ const guardar: void = guardarYo(cliente)
 const olvidar: void = olvidarYo()
 const limpiar: void = limpiarDatosLocales()
 
-void [reservas, carga, creada, cancelada, estadoActualizado, encontrada, registrada, actualizada, yo, guardar, olvidar, limpiar]
+void [reservas, carga, creada, cancelada, estadoActualizado, registrada, actualizada, yo, guardar, olvidar, limpiar]

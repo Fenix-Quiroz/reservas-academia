@@ -3,13 +3,22 @@
 create extension if not exists pgcrypto with schema extensions;
 alter table public.reservas add column if not exists monto_total numeric(10, 2);
 alter table public.reservas add column if not exists token_hash text;
+alter table public.reservas add column if not exists pago_estado text;
+update public.reservas set pago_estado = 'no_requerido' where pago_estado is null;
+alter table public.reservas alter column pago_estado set default 'no_requerido';
+alter table public.reservas alter column pago_estado set not null;
+alter table public.reservas drop constraint if exists reservas_pago_estado_check;
+alter table public.reservas add constraint reservas_pago_estado_check
+  check (pago_estado in ('no_requerido', 'pendiente', 'confirmado', 'rechazado'));
 alter table public.reservas drop constraint if exists reservas_disponibilidad_excl;
+alter table public.reservas
+  alter column inicio type numeric(4,1) using inicio::numeric;
 alter table public.reservas
   alter column horas type numeric(2,1) using horas::numeric;
 alter table public.reservas drop constraint if exists reservas_horas_check;
 alter table public.reservas drop constraint if exists reservas_horas_validas_check;
 alter table public.reservas add constraint reservas_horas_validas_check
-  check (horas in (1, 1.5, 2, 3));
+  check (horas in (0.5, 1, 1.5, 2, 2.5, 3));
 alter table public.reservas drop constraint if exists reservas_disponibilidad_excl;
 alter table public.reservas add constraint reservas_disponibilidad_excl exclude using gist (
   cancha_id with =,
@@ -160,7 +169,7 @@ set motivo = excluded.motivo,
 alter table public.reservas drop constraint if exists reservas_inicio_check;
 alter table public.reservas drop constraint if exists reservas_inicio_horario_check;
 alter table public.reservas add constraint reservas_inicio_horario_check
-  check (inicio between 7 and 24);
+  check (inicio between 7 and 24 and inicio * 2 = trunc(inicio * 2));
 
 alter table public.horarios_bloqueados enable row level security;
 revoke all on table public.horarios_bloqueados from public, anon, authenticated;
@@ -178,7 +187,7 @@ create policy "admin administra horarios bloqueados" on public.horarios_bloquead
 create or replace function public.horario_entrenamiento_bloqueado(
   p_cancha_id integer,
   p_fecha date,
-  p_inicio smallint,
+  p_inicio numeric,
   p_horas numeric(2,1)
 )
 returns boolean
@@ -198,7 +207,7 @@ as $function$
   );
 $function$;
 
-revoke all on function public.horario_entrenamiento_bloqueado(integer, date, smallint, numeric)
+revoke all on function public.horario_entrenamiento_bloqueado(integer, date, numeric, numeric)
   from public, anon, authenticated;
 
 -- Reservas especiales de eventos: solo administración puede ver sus detalles.
@@ -240,7 +249,7 @@ create policy "admin administra bloqueos eventos" on public.bloqueos_eventos
 create or replace function public.evento_bloquea(
   p_cancha_id integer,
   p_fecha date,
-  p_inicio smallint,
+  p_inicio numeric,
   p_horas numeric(2,1)
 )
 returns boolean
@@ -260,7 +269,7 @@ as $function$
   );
 $function$;
 
-revoke all on function public.evento_bloquea(integer, date, smallint, numeric)
+revoke all on function public.evento_bloquea(integer, date, numeric, numeric)
   from public, anon, authenticated;
 
 drop function if exists public.crear_bloqueo_evento_admin(integer, date, smallint, smallint, text, text, text);
@@ -355,7 +364,7 @@ begin
   end if;
 
   update public.bloqueos_eventos
-  set estado = 'cancelado', updated_at = now()
+  set estado = 'cancelado'
   where id = p_id and estado = 'activo'
   returning true into v_cancelado;
 
@@ -374,6 +383,66 @@ revoke all on function public.cancelar_bloqueo_evento_admin(uuid)
   from public, anon, authenticated;
 grant execute on function public.cancelar_bloqueo_evento_admin(uuid) to authenticated;
 
+-- Se define antes de la sección de pagos porque este archivo agrega las
+-- columnas/tablas de pagos más abajo; el SQL se resuelve al invocarla.
+create or replace function public.liberar_reservas_pago_expiradas()
+returns integer
+language plpgsql
+security definer
+set search_path = public, pg_temp
+as $function$
+declare
+  v_liberadas integer;
+begin
+  execute $sql$
+    update public.reservas as reserva
+    set estado = 'cancelado'
+    where reserva.estado = 'activo'
+      and reserva.pago_estado in ('pendiente', 'rechazado')
+      and reserva.pago_expira_at is not null
+      and reserva.pago_expira_at <= now()
+      and not exists (
+        select 1 from public.pagos_reserva as pago
+        where pago.reserva_id = reserva.id and pago.estado = 'confirmado'
+      )
+  $sql$;
+  get diagnostics v_liberadas = row_count;
+  return v_liberadas;
+end;
+$function$;
+
+revoke all on function public.liberar_reservas_pago_expiradas() from public, anon, authenticated;
+
+create or replace function public.liberar_reserva_pago_expirada(p_reserva_id uuid)
+returns boolean
+language plpgsql
+security definer
+set search_path = public, pg_temp
+as $function$
+declare
+  v_liberada boolean;
+begin
+  execute $sql$
+    update public.reservas as reserva
+    set estado = 'cancelado'
+    where reserva.id = $1
+      and reserva.estado = 'activo'
+      and reserva.pago_estado in ('pendiente', 'rechazado')
+      and reserva.pago_expira_at is not null
+      and reserva.pago_expira_at <= now()
+      and not exists (
+        select 1 from public.pagos_reserva as pago
+        where pago.reserva_id = reserva.id and pago.estado = 'confirmado'
+      )
+    returning true
+  $sql$ into v_liberada using p_reserva_id;
+  return coalesce(v_liberada, false);
+end;
+$function$;
+
+revoke all on function public.liberar_reserva_pago_expirada(uuid) from public, anon, authenticated;
+grant execute on function public.liberar_reserva_pago_expirada(uuid) to service_role;
+
 -- API pública mínima para reservar sin abrir las tablas al navegador.
 drop function if exists public.obtener_horarios_publicos(integer, date, smallint);
 drop function if exists public.obtener_horarios_publicos(integer, date, numeric);
@@ -383,36 +452,39 @@ create or replace function public.obtener_horarios_publicos(
   p_fecha date,
   p_horas numeric(2,1)
 )
-returns table (inicio smallint, libre boolean)
+returns table (inicio numeric, libre boolean)
 language plpgsql
 security definer
 set search_path = public, pg_temp
 as $function$
 declare
   v_hoy date := timezone('America/Lima', now())::date;
-  v_hora_actual integer := extract(hour from timezone('America/Lima', now()));
+  v_hora_actual numeric := extract(hour from timezone('America/Lima', now()))
+    + extract(minute from timezone('America/Lima', now())) / 60.0;
 begin
+  perform public.liberar_reservas_pago_expiradas();
+
   if p_cancha_id not between 1 and 4 then
     raise exception using errcode = '22023', message = 'cancha_invalida';
   end if;
 
-  if p_fecha < v_hoy or p_fecha > v_hoy + 6 then
+  if p_fecha < v_hoy or p_fecha > v_hoy + 13 then
     raise exception using errcode = '22023', message = 'fecha_invalida';
   end if;
 
-  if p_horas not in (1, 1.5, 2, 3) then
+  if p_horas not in (0.5, 1, 1.5, 2, 2.5, 3) then
     raise exception using errcode = '22023', message = 'duracion_invalida';
   end if;
 
   return query
   select
-    serie.inicio::smallint,
-    (p_fecha <> v_hoy or serie.inicio > v_hora_actual)
+    (serie.media_hora / 2.0)::numeric(4,1),
+    (p_fecha <> v_hoy or serie.media_hora / 2.0 > v_hora_actual)
       and not public.horario_entrenamiento_bloqueado(
-        p_cancha_id, p_fecha, serie.inicio::smallint, p_horas
+        p_cancha_id, p_fecha, serie.media_hora / 2.0, p_horas
       )
       and not public.evento_bloquea(
-        p_cancha_id, p_fecha, serie.inicio::smallint, p_horas
+        p_cancha_id, p_fecha, serie.media_hora / 2.0, p_horas
       )
       and not exists (
         select 1
@@ -421,34 +493,59 @@ begin
           and r.fecha = p_fecha
           and r.estado <> 'cancelado'
           and numrange(r.inicio::numeric, r.inicio::numeric + r.horas, '[)')
-            && numrange(serie.inicio::numeric, serie.inicio::numeric + p_horas, '[)')
+            && numrange(serie.media_hora / 2.0, serie.media_hora / 2.0 + p_horas, '[)')
       ) as libre
-  from generate_series(7, floor(25 - p_horas)::integer) as serie(inicio)
-  where (p_fecha <> v_hoy or serie.inicio > v_hora_actual)
-  order by serie.inicio;
+  from generate_series(14, floor((25 - p_horas) * 2)::integer) as serie(media_hora)
+  where (p_fecha <> v_hoy or serie.media_hora / 2.0 > v_hora_actual)
+  order by serie.media_hora;
+end;
+$function$;
+
+create or replace function public.es_numero_confiable_publico(p_celular text)
+returns boolean
+language plpgsql
+security definer
+set search_path = public, pg_temp
+as $function$
+declare
+  v_celular text := regexp_replace(trim(p_celular), '[[:space:]-]+', '', 'g');
+begin
+  if v_celular is null or v_celular !~ '^9[0-9]{8}$' then
+    return false;
+  end if;
+  return exists (
+    select 1
+    from public.numeros_confiables as confiable
+    where confiable.celular = v_celular
+      and confiable.activo
+  );
 end;
 $function$;
 
 drop function if exists public.crear_reserva_publica(integer, date, smallint, smallint, text, text);
 drop function if exists public.crear_reserva_publica(integer, date, smallint, numeric, text, text);
+drop function if exists public.crear_reserva_publica(integer, date, numeric, numeric, text, text);
+drop function if exists public.crear_reserva_publica(integer, date, numeric, numeric, text, text, boolean);
 
 create or replace function public.crear_reserva_publica(
   p_cancha_id integer,
   p_fecha date,
-  p_inicio smallint,
+  p_inicio numeric,
   p_horas numeric(2,1),
   p_alias text,
-  p_celular text
+  p_celular text,
+  p_sin_adelanto boolean default false
 )
 returns table (
   id uuid,
   cancha_id integer,
   fecha date,
-  inicio smallint,
+  inicio numeric,
   horas numeric(2,1),
   alias text,
   celular text,
   estado text,
+  pago_estado text,
   monto_total numeric(10, 2),
   token text
 )
@@ -458,14 +555,21 @@ set search_path = public, extensions, pg_temp
 as $function$
 declare
   v_hoy date := timezone('America/Lima', now())::date;
-  v_hora_actual integer := extract(hour from timezone('America/Lima', now()));
+  v_hora_actual numeric := extract(hour from timezone('America/Lima', now()))
+    + extract(minute from timezone('America/Lima', now())) / 60.0;
   v_alias text := regexp_replace(trim(p_alias), '\s+', ' ', 'g');
   v_celular text := regexp_replace(trim(p_celular), '[[:space:]-]+', '', 'g');
   v_precio_hora numeric(10, 2);
   v_monto_total numeric(10, 2);
+  v_numero_confiable boolean;
+  v_pago_estado text;
+  v_pago_requerido numeric(10, 2);
+  v_pago_expira_at timestamptz;
   v_token text := encode(gen_random_bytes(24), 'hex');
   v_reserva public.reservas%rowtype;
 begin
+  perform public.liberar_reservas_pago_expiradas();
+
   v_precio_hora := case p_cancha_id
     when 1 then 55
     when 2 then 50
@@ -478,11 +582,14 @@ begin
     raise exception using errcode = '22023', message = 'cancha_invalida';
   end if;
 
-  if p_fecha < v_hoy or p_fecha > v_hoy + 6 then
+  if p_fecha < v_hoy or p_fecha > v_hoy + 13 then
     raise exception using errcode = '22023', message = 'fecha_invalida';
   end if;
 
-  if p_inicio not between 7 and 24 or p_horas not in (1, 1.5, 2, 3) or p_inicio + p_horas > 25 then
+  if p_inicio not between 7 and 24
+     or p_inicio * 2 <> trunc(p_inicio * 2)
+     or p_horas not in (0.5, 1, 1.5, 2, 2.5, 3)
+     or p_inicio + p_horas > 25 then
     raise exception using errcode = '22023', message = 'horario_invalido';
   end if;
 
@@ -508,6 +615,20 @@ begin
   perform pg_advisory_xact_lock(hashtextextended(v_celular, 0));
   perform pg_advisory_xact_lock(hashtextextended(format('agenda:%s:%s', p_cancha_id, p_fecha), 0));
 
+  if exists (
+    select 1
+    from public.numeros_bloqueados as bloqueado
+    where bloqueado.celular = v_celular
+      and bloqueado.activo
+  ) then
+    raise exception using errcode = 'P0001', message = 'celular_bloqueado';
+  end if;
+
+  v_numero_confiable := public.es_numero_confiable_publico(v_celular);
+  if p_sin_adelanto and not v_numero_confiable then
+    raise exception using errcode = 'P0001', message = 'numero_no_confiable';
+  end if;
+
   if public.evento_bloquea(p_cancha_id, p_fecha, p_inicio, p_horas) then
     raise exception using errcode = '23P01', message = 'evento_ocupado';
   end if;
@@ -529,6 +650,10 @@ begin
   -- cliente pueda saltarse el control llamando directamente a este RPC.
   perform public.registrar_intento_reserva(v_celular);
 
+  v_pago_estado := case when p_sin_adelanto then 'no_requerido' else 'pendiente' end;
+  v_pago_requerido := case when p_sin_adelanto then 0 else 10 end;
+  v_pago_expira_at := case when p_sin_adelanto then null else now() + interval '30 minutes' end;
+
   insert into public.clientes (alias, celular)
   select v_alias, v_celular
   where not exists (
@@ -538,7 +663,8 @@ begin
   );
 
   insert into public.reservas (
-    cancha_id, fecha, inicio, horas, alias, celular, token_hash, estado, monto_total
+    cancha_id, fecha, inicio, horas, alias, celular, token_hash, estado,
+    monto_total, pago_estado, pago_requerido, pago_expira_at
   )
   values (
     p_cancha_id,
@@ -549,7 +675,10 @@ begin
     v_celular,
     encode(digest(v_token, 'sha256'), 'hex'),
     'activo',
-    v_monto_total
+    v_monto_total,
+    v_pago_estado,
+    v_pago_requerido,
+    v_pago_expira_at
   )
   returning * into v_reserva;
 
@@ -563,6 +692,7 @@ begin
     v_reserva.alias,
     v_reserva.celular,
     v_reserva.estado,
+    v_reserva.pago_estado,
     v_reserva.monto_total,
     v_token;
 end;
@@ -575,11 +705,12 @@ returns table (
   id uuid,
   cancha_id integer,
   fecha date,
-  inicio smallint,
+  inicio numeric,
   horas numeric(2,1),
   alias text,
   celular text,
-  estado text
+  estado text,
+  pago_estado text
 )
 language plpgsql
 security definer
@@ -605,7 +736,7 @@ begin
   from unnest(p_tokens) as token(valor);
 
   return query
-  select r.id, r.cancha_id, r.fecha, r.inicio, r.horas, r.alias, r.celular, r.estado
+  select r.id, r.cancha_id, r.fecha, r.inicio, r.horas, r.alias, r.celular, r.estado, r.pago_estado
   from public.reservas r
   where r.token_hash = any(v_hashes)
   order by r.fecha, r.inicio;
@@ -639,8 +770,10 @@ $function$;
 revoke all on function public.obtener_horarios_publicos(integer, date, numeric) from public, anon, authenticated;
 grant execute on function public.obtener_horarios_publicos(integer, date, numeric) to anon;
 revoke all on function public.registrar_intento_reserva(text) from public, anon, authenticated;
-revoke all on function public.crear_reserva_publica(integer, date, smallint, numeric, text, text) from public, anon, authenticated;
-grant execute on function public.crear_reserva_publica(integer, date, smallint, numeric, text, text) to anon;
+revoke all on function public.es_numero_confiable_publico(text) from public, anon, authenticated;
+grant execute on function public.es_numero_confiable_publico(text) to anon;
+revoke all on function public.crear_reserva_publica(integer, date, numeric, numeric, text, text, boolean) from public, anon, authenticated;
+grant execute on function public.crear_reserva_publica(integer, date, numeric, numeric, text, text, boolean) to anon;
 revoke all on function public.obtener_mis_reservas_publicas(text[]) from public, anon, authenticated;
 grant execute on function public.obtener_mis_reservas_publicas(text[]) to anon;
 revoke all on function public.cancelar_reserva_publica(uuid, text) from public, anon, authenticated;
@@ -683,6 +816,47 @@ create policy "admin actualiza reservas" on public.reservas
   for update to authenticated
   using ((select auth.jwt() -> 'app_metadata' ->> 'role') = 'admin')
   with check ((select auth.jwt() -> 'app_metadata' ->> 'role') = 'admin');
+
+create or replace function public.confirmar_pago_admin(p_pago_id uuid)
+returns boolean
+language plpgsql
+security definer
+set search_path = public, pg_temp
+as $function$
+declare
+  v_pago public.pagos_reserva%rowtype;
+begin
+  if coalesce(auth.jwt() -> 'app_metadata' ->> 'role', '') <> 'admin' then
+    raise exception using errcode = '42501', message = 'admin_no_autorizado';
+  end if;
+  select * into v_pago from public.pagos_reserva where id = p_pago_id for update;
+  if not found then
+    raise exception using errcode = 'P0001', message = 'pago_no_existe';
+  end if;
+  if v_pago.estado = 'confirmado' then return true; end if;
+  if v_pago.estado <> 'pendiente' then
+    raise exception using errcode = 'P0001', message = 'pago_no_confirmable';
+  end if;
+  if not exists (select 1 from public.pago_comprobantes where pago_id = v_pago.id) then
+    raise exception using errcode = 'P0001', message = 'comprobante_no_existe';
+  end if;
+  perform 1 from public.reservas
+  where id = v_pago.reserva_id and estado = 'activo'
+  for update;
+  if not found then
+    raise exception using errcode = 'P0001', message = 'reserva_no_activa';
+  end if;
+  update public.pagos_reserva
+  set estado = 'confirmado', revisado_por = auth.uid(), revisado_at = now()
+  where id = v_pago.id;
+  update public.reservas
+  set pago_estado = 'confirmado', pago_expira_at = null
+  where id = v_pago.reserva_id;
+  return true;
+end;
+$function$;
+revoke all on function public.confirmar_pago_admin(uuid) from public, anon;
+grant execute on function public.confirmar_pago_admin(uuid) to authenticated;
 
 -- Control de inasistencias, números bloqueados y clientes confiables.
 create table if not exists public.numeros_bloqueados (
@@ -759,3 +933,114 @@ create policy "admin lee numeros confiables" on public.numeros_confiables for se
 create policy "admin administra numeros confiables" on public.numeros_confiables for all to authenticated using ((select auth.jwt() -> 'app_metadata' ->> 'role') = 'admin') with check ((select auth.jwt() -> 'app_metadata' ->> 'role') = 'admin');
 revoke all on function public.verificar_numero_bloqueado() from public, anon, authenticated;
 revoke all on function public.actualizar_bloqueo_por_inasistencia() from public, anon, authenticated;
+
+-- Estructura escalable para adelantos y comprobantes.
+alter table public.reservas add column if not exists pago_requerido numeric(10, 2);
+update public.reservas
+set pago_requerido = case when pago_estado = 'no_requerido' then 0 else 10 end
+where pago_requerido is null;
+alter table public.reservas alter column pago_requerido set default 0;
+alter table public.reservas alter column pago_requerido set not null;
+alter table public.reservas drop constraint if exists reservas_pago_requerido_check;
+alter table public.reservas add constraint reservas_pago_requerido_check
+  check ((pago_estado = 'no_requerido' and pago_requerido = 0)
+    or (pago_estado <> 'no_requerido' and pago_requerido >= 10));
+alter table public.reservas add column if not exists pago_expira_at timestamptz;
+drop index if exists public.reservas_pago_expira_idx;
+create index if not exists reservas_pago_expira_idx
+  on public.reservas (pago_expira_at)
+  where pago_estado in ('pendiente', 'rechazado') and pago_expira_at is not null;
+
+create table if not exists public.pagos_reserva (
+  id uuid primary key default gen_random_uuid(),
+  reserva_id uuid not null references public.reservas(id) on delete cascade,
+  tipo text not null default 'adelanto'
+    check (tipo in ('adelanto', 'saldo', 'reembolso')),
+  metodo text not null default 'yape'
+    check (char_length(trim(metodo)) between 2 and 32 and metodo ~ '^[a-z0-9_-]+$'),
+  monto numeric(10, 2) not null check (monto > 0),
+  moneda text not null default 'PEN'
+    check (moneda ~ '^[A-Z]{3}$'),
+  estado text not null default 'pendiente'
+    check (estado in ('pendiente', 'confirmado', 'rechazado', 'anulado')),
+  referencia_externa text not null default '' check (char_length(referencia_externa) <= 120),
+  motivo_rechazo text not null default '' check (char_length(motivo_rechazo) <= 240),
+  idempotencia text check (idempotencia is null or char_length(trim(idempotencia)) between 8 and 128),
+  revisado_por uuid,
+  enviado_at timestamptz not null default now(),
+  revisado_at timestamptz,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  constraint pagos_reserva_adelanto_minimo_check check (tipo <> 'adelanto' or monto >= 10)
+);
+create index if not exists pagos_reserva_reserva_idx on public.pagos_reserva (reserva_id, created_at desc);
+create index if not exists pagos_reserva_estado_idx on public.pagos_reserva (estado, created_at desc);
+create unique index if not exists pagos_reserva_idempotencia_idx
+  on public.pagos_reserva (idempotencia) where idempotencia is not null;
+
+create table if not exists public.pago_comprobantes (
+  id uuid primary key default gen_random_uuid(),
+  pago_id uuid not null references public.pagos_reserva(id) on delete cascade,
+  storage_path text not null unique
+    check (storage_path ~ '^[0-9a-f-]{36}/[0-9a-f-]{36}\.(jpg|jpeg|png|webp)$'),
+  mime_type text not null check (mime_type in ('image/jpeg', 'image/png', 'image/webp')),
+  size_bytes integer not null check (size_bytes between 1 and 5242880),
+  sha256 text not null check (sha256 ~ '^[0-9a-f]{64}$'),
+  created_at timestamptz not null default now()
+);
+create index if not exists pago_comprobantes_pago_idx on public.pago_comprobantes (pago_id, created_at desc);
+do $$
+declare
+  v_duplicados integer;
+begin
+  select count(*) into v_duplicados
+  from (
+    select pago_id
+    from public.pago_comprobantes
+    group by pago_id
+    having count(*) > 1
+  ) as duplicados;
+
+  if v_duplicados > 0 then
+    raise exception using
+      errcode = '23505',
+      message = 'pago_comprobantes_duplicados',
+      detail = format('%s pago(s) tienen más de un comprobante.', v_duplicados),
+      hint = 'Revisa y conserva un comprobante por pago_id antes de ejecutar este esquema.';
+  end if;
+end
+$$;
+create unique index if not exists pago_comprobantes_pago_unica_idx on public.pago_comprobantes (pago_id);
+
+create or replace function public.actualizar_updated_at_pagos()
+returns trigger language plpgsql set search_path = public, pg_temp as $function$
+begin new.updated_at = now(); return new; end;
+$function$;
+drop trigger if exists actualizar_updated_at_pagos on public.pagos_reserva;
+create trigger actualizar_updated_at_pagos before update on public.pagos_reserva
+for each row execute function public.actualizar_updated_at_pagos();
+
+revoke all on table public.pagos_reserva, public.pago_comprobantes from public, anon, authenticated;
+grant select, update on table public.pagos_reserva to authenticated;
+grant select on table public.pago_comprobantes to authenticated;
+grant usage on schema public to service_role;
+grant select, update on table public.reservas to service_role;
+grant select, insert, update on table public.pagos_reserva to service_role;
+grant select, insert on table public.pago_comprobantes to service_role;
+alter table public.pagos_reserva enable row level security;
+alter table public.pago_comprobantes enable row level security;
+drop policy if exists "admin lee pagos reserva" on public.pagos_reserva;
+drop policy if exists "admin actualiza pagos reserva" on public.pagos_reserva;
+drop policy if exists "admin lee pago comprobantes" on public.pago_comprobantes;
+drop policy if exists "admin lee comprobantes storage" on storage.objects;
+create policy "admin lee pagos reserva" on public.pagos_reserva for select to authenticated
+  using ((select auth.jwt() -> 'app_metadata' ->> 'role') = 'admin');
+create policy "admin actualiza pagos reserva" on public.pagos_reserva for update to authenticated
+  using ((select auth.jwt() -> 'app_metadata' ->> 'role') = 'admin')
+  with check ((select auth.jwt() -> 'app_metadata' ->> 'role') = 'admin');
+create policy "admin lee pago comprobantes" on public.pago_comprobantes for select to authenticated
+  using ((select auth.jwt() -> 'app_metadata' ->> 'role') = 'admin');
+create policy "admin lee comprobantes storage" on storage.objects for select to authenticated
+  using (bucket_id = 'comprobantes-pago'
+    and (select auth.jwt() -> 'app_metadata' ->> 'role') = 'admin');
+revoke all on function public.actualizar_updated_at_pagos() from public, anon, authenticated;

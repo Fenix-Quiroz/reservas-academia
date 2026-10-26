@@ -1,8 +1,11 @@
+import { useRef, useState } from 'react'
 import AdminMarca from './AdminMarca'
+import { crearBloqueoAccion } from '../../accionUnica'
 
 export interface AdminCabeceraProps {
   supabaseConfigurado: boolean
   porLimpiar: boolean
+  limpiandoDatosPrueba: boolean
   cargando: boolean
   onClearRequest: () => void
   onClearCancel: () => void
@@ -14,6 +17,7 @@ export interface AdminCabeceraProps {
 export default function AdminCabecera({
   supabaseConfigurado,
   porLimpiar,
+  limpiandoDatosPrueba,
   cargando,
   onClearRequest,
   onClearCancel,
@@ -21,6 +25,20 @@ export default function AdminCabecera({
   onRefresh,
   onLogout,
 }: AdminCabeceraProps) {
+  const [cerrandoSesion, setCerrandoSesion] = useState(false)
+  const bloqueoLogout = useRef(crearBloqueoAccion())
+
+  async function cerrarSesion(): Promise<void> {
+    if (!bloqueoLogout.current.adquirir()) return
+    setCerrandoSesion(true)
+    try {
+      await onLogout()
+    } finally {
+      setCerrandoSesion(false)
+      bloqueoLogout.current.liberar()
+    }
+  }
+
   return (
     <header className="admin-cabecera">
       <div>
@@ -30,22 +48,28 @@ export default function AdminCabecera({
         <p className="subtitulo">Gestiona las reservas del polideportivo.</p>
       </div>
       <div className="admin-acciones">
-        {!supabaseConfigurado && (porLimpiar ? (
+        {(!supabaseConfigurado || import.meta.env.DEV) && (porLimpiar ? (
           <div className="admin-reset-confirmar">
-            <span>¿Borrar reservas y clientes?</span>
-            <button className="chip peligro" onClick={onClearConfirm}>Sí, borrar</button>
-            <button className="chip" onClick={onClearCancel}>No</button>
+            <span>{supabaseConfigurado ? '¿Borrar todos los datos de prueba?' : '¿Borrar reservas y clientes?'}</span>
+            <button className="chip peligro" disabled={limpiandoDatosPrueba} onClick={onClearConfirm}>
+              {limpiandoDatosPrueba ? 'Limpiando…' : 'Sí, borrar'}
+            </button>
+            <button className="chip" disabled={limpiandoDatosPrueba} onClick={onClearCancel}>No</button>
           </div>
         ) : (
-          <button className="boton-secundario admin-boton admin-limpiar" onClick={onClearRequest}>
-            <span aria-hidden="true">🧹</span> Empezar de cero
+          <button className="boton-secundario admin-boton admin-limpiar" disabled={limpiandoDatosPrueba} onClick={onClearRequest}>
+            <span aria-hidden="true">🧹</span> {supabaseConfigurado ? 'Limpiar datos de prueba' : 'Empezar de cero'}
           </button>
         ))}
         <button className="boton-secundario admin-boton" disabled={cargando} onClick={onRefresh}>
           {cargando ? 'Actualizando…' : <><span aria-hidden="true">↻</span> Actualizar</>}
         </button>
         <a className="boton-secundario admin-boton" href="/">Vista del cliente</a>
-        {supabaseConfigurado && <button className="boton-secundario admin-boton" onClick={onLogout}>Cerrar sesión</button>}
+        {supabaseConfigurado && (
+          <button className="boton-secundario admin-boton" disabled={cerrandoSesion} onClick={() => void cerrarSesion()}>
+            {cerrandoSesion ? 'Cerrando…' : 'Cerrar sesión'}
+          </button>
+        )}
       </div>
     </header>
   )

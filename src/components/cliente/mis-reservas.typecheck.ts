@@ -31,6 +31,7 @@ const vista = MisReservas({
   onCancel: async () => ({}),
   onUpdateData: async () => ({ cliente }),
   onReserve: () => undefined,
+  onRetry: () => undefined,
   tituloRef: { current: null } satisfies RefObject<HTMLHeadingElement | null>,
 })
 

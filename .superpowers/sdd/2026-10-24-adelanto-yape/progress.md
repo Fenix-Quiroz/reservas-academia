@@ -7,3 +7,13 @@ Pre-flight: Task 1 produces payment constants and validation functions consumed 
 Task 1: complete (commits 2a31f5c..c4985dc, tests: `npm run check:pago` → exit 0, `pagos.check.ts OK`)
 
 Task 2: complete (Edge Function + config added, `npm run check:pago` → exit 0, `pagos.check.ts OK`)
+
+Task 3: complete (public adapter, token/idempotency wiring, no frontend service role)
+
+Task 4: complete (Yape instructions, separate copy-number control, secure file picker, retry-safe payment action, pending-review success message)
+
+Task 5: complete (README deployment/security notes and full verification suite green)
+
+Review follow-up: complete (expired pending/rejected reservations are released without touching confirmed payments, pending deadlines are preserved across retries, and concurrent proof retries are recovered with deterministic storage paths plus a unique payment link)
+
+Migration hardening: complete (duplicate proof rows fail with an actionable preflight instead of being deleted automatically; expiration indexes are recreated with the pending/rejected predicate)

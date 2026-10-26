@@ -1,18 +1,19 @@
 import { useEffect, useRef, useState } from 'react'
 import canchas from './data/canchas.json'
 import {
-  horarios, masCercana, fechaISO, sumarDias,
+  horarios, masCercana, fechaISO, sumarDias, DURACION_BLOQUE,
   deCliente, activa,
 } from './reservas'
 import type { HorarioDisponible } from './reservas'
 import {
-  leerReservas, crearReserva, cancelarReserva, registrarCliente, actualizarCliente, buscarPorCelular,
+  leerReservas, crearReserva, cancelarReserva, registrarCliente, actualizarCliente,
   leerTokensReservas, guardarTokenReserva,
-  leerYo, guardarYo, olvidarYo, leerBloqueosEventos,
+  leerYo, guardarYo, olvidarYo, leerBloqueosEventos, leerNumerosBloqueados, leerNumerosConfiables,
 } from './almacen'
 import { supabaseFaltaEnProduccion, supabaseConfigurado } from './supabase'
-import { leerHorariosRemotos, leerMisReservasRemotas } from './supabaseData'
-import type { ErrorReserva, ResultadoCancelacion, ResultadoCliente } from './supabaseData'
+import { leerHorariosRemotos, leerMisReservasRemotas, precalentarRegistrarAdelantoYapeRemoto, registrarAdelantoYapeRemoto, verificarNumeroConfiableRemoto } from './supabaseData'
+import type { ErrorReserva, ResultadoCancelacion, ResultadoCliente, ResultadoPago } from './supabaseData'
+import { validarComprobante } from './pagos'
 import type { BloqueoEvento, Campo, Cliente, Reserva } from './types.js'
 import CabeceraCliente from './components/cliente/CabeceraCliente'
 import ProgresoReserva from './components/cliente/ProgresoReserva'
@@ -22,11 +23,12 @@ import DatosReserva from './components/cliente/DatosReserva'
 import ReservaCompletada from './components/cliente/ReservaCompletada'
 import MisReservas from './components/cliente/MisReservas'
 
-const DIAS = 7
+const DIAS = 14
+const INTERVALO_MIS_RESERVAS_MS = 3000
 const NOMBRES_PASOS = ['Campo', 'Día y hora', 'Tus datos'] as const
 
 type ResultadoReservaCliente =
-  | { reserva: Reserva }
+  | { reserva: Reserva; token?: string }
   | { error: ErrorReserva | 'limite-intentos'; alternativa?: HorarioDisponible }
 
 export default function App() {
@@ -40,6 +42,7 @@ export default function App() {
   const [yo, setYo] = useState<Cliente | null>(leerYo)
   const [hecha, setHecha] = useState<Reserva | null>(null)
   const [errorConexion, setErrorConexion] = useState('')
+  const [errorMias, setErrorMias] = useState('')
   const [horariosDisponibles, setHorariosDisponibles] = useState<HorarioDisponible[]>([])
   const [cargandoHorarios, setCargandoHorarios] = useState(false)
   const [tokens, setTokens] = useState<string[]>(() => leerTokensReservas(leerYo()?.celular))
@@ -55,7 +58,7 @@ export default function App() {
   const fecha = fechaISO(sumarDias(dia))
 
   // En el cliente público solo se conserva la demo local. Supabase se consulta
-  // mediante RPC cuando el usuario elige un día y una duración.
+  // mediante RPC cuando el usuario elige un día; la disponibilidad llega en bloques de 30 minutos.
   useEffect(() => {
     const alCambiar = () => {
       if (!supabaseConfigurado) setReservas(leerReservas())
@@ -72,22 +75,34 @@ export default function App() {
   useEffect(() => {
     if (!supabaseConfigurado || !verMias) return
     let montado = true
+    let cargaMiasEnCurso = false
     setCargandoMias(true)
-    const cargarMias = async () => {
+    setErrorMias('')
+    setErrorConexion('')
+    const cargarMias = async (mostrarCarga: boolean) => {
+      if (!montado || cargaMiasEnCurso) return
+      cargaMiasEnCurso = true
+      if (mostrarCarga) setCargandoMias(true)
       try {
         const actuales = await leerMisReservasRemotas(tokens)
         if (!montado) return
         setReservas(actuales)
+        setErrorMias('')
         setErrorConexion('')
       } catch {
-        if (montado) setErrorConexion('No pudimos cargar tus reservas. Revisa tu conexión e inténtalo de nuevo.')
+        if (montado) setErrorMias('No pudimos cargar tus reservas. Revisa tu conexión e inténtalo de nuevo.')
       } finally {
-        if (montado) setCargandoMias(false)
+        cargaMiasEnCurso = false
+        if (montado && mostrarCarga) setCargandoMias(false)
       }
     }
-    void cargarMias()
+    void cargarMias(true)
+    const temporizador = window.setInterval(() => {
+      void cargarMias(false)
+    }, INTERVALO_MIS_RESERVAS_MS)
     return () => {
       montado = false
+      window.clearInterval(temporizador)
     }
   }, [verMias, tokens, intentoCarga])
 
@@ -107,8 +122,8 @@ export default function App() {
     const cargarHorarios = async () => {
       try {
         const actuales = supabaseConfigurado
-          ? await leerHorariosRemotos(cancha.id, fecha, horas)
-          : horarios(reservas, cancha.id, fecha, horas, new Date(), bloqueosEventos)
+          ? await leerHorariosRemotos(cancha.id, fecha)
+          : horarios(reservas, cancha.id, fecha, DURACION_BLOQUE, new Date(), bloqueosEventos)
         if (!montado) return
         setHorariosDisponibles(actuales)
         setErrorConexion('')
@@ -122,7 +137,7 @@ export default function App() {
     return () => {
       montado = false
     }
-  }, [paso, cancha, fecha, horas, reservas, bloqueosEventos, intentoCarga])
+  }, [paso, cancha, fecha, reservas, bloqueosEventos, intentoCarga])
 
   useEffect(() => {
     const frame = window.requestAnimationFrame(() => tituloRef.current?.focus())
@@ -155,12 +170,7 @@ export default function App() {
     return Promise.resolve(registrarCliente(alias, celular))
   }
 
-  async function buscarCliente(celular: string): Promise<Cliente | null | undefined> {
-    if (supabaseConfigurado) return null
-    return Promise.resolve(buscarPorCelular(celular))
-  }
-
-  async function reservarCliente(cliente: Cliente, hora: number): Promise<ResultadoReservaCliente> {
+  async function reservarCliente(cliente: Cliente, hora: number, sinAdelanto = false): Promise<ResultadoReservaCliente> {
     const canchaActual = cancha
     if (!canchaActual) return { error: 'conexion' }
 
@@ -172,7 +182,7 @@ export default function App() {
         horas,
         montoTotal: canchaActual.precioHora * horas,
         ...cliente,
-      }))
+      }, sinAdelanto))
       if ('token' in r && r.token) {
         guardarTokenReserva(r.reserva.id, r.token, cliente.celular)
         setTokens(leerTokensReservas(cliente.celular))
@@ -182,7 +192,7 @@ export default function App() {
         let actuales = horariosDisponibles
         if (supabaseConfigurado) {
           try {
-            actuales = await leerHorariosRemotos(canchaActual.id, fecha, horas)
+            actuales = await leerHorariosRemotos(canchaActual.id, fecha)
             setHorariosDisponibles(actuales)
           } catch {
             // Conserva la disponibilidad que ya se mostró para ofrecer una alternativa.
@@ -190,13 +200,36 @@ export default function App() {
         }
         return {
           ...r,
-          alternativa: masCercana(actuales, hora),
+          alternativa: masCercana(actuales, hora, horas),
         }
       }
       return r
     } catch {
       return { error: 'conexion' }
     }
+  }
+
+  async function verificarNumeroConfiable(celular: string): Promise<boolean> {
+    if (supabaseConfigurado) return verificarNumeroConfiableRemoto(celular)
+    const normalizado = celular.trim()
+    const confiable = leerNumerosConfiables().some((numero) => numero.celular === normalizado && numero.activo)
+    const bloqueado = leerNumerosBloqueados().some((numero) => numero.celular === normalizado && numero.activo)
+    return confiable && !bloqueado
+  }
+
+  async function enviarComprobante(
+    reserva: Reserva,
+    token: string | undefined,
+    comprobante: File,
+    idempotencia: string,
+  ): Promise<ResultadoPago> {
+    const errorArchivo = validarComprobante(comprobante)
+    if (errorArchivo) return { error: 'archivo-invalido' }
+    if (supabaseConfigurado) {
+      if (!token) return { error: 'reserva-no-autorizada' }
+      return registrarAdelantoYapeRemoto(reserva.id, token, comprobante, idempotencia)
+    }
+    return {}
   }
 
   async function cancelarCliente(id: string): Promise<ResultadoCancelacion> {
@@ -268,6 +301,9 @@ export default function App() {
             reservas={mias}
             yo={clienteMias}
             canchas={canchas}
+            cargando={cargandoMias}
+            errorCarga={errorMias}
+            onRetry={() => setIntentoCarga((n) => n + 1)}
             permitirEdicion={!supabaseConfigurado}
             onCancel={cancelarCliente}
             onUpdateData={actualizarMisDatos}
@@ -318,7 +354,6 @@ export default function App() {
               }}
               horas={horas}
               onHorasChange={(nuevasHoras) => {
-                setInicio(null)
                 setHoras(nuevasHoras)
               }}
               fecha={fecha}
@@ -326,6 +361,7 @@ export default function App() {
               onSelectHour={(h) => {
                 setInicio(h)
               }}
+              onClearHour={() => setInicio(null)}
               onConfirmHour={() => setPaso(3)}
             />
           )}
@@ -349,8 +385,10 @@ export default function App() {
               }}
               actions={{
                 createClient: crearCliente,
-                findClient: buscarCliente,
                 reserve: reservarCliente,
+                checkTrustedNumber: verificarNumeroConfiable,
+                prewarmPayment: precalentarRegistrarAdelantoYapeRemoto,
+                submitPayment: enviarComprobante,
               }}
             />
           )}

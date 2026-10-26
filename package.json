@@ -18,17 +18,23 @@
     "check:validacion": "tsx src/validacionCliente.check.ts",
     "check:tokens": "tsx src/tokensReserva.check.ts",
     "check:control-clientes": "tsx src/controlClientes.check.ts",
+    "check:confiables": "tsx src/clientesConfiablesAdelanto.check.ts",
+    "check:pago-preview": "tsx src/pagoAdelanto.check.ts",
+    "check:pago-admin": "tsx src/pagosAdmin.check.ts",
     "check:supabase": "tsx src/supabase.check.ts",
     "check:balance": "tsx src/balanceMensual.check.ts",
     "check:estado": "tsx src/estadoReserva.check.ts",
     "check:pago": "tsx src/pagos.check.ts",
+    "check:limpieza": "tsx src/limpiezaDatosPrueba.check.ts",
     "check:alarm": "tsx src/utils/alarmaTurno.check.ts",
     "check:eventos": "tsx src/eventos.check.ts",
     "check:balance-demo": "tsx src/balanceDemo.check.ts",
-    "check:typescript": "tsx src/typescript.check.ts"
+    "check:typescript": "tsx src/typescript.check.ts",
+    "check:accion": "tsx src/accionUnica.check.ts"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.118.0",
+    "lucide-react": "^1.61.0",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
     "xlsx-js-style": "^1.2.0"
@@ -43,6 +49,7 @@
     "eslint-plugin-react-hooks": "^5.2.0",
     "eslint-plugin-react-refresh": "^0.4.19",
     "globals": "^16.0.0",
+    "supabase": "^2.122.0",
     "tsx": "^4.23.15",
     "typescript": "^7.0.2",
     "vite": "^6.3.5"

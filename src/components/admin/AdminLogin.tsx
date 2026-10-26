@@ -1,6 +1,7 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import type { FormEvent } from 'react'
 import AdminMarca from './AdminMarca'
+import { crearBloqueoAccion } from '../../accionUnica'
 
 interface ResultadoLogin {
   error?: {
@@ -18,10 +19,11 @@ export default function AdminLogin({ errorInicial, onLogin }: AdminLoginProps) {
   const [password, setPassword] = useState('')
   const [error, setError] = useState(errorInicial ?? '')
   const [procesando, setProcesando] = useState(false)
+  const bloqueoIngreso = useRef(crearBloqueoAccion())
 
   async function ingresar(e: FormEvent<HTMLFormElement>): Promise<void> {
     e.preventDefault()
-    if (procesando) return
+    if (!bloqueoIngreso.current.adquirir()) return
     setError('')
     setProcesando(true)
     try {
@@ -35,6 +37,7 @@ export default function AdminLogin({ errorInicial, onLogin }: AdminLoginProps) {
       setError('No pudimos iniciar sesión. Revisa tu conexión e inténtalo de nuevo.')
     } finally {
       setProcesando(false)
+      bloqueoIngreso.current.liberar()
     }
   }
 

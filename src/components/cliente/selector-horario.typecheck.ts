@@ -22,6 +22,7 @@ const vista = SelectorHorario({
   fecha: '2026-10-21',
   inicio: null,
   onSelectHour: (inicio) => inicio,
+  onClearHour: () => undefined,
   onConfirmHour: () => undefined,
   tituloRef: { current: null },
 })

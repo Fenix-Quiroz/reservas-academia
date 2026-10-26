@@ -12,6 +12,7 @@ const cliente = [
   'src/components/cliente/SelectorCampos.tsx',
   'src/components/cliente/SelectorHorario.tsx',
   'src/components/cliente/DatosReserva.tsx',
+  'src/components/cliente/PagoAdelanto.tsx',
   'src/components/cliente/ReservaCompletada.tsx',
   'src/components/cliente/MisReservas.tsx',
   'src/utils/fechasReserva.ts',

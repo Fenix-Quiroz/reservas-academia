@@ -3,7 +3,7 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.118.0'
 const BUCKET = 'comprobantes-pago'
 const MAX_COMPROBANTE_BYTES = 5 * 1024 * 1024
 const ADELANTO_YAPE = 10
-const EXPIRACION_MINUTOS = 15
+const REVISION_MINUTOS = 30
 const TOKEN_RE = /^[0-9a-f]{48}$/
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
 const IDEMPOTENCIA_RE = /^[A-Za-z0-9_-]{8,128}$/
@@ -143,9 +143,15 @@ Deno.serve(async (request) => {
   }
 
   const reservaPago = reserva as ReservaPago | null
-  if (!reservaPago || !(await tokenCoincide(token, reservaPago.token_hash)) || reservaPago.estado === 'cancelado') {
+  if (
+    !reservaPago
+    || !(await tokenCoincide(token, reservaPago.token_hash))
+    || reservaPago.estado !== 'activo'
+  ) {
     return errorRespuesta('reserva_no_autorizada', 403)
   }
+
+  if (reservaPago.pago_estado === 'no_requerido') return errorRespuesta('reserva_no_autorizada', 403)
 
   const { data: pagoExistente, error: pagoExistenteError } = await admin
     .from('pagos_reserva')
@@ -160,26 +166,35 @@ Deno.serve(async (request) => {
   if (pagoExistente) {
     const { data: comprobanteExistente } = await admin
       .from('pago_comprobantes')
-      .select('id')
+      .select('id, storage_path')
       .eq('pago_id', pagoExistente.id)
       .maybeSingle()
     if (comprobanteExistente && pagoExistente.reserva_id === reservaId) {
       return respuesta({ ok: true, reserva_id: reservaId, pago_id: pagoExistente.id })
     }
-    return errorRespuesta('idempotencia_repetida', 409)
+    if (pagoExistente.reserva_id !== reservaId) return errorRespuesta('idempotencia_repetida', 409)
   }
 
   if (reservaPago.pago_estado === 'confirmado') return errorRespuesta('pago_ya_confirmado', 409)
   if (reservaPago.pago_expira_at && new Date(reservaPago.pago_expira_at).getTime() <= Date.now()) {
+    const { error: liberarExpiradaError } = await admin.rpc('liberar_reserva_pago_expirada', {
+      p_reserva_id: reservaId,
+    })
+    if (liberarExpiradaError) console.error('[Pago] No se pudo liberar la reserva expirada', liberarExpiradaError.code ?? 'sin-codigo')
     return errorRespuesta('pago_expirado', 409)
   }
   if (!esEstadoNoConfirmado(reservaPago.pago_estado)) return errorRespuesta('reserva_no_autorizada', 403)
 
-  const pagoExpiraAt = new Date(Date.now() + EXPIRACION_MINUTOS * 60 * 1000).toISOString()
+  // El plazo único comienza con el clic final de aseguramiento y cubre la
+  // carga del comprobante más la revisión administrativa.
+  const pagoExpiraAt = reservaPago.pago_estado === 'pendiente' && reservaPago.pago_expira_at
+    ? reservaPago.pago_expira_at
+    : new Date(Date.now() + REVISION_MINUTOS * 60 * 1000).toISOString()
   const { data: actualizada, error: actualizarError } = await admin
     .from('reservas')
     .update({ pago_estado: 'pendiente', pago_requerido: ADELANTO_YAPE, pago_expira_at: pagoExpiraAt })
     .eq('id', reservaId)
+    .eq('estado', 'activo')
     .in('pago_estado', ['no_requerido', 'pendiente', 'rechazado'])
     .select('id')
     .maybeSingle()
@@ -189,34 +204,50 @@ Deno.serve(async (request) => {
     return errorRespuesta('reserva_no_autorizada', 409)
   }
 
-  const fileId = crypto.randomUUID()
-  const pagoId = crypto.randomUUID()
+  let pagoId = pagoExistente?.id ?? crypto.randomUUID()
   const extension = MIME_EXTENSION[mimeType]
-  const storagePath = `${reservaId}/${fileId}.${extension}`
   const sha256 = await sha256Hex(bytes)
+  let storagePath = ''
   let archivoSubido = false
-  let pagoInsertado = false
 
   try {
+    if (!pagoExistente) {
+      const { error: pagoError } = await admin.from('pagos_reserva').insert({
+        id: pagoId,
+        reserva_id: reservaId,
+        tipo: 'adelanto',
+        metodo: 'yape',
+        monto: ADELANTO_YAPE,
+        moneda: 'PEN',
+        estado: 'pendiente',
+        idempotencia,
+      })
+      if (pagoError) {
+        const { data: pagoTrasCarrera, error: lecturaCarreraError } = await admin
+          .from('pagos_reserva')
+          .select('id, reserva_id, estado')
+          .eq('idempotencia', idempotencia)
+          .maybeSingle()
+        if (lecturaCarreraError || !pagoTrasCarrera || pagoTrasCarrera.reserva_id !== reservaId) throw pagoError
+        pagoId = pagoTrasCarrera.id
+      }
+    }
+
+    storagePath = `${reservaId}/${pagoId}.${extension}`
     const { error: subidaError } = await admin.storage.from(BUCKET).upload(storagePath, bytes, {
       contentType: mimeType,
       upsert: false,
     })
-    if (subidaError) throw subidaError
-    archivoSubido = true
-
-    const { error: pagoError } = await admin.from('pagos_reserva').insert({
-      id: pagoId,
-      reserva_id: reservaId,
-      tipo: 'adelanto',
-      metodo: 'yape',
-      monto: ADELANTO_YAPE,
-      moneda: 'PEN',
-      estado: 'pendiente',
-      idempotencia,
-    })
-    if (pagoError) throw pagoError
-    pagoInsertado = true
+    if (subidaError) {
+      const { data: archivoExistente, error: lecturaArchivoError } = await admin.storage
+        .from(BUCKET)
+        .download(storagePath)
+      if (lecturaArchivoError || !archivoExistente) throw subidaError
+      const hashArchivoExistente = await sha256Hex(new Uint8Array(await archivoExistente.arrayBuffer()))
+      if (hashArchivoExistente !== sha256) throw subidaError
+    } else {
+      archivoSubido = true
+    }
 
     const { error: comprobanteError } = await admin.from('pago_comprobantes').insert({
       pago_id: pagoId,
@@ -225,9 +256,18 @@ Deno.serve(async (request) => {
       size_bytes: bytes.length,
       sha256,
     })
-    if (comprobanteError) throw comprobanteError
+    if (comprobanteError) {
+      const { data: comprobanteTrasCarrera } = await admin
+        .from('pago_comprobantes')
+        .select('id, storage_path')
+        .eq('pago_id', pagoId)
+        .maybeSingle()
+      if (!comprobanteTrasCarrera) throw comprobanteError
+      if (archivoSubido && comprobanteTrasCarrera.storage_path !== storagePath) {
+        await admin.storage.from(BUCKET).remove([storagePath])
+      }
+    }
   } catch (error) {
-    if (pagoInsertado) await admin.from('pagos_reserva').delete().eq('id', pagoId)
     if (archivoSubido) await admin.storage.from(BUCKET).remove([storagePath])
     console.error('[Pago] No se pudo registrar el comprobante', error instanceof Error ? error.message : 'error-desconocido')
     return errorRespuesta('pago_no_registrado', 500)

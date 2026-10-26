@@ -23,6 +23,24 @@ Sin esas variables, la aplicación funciona con el modo demo local. Con Supabase
 8. En Authentication, crea el usuario del encargado y asígnale `app_metadata.role = admin`.
 9. Reinicia Vite con `npm run dev`.
 
+### Adelanto Yape y comprobantes
+
+El paso final de reserva solicita un adelanto mínimo de S/ 10 por Yape al número `995933438` (Jesús Leg*), y permite cargar una captura JPG, PNG o WEBP de hasta 5 MB. El comprobante se guarda en el bucket privado `comprobantes-pago` y queda vinculado a `reserva_id`; la carga no aprueba automáticamente el pago.
+
+Como la migración escalable ya está aplicada, ejecuta también `supabase/fix-pagos-expiracion.sql`. Esta migración libera las reservas cuyo plazo de revisión venció y otorga a la Edge Function los permisos administrativos explícitos que necesita; si ves un error `42501`, vuelve a ejecutar este archivo.
+
+Para que “Mis reservas” muestre el estado del adelanto, ejecuta después `supabase/fix-mis-reservas-pago.sql`. Así una carga recibida aparece como “Esperando verificación” sin cambiar el estado operativo `activo` de la reserva.
+
+Para que el panel pueda ver, descargar y confirmar comprobantes, ejecuta también `supabase/fix-pagos-admin.sql`. La confirmación valida el rol `admin` y actualiza el pago y la reserva en una sola operación; el navegador nunca recibe `service_role`.
+
+Para que los celulares activos de “Números confiables” puedan reservar sin adelanto, ejecuta al final `supabase/fix-clientes-confiables-adelanto.sql`. La migración reemplaza la RPC pública de creación por una firma que valida el beneficio en el servidor: los demás celulares siguen iniciando un pago pendiente de S/ 10 con expiración de 30 minutos. Si se desactiva un número, solo afecta reservas nuevas.
+
+Después de ejecutar `supabase/fix-pagos-escalables.sql` y verificar el bucket privado, publica la Edge Function:
+
+    supabase functions deploy registrar-adelanto-yape
+
+En Supabase hospedado, `SUPABASE_SERVICE_ROLE_KEY` es una variable reservada que la plataforma inyecta automáticamente en la Edge Function. No intentes crearla con `supabase secrets set`, ni la agregues a `.env.example`, a `VITE_*` o a ningún código del navegador. Cada intento iniciado desde la pantalla usa `pago_expira_at` a 30 minutos para la carga y revisión; mientras el adelanto esté pendiente, la reserva conserva el estado operativo `activo` para que el horario no se venda dos veces. Una carga aceptada muestra: “Reserva asegurada. Tu comprobante está pendiente de revisión.”
+
 El panel se abre en `/admin` y requiere iniciar sesión. La vista pública de clientes no requiere cuenta.
 
 Las reservas comienzan en horas enteras y pueden durar una hora, una hora y media, dos o tres horas. El precio se calcula proporcionalmente al precio por hora de cada campo. El orden recomendado para una base existente es ejecutar `fix-monto-reservas.sql`, `fix-control-clientes.sql` y finalmente `fix-horarios-academia.sql`; este último reemplaza las funciones públicas con sus firmas decimales.
@@ -36,6 +54,7 @@ Los eventos especiales no son reservas públicas ni se incluyen todavía en el b
     npm run check:admin
     npm run check:ui
     npm run check:supabase
+    npm run check:confiables
     npm run lint
     npm run build
 

@@ -47,6 +47,7 @@ export const supabasePublic: SupabaseClient | null = supabaseConfigurado
   ? createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
     ...opcionesGlobales,
     auth: {
+      storageKey: 'supabase-public-auth',
       persistSession: false,
       autoRefreshToken: false,
       detectSessionInUrl: false,

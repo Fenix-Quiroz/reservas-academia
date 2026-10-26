@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import type { Campo, Reserva } from '../../types.js'
+import { crearBloqueoAccion } from '../../accionUnica'
 import {
   filtrarAlertasCanceladas,
   finDeReserva,
@@ -44,6 +45,8 @@ export default function AdminAlarmaTurno({ reservas, canchas }: AdminAlarmaTurno
   const [errorSonido, setErrorSonido] = useState('')
   const emitidas = useRef(new Set<string>())
   const contextoAudio = useRef<AudioContext | null>(null)
+  const bloqueoSonido = useRef(crearBloqueoAccion())
+  const bloqueoPrueba = useRef(crearBloqueoAccion())
 
   useEffect(() => {
     const ahora = Date.now()
@@ -90,6 +93,7 @@ export default function AdminAlarmaTurno({ reservas, canchas }: AdminAlarmaTurno
   }, [alertas.length, sonidoActivado])
 
   async function activarSonido(): Promise<void> {
+    if (!bloqueoSonido.current.adquirir()) return
     try {
       if (!contextoAudio.current) contextoAudio.current = new AudioContext()
       await contextoAudio.current.resume()
@@ -98,6 +102,8 @@ export default function AdminAlarmaTurno({ reservas, canchas }: AdminAlarmaTurno
       setErrorSonido('')
     } catch {
       setErrorSonido('No pudimos activar el sonido. Revisa el volumen del dispositivo.')
+    } finally {
+      bloqueoSonido.current.liberar()
     }
   }
 
@@ -106,8 +112,13 @@ export default function AdminAlarmaTurno({ reservas, canchas }: AdminAlarmaTurno
   }
 
   async function simularAlarma(): Promise<void> {
-    if (!sonidoActivado) await activarSonido()
-    setAlertas((actuales) => ordenarPorFin([...actuales, ...reservasDePrueba()]))
+    if (!bloqueoPrueba.current.adquirir()) return
+    try {
+      if (!sonidoActivado) await activarSonido()
+      setAlertas((actuales) => ordenarPorFin([...actuales, ...reservasDePrueba()]))
+    } finally {
+      bloqueoPrueba.current.liberar()
+    }
   }
 
   return (

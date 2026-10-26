@@ -1,9 +1,10 @@
-import { StrictMode } from 'react'
+import { lazy, StrictMode, Suspense } from 'react'
 import { createRoot } from 'react-dom/client'
 import './design-tokens.css'
 import './index.css'
-import App from './App'
-import AdminApp from './AdminApp'
+
+const App = lazy(() => import('./App'))
+const AdminApp = lazy(() => import('./AdminApp'))
 
 export const ruta = window.location.pathname.replace(/\/+$/, '') || '/'
 
@@ -12,6 +13,12 @@ if (!rootElement) throw new Error('No se encontró el elemento raíz de la aplic
 
 createRoot(rootElement).render(
   <StrictMode>
-    {ruta === '/admin' ? <AdminApp /> : <App />}
+    <Suspense fallback={
+      <div className="app" aria-busy="true">
+        <p className="aviso" role="status">Cargando…</p>
+      </div>
+    }>
+      {ruta === '/admin' ? <AdminApp /> : <App />}
+    </Suspense>
   </StrictMode>,
 )

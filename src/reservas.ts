@@ -8,16 +8,30 @@ import { eventoBloquea } from './eventos.js'
 
 export const ABRE = 7
 export const CIERRA = 25
-export const DURACIONES_RESERVA = [1, 1.5, 2, 3] as const
+export const DURACION_BLOQUE = 0.5 as const
+export const DURACIONES_RESERVA = [0.5, 1, 1.5, 2, 2.5, 3] as const
 
 export const esDuracionValida = (horas: number): boolean =>
   DURACIONES_RESERVA.includes(horas as (typeof DURACIONES_RESERVA)[number])
+
+const esDuracionHorarioValida = (horas: number): boolean =>
+  horas === DURACION_BLOQUE || esDuracionValida(horas)
 
 type ReservaHorario = Pick<Reserva, 'canchaId' | 'fecha' | 'inicio' | 'horas'> & Partial<Pick<Reserva, 'estado'>>
 
 export interface HorarioDisponible {
   inicio: number
   libre: boolean
+}
+
+// Un bloque aislado es libre, pero sus vecinos inmediatos de media hora no lo son.
+// Si un vecino no aparece en la lista (por ejemplo, al abrir o cerrar), se considera
+// que no está libre: el bloque del borde puede reservarse por media hora.
+export function esBloqueAislado(lista: HorarioDisponible[], inicio: number): boolean {
+  const bloque = lista.find((horario) => horario.inicio === inicio)
+  if (!bloque?.libre) return false
+  const vecinoLibre = (hora: number): boolean => lista.find((horario) => horario.inicio === hora)?.libre === true
+  return !vecinoLibre(inicio - DURACION_BLOQUE) && !vecinoLibre(inicio + DURACION_BLOQUE)
 }
 
 // 'en-CA' formatea como AAAA-MM-DD usando la hora local
@@ -46,11 +60,11 @@ export function horarios(
   ahora: Date = new Date(),
   bloqueosEventos: readonly BloqueoEvento[] = [],
 ): HorarioDisponible[] {
-  if (!esDuracionValida(horas)) return []
+  if (!esDuracionHorarioValida(horas)) return []
   const esHoy = fecha === fechaISO(ahora)
   const diaSemana = new Date(`${fecha}T12:00:00`).getDay()
   const lista: HorarioDisponible[] = []
-  for (let inicio = ABRE; inicio + horas <= CIERRA; inicio++) {
+  for (let inicio = ABRE; inicio + horas <= CIERRA; inicio += 0.5) {
     const horaActual = ahora.getHours() + ahora.getMinutes() / 60
     if (esHoy && inicio <= horaActual) continue
     const libre = !entrenamientoBloquea(canchaId, diaSemana, inicio, horas)
@@ -59,6 +73,13 @@ export function horarios(
     lista.push({ inicio, libre })
   }
   return lista
+}
+
+export function rangoLibre(lista: HorarioDisponible[], inicio: number, horas: number): boolean {
+  if (!esDuracionValida(horas)) return false
+  const bloques = Math.round(horas / DURACION_BLOQUE)
+  return Array.from({ length: bloques }, (_, indice) => inicio + indice * DURACION_BLOQUE)
+    .every((bloque) => lista.find((horario) => horario.inicio === bloque)?.libre === true)
 }
 
 function fechaHoraLima(ahora: Date): { fecha: string; hora: number } {
@@ -90,9 +111,9 @@ export function ocultarHorariosPasados(
 }
 
 // La hora libre más cercana a la que el usuario quería
-export function masCercana(lista: HorarioDisponible[], inicio: number): HorarioDisponible | undefined {
+export function masCercana(lista: HorarioDisponible[], inicio: number, horas?: number): HorarioDisponible | undefined {
   return lista
-    .filter((h) => h.libre)
+    .filter((h) => h.libre && (horas === undefined || rangoLibre(lista, h.inicio, horas)))
     .sort((a, b) => Math.abs(a.inicio - inicio) - Math.abs(b.inicio - inicio))[0]
 }
 

@@ -1,8 +1,11 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import type { RefObject } from 'react'
+import { createPortal } from 'react-dom'
 import { capital, nombreDia } from '../../utils/fechasReserva'
 import { rangoHablado, type HorarioDisponible } from '../../reservas'
+import { validarComprobante, type ErrorComprobante } from '../../pagos'
 import type { Campo, Cliente, Reserva } from '../../types.js'
+import PagoAdelanto from './PagoAdelanto'
 import {
   ALIAS_MAXIMO,
   normalizarAlias,
@@ -10,9 +13,9 @@ import {
   validarAlias,
   validarCelular,
 } from '../../validacionCliente'
+import { crearBloqueoAccion } from '../../accionUnica'
 
-type Modo = 'nuevo' | 'volver'
-type Procesando = '' | 'reserva' | 'datos' | 'buscar'
+type Procesando = '' | 'reserva' | 'datos'
 type ErrorAccion =
   | 'ocupado'
   | 'limite'
@@ -25,15 +28,31 @@ type ErrorAccion =
   | 'duracion-invalida'
   | 'alias-invalido'
   | 'celular-invalido'
+  | 'numero-no-confiable'
 type ResultadoClienteAccion = { cliente: Cliente } | { error: ErrorAccion }
 type ResultadoReservaConAlternativa =
-  | { reserva: Reserva }
+  | { reserva: Reserva; token?: string }
   | { error: ErrorAccion; alternativa?: HorarioDisponible }
+type ErrorPagoAccion =
+  | 'archivo-invalido'
+  | 'reserva-no-autorizada'
+  | 'pago-expirado'
+  | 'pago-ya-confirmado'
+  | 'idempotencia-repetida'
+  | 'conexion'
+type ResultadoPagoAccion = Record<string, never> | { error: ErrorPagoAccion }
 
 export interface DatosReservaActions {
   createClient: (alias: string, celular: string) => Promise<ResultadoClienteAccion>
-  findClient: (celular: string) => Promise<Cliente | null | undefined>
-  reserve: (cliente: Cliente, hora: number) => Promise<ResultadoReservaConAlternativa>
+  reserve: (cliente: Cliente, hora: number, sinAdelanto: boolean) => Promise<ResultadoReservaConAlternativa>
+  checkTrustedNumber: (celular: string) => Promise<boolean>
+  prewarmPayment: () => Promise<void>
+  submitPayment: (
+    reserva: Reserva,
+    token: string | undefined,
+    comprobante: File,
+    idempotencia: string,
+  ) => Promise<ResultadoPagoAccion>
 }
 
 export interface DatosReservaProps {
@@ -68,67 +87,187 @@ export default function DatosReserva({
   tituloRef,
   actions,
 }: DatosReservaProps) {
-  const [modo, setModo] = useState<Modo>('nuevo')
   const [alias, setAlias] = useState('')
   const [celular, setCelular] = useState('')
   const [error, setError] = useState('')
-  const [encontrado, setEncontrado] = useState<Cliente | null>(null)
   const [conflicto, setConflicto] = useState<{ alternativa?: HorarioDisponible } | null>(null)
   const [procesando, setProcesando] = useState<Procesando>('')
   const [clientePendiente, setClientePendiente] = useState<Cliente | null>(null)
+  const [comprobante, setComprobante] = useState<File | null>(null)
+  const [errorComprobante, setErrorComprobante] = useState('')
+  const [reservaPendientePago, setReservaPendientePago] = useState<{ reserva: Reserva; token?: string } | null>(null)
+  const [numeroConfiable, setNumeroConfiable] = useState<boolean | null>(null)
+  const [comprobandoConfiable, setComprobandoConfiable] = useState(false)
+  const [idempotencia] = useState(() => crypto.randomUUID())
+  const bloqueoAccion = useRef(crearBloqueoAccion())
+  const comprobarNumeroRef = useRef(actions.checkTrustedNumber)
+  comprobarNumeroRef.current = actions.checkTrustedNumber
 
-  const errorCelular = validarCelular(celular)
+  const celularActual = yo?.celular ?? celular
+  const errorCelular = validarCelular(celularActual)
   const celularValido = errorCelular === null
 
-  async function reservar(cliente: Cliente, hora = inicio, yaProcesando = false, recordarCliente = false): Promise<boolean> {
-    if (!yaProcesando && procesando) return false
-    if (!yaProcesando) setProcesando('reserva')
+  useEffect(() => {
+    const celularNormalizado = normalizarCelular(celularActual)
+    if (validarCelular(celularNormalizado)) {
+      setNumeroConfiable(null)
+      setComprobandoConfiable(false)
+      return
+    }
+    let montado = true
+    setComprobandoConfiable(true)
+    setNumeroConfiable(null)
+    void comprobarNumeroRef.current(celularNormalizado)
+      .then((esConfiable) => {
+        if (!montado) return
+        setNumeroConfiable(esConfiable)
+      })
+      .catch(() => {
+        if (montado) setNumeroConfiable(false)
+      })
+      .finally(() => {
+        if (montado) setComprobandoConfiable(false)
+      })
+    return () => {
+      montado = false
+    }
+  }, [celularActual])
+
+  function mensajeErrorComprobante(error: ErrorComprobante): string {
+    if (error === 'archivo-requerido') return 'Selecciona la captura de tu Yape para asegurar la reserva.'
+    if (error === 'archivo-vacio') return 'El comprobante está vacío. Selecciona otra imagen.'
+    if (error === 'tipo-no-admitido') return 'El comprobante debe ser JPG, PNG o WEBP.'
+    return 'El comprobante no debe superar los 5 MB.'
+  }
+
+  function mensajeErrorPago(error: ErrorPagoAccion): string {
+    if (error === 'archivo-invalido') return 'El comprobante debe ser JPG, PNG o WEBP y pesar como máximo 5 MB.'
+    if (error === 'reserva-no-autorizada') return 'No pudimos vincular el comprobante con esta reserva. Vuelve a intentarlo.'
+    if (error === 'pago-expirado') return 'El plazo de revisión venció después de 30 minutos. Elige nuevamente el horario.'
+    if (error === 'pago-ya-confirmado') return 'Este adelanto ya fue confirmado por la administración.'
+    if (error === 'idempotencia-repetida') return 'Este comprobante ya fue recibido. Revisa “Mis reservas”.'
+    return 'No pudimos subir el comprobante. Revisa tu conexión e inténtalo de nuevo.'
+  }
+
+  function cambiarComprobante(archivo: File | null): void {
+    setComprobante(archivo)
+    if (!archivo) {
+      setErrorComprobante('')
+      setError('')
+      return
+    }
+    const errorArchivo = validarComprobante(archivo)
+    setErrorComprobante(errorArchivo ? mensajeErrorComprobante(errorArchivo) : '')
+    setError('')
+    if (!errorArchivo) void actions.prewarmPayment()
+  }
+
+  async function reservar(
+    cliente: Cliente,
+    hora = inicio,
+    yaProcesando = false,
+    recordarCliente = false,
+    bloqueoAdquirido = false,
+  ): Promise<boolean> {
+    if (!bloqueoAdquirido && !bloqueoAccion.current.adquirir()) return false
+    const liberaBloqueo = !bloqueoAdquirido
     try {
-      const r = await actions.reserve(cliente, hora)
-      if ('error' in r) {
-        if (r.error === 'ocupado') {
-          setConflicto({ alternativa: r.alternativa })
+      const archivoParaSubir = comprobante
+      const sinAdelanto = !reservaPendientePago && numeroConfiable === true
+      if (!sinAdelanto) {
+        const errorArchivo = validarComprobante(archivoParaSubir)
+        if (errorArchivo) {
+          setErrorComprobante(mensajeErrorComprobante(errorArchivo))
           return false
         }
-        if (r.error === 'limite') {
-          setError('Ya tienes 2 reservas pendientes. Cuando juegues una, podrás reservar otra.')
+        if (!archivoParaSubir) return false
+      }
+      if (!yaProcesando) setProcesando('reserva')
+      let reservaConToken = reservaPendientePago
+      if (!reservaConToken) {
+        const r = await actions.reserve(cliente, hora, sinAdelanto)
+        if ('error' in r) {
+          if (r.error === 'ocupado') {
+            setConflicto({ alternativa: r.alternativa })
+            return false
+          }
+          if (r.error === 'limite') {
+            setError('Ya tienes 2 reservas pendientes. Cuando juegues una, podrás reservar otra.')
+            return false
+          }
+          if (r.error === 'limite-intentos') {
+            setError('Hiciste varios intentos seguidos. Espera 10 minutos y vuelve a intentarlo.')
+            return false
+          }
+          if (r.error === 'celular-bloqueado') {
+            setError('Este celular está bloqueado para nuevas reservas. Comunícate con la administración.')
+            return false
+          }
+          if (r.error === 'numero-no-confiable') {
+            setNumeroConfiable(false)
+            setError('Este número ya no está autorizado para reservar sin adelanto. Selecciona tu comprobante para continuar.')
+            return false
+          }
+          if (r.error === 'tarde') {
+            setError('La fecha o la hora ya no está disponible. Elige otro turno.')
+            return false
+          }
+          if (r.error === 'duracion-invalida') {
+            setError('Elige una duración válida para la reserva.')
+            return false
+          }
+          setError('No pudimos guardar la reserva. Revisa tu conexión e inténtalo de nuevo.')
           return false
         }
-        if (r.error === 'limite-intentos') {
-          setError('Hiciste varios intentos seguidos. Espera 10 minutos y vuelve a intentarlo.')
-          return false
+        reservaConToken = r
+        setReservaPendientePago(r)
+      }
+      if (reservaConToken.reserva.pagoEstado === 'no_requerido') {
+        setReservaPendientePago(null)
+        onReserved(reservaConToken.reserva)
+        if (recordarCliente) {
+          onRememberClient(cliente)
+          setClientePendiente(null)
         }
-        if (r.error === 'celular-bloqueado') {
-          setError('Este celular está bloqueado para nuevas reservas. Comunícate con la administración.')
-          return false
-        }
-        if (r.error === 'tarde') {
-          setError('La fecha o la hora ya no está disponible. Elige otro turno.')
-          return false
-        }
-        if (r.error === 'duracion-invalida') {
-          setError('Elige una duración válida para la reserva.')
-          return false
-        }
-        setError('No pudimos guardar la reserva. Revisa tu conexión e inténtalo de nuevo.')
+        return true
+      }
+      if (!archivoParaSubir) {
+        setErrorComprobante(mensajeErrorComprobante('archivo-requerido'))
         return false
       }
-      onReserved(r.reserva)
+      const pago = await actions.submitPayment(reservaConToken.reserva, reservaConToken.token, archivoParaSubir, idempotencia)
+      if ('error' in pago) {
+        setError(mensajeErrorPago(pago.error))
+        return false
+      }
+      setReservaPendientePago(null)
+      onReserved(reservaConToken.reserva)
       if (recordarCliente) {
         onRememberClient(cliente)
         setClientePendiente(null)
       }
       return true
     } catch {
-      setError('No pudimos guardar la reserva. Revisa tu conexión e inténtalo de nuevo.')
+      setError('No pudimos asegurar la reserva. Revisa tu conexión e inténtalo de nuevo.')
       return false
     } finally {
       if (!yaProcesando) setProcesando('')
+      if (liberaBloqueo) bloqueoAccion.current.liberar()
     }
   }
 
   async function crearYReservar(): Promise<void> {
     setError('')
+    setErrorComprobante('')
+    if (reservaPendientePago && clientePendiente) {
+      if (!bloqueoAccion.current.adquirir()) return
+      try {
+        await reservar(clientePendiente, inicio, false, true, true)
+      } finally {
+        bloqueoAccion.current.liberar()
+      }
+      return
+    }
     if (validarAlias(alias)) {
       setError('El nombre debe tener entre 2 y 24 caracteres, empezar con una letra y usar solo letras, números, espacios, guiones o apóstrofes.')
       return
@@ -137,13 +276,19 @@ export default function DatosReserva({
       setError('El celular debe tener 9 números y empezar con 9.')
       return
     }
-    if (procesando) return
+    if (numeroConfiable !== true) {
+      const errorArchivo = validarComprobante(comprobante)
+      if (errorArchivo) {
+        setErrorComprobante(mensajeErrorComprobante(errorArchivo))
+        return
+      }
+    }
+    if (!bloqueoAccion.current.adquirir()) return
     setProcesando('datos')
     try {
       const r = await actions.createClient(normalizarAlias(alias), normalizarCelular(celular))
       if ('error' in r && r.error === 'celular') {
-        const existente = await actions.findClient(normalizarCelular(celular))
-        setEncontrado(existente ?? null)
+        setError('Ese celular ya está registrado en este navegador. Usa el mismo cliente recordado o prueba con otro celular.')
         return
       }
       if ('error' in r) {
@@ -151,30 +296,12 @@ export default function DatosReserva({
         return
       }
       setClientePendiente(r.cliente)
-      await reservar(r.cliente, inicio, true, true)
+      await reservar(r.cliente, inicio, true, true, true)
     } catch {
       setError('No pudimos guardar tus datos. Revisa tu conexión e inténtalo de nuevo.')
     } finally {
       setProcesando('')
-    }
-  }
-
-  async function buscar(): Promise<void> {
-    setError('')
-    if (!celularValido) {
-      setError('El celular debe tener 9 números y empezar con 9.')
-      return
-    }
-    if (procesando) return
-    setProcesando('buscar')
-    try {
-      const c = await actions.findClient(normalizarCelular(celular))
-      if (c) setEncontrado(c)
-      else setError('No encontramos ese celular. Elige "Es mi primera vez" para crear tu nombre.')
-    } catch {
-      setError('No pudimos buscar tus datos. Revisa tu conexión e inténtalo de nuevo.')
-    } finally {
-      setProcesando('')
+      bloqueoAccion.current.liberar()
     }
   }
 
@@ -195,13 +322,29 @@ export default function DatosReserva({
     </div>
   )
 
-  const textoAccion = procesando === 'buscar'
-    ? 'Buscando…'
-    : procesando
-      ? 'Guardando…'
-      : modo === 'nuevo'
-        ? '✅ Confirmar reserva'
-        : 'Buscar mi nombre'
+  const sinAdelanto = numeroConfiable === true
+  const puedeConfirmar = sinAdelanto || Boolean(comprobante && !errorComprobante)
+  const textoAccion = procesando
+    ? sinAdelanto ? 'Confirmando reserva…' : 'Asegurando reserva…'
+    : sinAdelanto ? 'Confirmar reserva' : puedeConfirmar ? 'Asegurar reserva' : 'Selecciona tu comprobante'
+
+  if (procesando) {
+    const pantallaCarga = (
+      <section className="reserva-cargando" role="status" aria-live="polite" aria-busy="true">
+        <div className="reserva-cargando-contenido">
+          <div className="reserva-cargando-spinner" aria-hidden="true" />
+          <h1 ref={tituloRef} tabIndex={-1}>Asegurando tu reserva…</h1>
+          <p>
+            {sinAdelanto
+              ? 'Estamos verificando el horario y confirmando tus datos.'
+              : 'Estamos verificando el horario y procesando tu comprobante.'}
+          </p>
+          <span>No cierres esta pantalla.</span>
+        </div>
+      </section>
+    )
+    return createPortal(pantallaCarga, document.body)
+  }
 
   if (conflicto) {
     const alt = conflicto.alternativa
@@ -213,7 +356,7 @@ export default function DatosReserva({
             <p className="subtitulo">Pero esta hora está libre:</p>
             <button
               className="boton-principal"
-              disabled={Boolean(procesando)}
+              disabled={Boolean(procesando) || comprobandoConfiable || !puedeConfirmar}
               onClick={() => {
                 const clienteActual = yo ?? clientePendiente
                 if (!clienteActual) {
@@ -225,7 +368,7 @@ export default function DatosReserva({
                 void reservar(clienteActual, alt.inicio, false, Boolean(clientePendiente))
               }}
             >
-              {procesando ? 'Guardando…' : `Reservar ${rangoHablado(alt.inicio, horas)}`}
+              {textoAccion}
             </button>
           </>
         ) : (
@@ -238,47 +381,34 @@ export default function DatosReserva({
     )
   }
 
-  if (encontrado) {
-    return (
-      <section>
-        <h1 ref={tituloRef} tabIndex={-1}>¿Eres {encontrado.alias}?</h1>
-        <p className="subtitulo">Ese celular ya reservó antes con ese nombre.</p>
-        <button
-          className="boton-principal"
-          onClick={() => {
-            onRememberClient(encontrado)
-            setEncontrado(null)
-          }}
-        >
-          Sí, soy {encontrado.alias}
-        </button>
-        <button
-          className="boton-secundario"
-          onClick={() => {
-            setEncontrado(null)
-            setCelular('')
-          }}
-        >
-          No, usar otro celular
-        </button>
-      </section>
-    )
-  }
-
   if (yo) {
     return (
       <section>
         <h1 ref={tituloRef} tabIndex={-1}>¿Todo bien, {yo.alias}?</h1>
         <p className="reserva-a-nombre">Reserva a nombre de <strong>{yo.alias}</strong></p>
         {resumen}
+        {sinAdelanto ? (
+          <div className="reserva-sin-adelanto" role="status">
+            <strong>Reserva sin adelanto</strong>
+            <span>Este número está autorizado para reservar sin pagar Yape.</span>
+          </div>
+        ) : (
+          <PagoAdelanto
+            archivo={comprobante}
+            disabled={Boolean(procesando)}
+            error={errorComprobante}
+            onArchivoChange={cambiarComprobante}
+          />
+        )}
+        {comprobandoConfiable && <p className="ayuda-campo" role="status">Verificando si este número tiene beneficio…</p>}
         {error && <p className="error" role="alert">{error}</p>}
         {error && (
           <button className="enlace" onClick={onViewBookings}>
             Ver mis reservas
           </button>
         )}
-        <button className="boton-principal" disabled={Boolean(procesando)} onClick={() => void reservar(yo)}>
-          {procesando ? 'Guardando…' : '✅ Confirmar reserva'}
+        <button className="boton-principal" disabled={Boolean(procesando) || comprobandoConfiable || !puedeConfirmar} onClick={() => void reservar(yo)}>
+          {textoAccion}
         </button>
         <button className="enlace" onClick={onForgetClient}>
           No soy {yo.alias}
@@ -289,34 +419,32 @@ export default function DatosReserva({
 
   return (
     <section>
-      <h1 ref={tituloRef} tabIndex={-1}>{modo === 'nuevo' ? '¿A nombre de quién reservamos?' : '¡Hola de nuevo!'}</h1>
+      <h1 ref={tituloRef} tabIndex={-1}>¿A nombre de quién reservamos?</h1>
       {resumen}
 
       <form
         className="formulario"
         onSubmit={(e) => {
           e.preventDefault()
-          void (modo === 'nuevo' ? crearYReservar() : buscar())
+          void crearYReservar()
         }}
       >
-        {modo === 'nuevo' && (
-          <label>
-            <span>Nombre o apodo para la reserva</span>
-            <input
-              id="alias-reserva"
-              value={alias}
-              required
-              disabled={Boolean(procesando)}
-              aria-invalid={Boolean(error)}
-              aria-describedby={error ? 'datos-error' : undefined}
-              onChange={(e) => setAlias(e.target.value)}
-              placeholder="Ej: Juan o LosPibes"
-              autoComplete="nickname"
-              minLength={2}
-              maxLength={ALIAS_MAXIMO}
-            />
-          </label>
-        )}
+        <label>
+          <span>Nombre o apodo para la reserva</span>
+          <input
+            id="alias-reserva"
+            value={alias}
+            required
+            disabled={Boolean(procesando)}
+            aria-invalid={Boolean(error)}
+            aria-describedby={error ? 'datos-error' : undefined}
+            onChange={(e) => setAlias(e.target.value)}
+            placeholder="Ej: Juan o LosPibes"
+            autoComplete="nickname"
+            minLength={2}
+            maxLength={ALIAS_MAXIMO}
+          />
+        </label>
         <label>
           <span>Número de celular de quien reserva</span>
           <input
@@ -335,23 +463,27 @@ export default function DatosReserva({
           />
           <small id="ayuda-celular" className="ayuda-campo">Lo usamos para encontrar tu reserva. No necesitas crear una cuenta.</small>
         </label>
+        {sinAdelanto ? (
+          <div className="reserva-sin-adelanto" role="status">
+            <strong>Reserva sin adelanto</strong>
+            <span>Este número está autorizado para reservar sin pagar Yape.</span>
+          </div>
+        ) : (
+          <PagoAdelanto
+            archivo={comprobante}
+            disabled={Boolean(procesando)}
+            error={errorComprobante}
+            onArchivoChange={cambiarComprobante}
+          />
+        )}
+        {comprobandoConfiable && <p className="ayuda-campo" role="status">Verificando si este número tiene beneficio…</p>}
         {error && <p id="datos-error" className="error" role="alert">{error}</p>}
-        <button className="boton-principal" type="submit" disabled={Boolean(procesando)}>
+        <button className="boton-principal" type="submit" disabled={Boolean(procesando) || comprobandoConfiable || !puedeConfirmar}>
           {textoAccion}
         </button>
       </form>
 
-      <button
-        className="enlace"
-        disabled={Boolean(procesando)}
-        onClick={() => {
-          setError('')
-          setModo(modo === 'nuevo' ? 'volver' : 'nuevo')
-        }}
-      >
-        {modo === 'nuevo' ? 'Ya reservé antes' : 'Es mi primera vez'}
-      </button>
-      {modo === 'nuevo' && <p className="nota">La próxima vez te recordaremos en este navegador.</p>}
+      <p className="nota">La próxima vez te recordaremos en este navegador.</p>
     </section>
   )
 }
