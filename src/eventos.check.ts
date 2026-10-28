@@ -55,6 +55,18 @@ assert.ok(!('error' in crearBloqueoEventoLocal({
   celular: '',
   notas: '',
 })))
+assert.deepEqual(crearBloqueoEventoLocal({
+  canchaId: 1,
+  fecha: '2099-01-08',
+  inicio: 7,
+  fin: 25,
+  nombre: 'Evento con entrenamiento',
+  celular: '',
+  notas: '',
+}), {
+  error: 'entrenamiento-ocupado',
+  entrenamiento: { inicioMinuto: 930, finMinuto: 1195 },
+})
 assert.deepEqual(crearReserva({
   canchaId: 1,
   fecha: evento.fecha,

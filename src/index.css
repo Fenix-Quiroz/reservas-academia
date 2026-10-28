@@ -48,7 +48,7 @@ button {
 }
 
 :focus-visible {
-  outline: 3px solid var(--verde);
+  outline: 3px solid var(--color-gold-300);
   outline-offset: 2px;
 }
 
@@ -201,6 +201,59 @@ button {
 
 .demo-aviso.sin-conexion strong {
   color: var(--error);
+}
+
+.admin-navegacion {
+  margin: 20px 0;
+  padding: 8px;
+  border: 1px solid var(--color-ink-700);
+  border-radius: var(--radio);
+  background: var(--color-ink-800);
+}
+
+.admin-navegacion-contenido {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 4px;
+}
+
+.admin-navegacion-enlace {
+  display: flex;
+  min-width: 0;
+  min-height: 58px;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px 12px;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  color: var(--color-ink-100);
+  font-weight: 800;
+  line-height: 1.15;
+  text-align: center;
+  text-decoration: none;
+}
+
+.admin-navegacion-enlace:hover {
+  background: var(--color-ink-700);
+  color: var(--color-ink-50);
+}
+
+.admin-navegacion-enlace[aria-current='page'] {
+  border-color: var(--color-gold-500);
+  background: var(--color-gold-500);
+  color: var(--color-ink-950);
+}
+
+.admin-navegacion-enlace:focus-visible {
+  outline: 3px solid var(--color-gold-300);
+  outline-offset: -3px;
+}
+
+#admin-inicio,
+#admin-agenda,
+.admin-seccion-destino {
+  scroll-margin-top: 20px;
 }
 
 .marca {
@@ -405,8 +458,8 @@ h3 {
 .tarjeta-cancha .cancha-imagen {
   display: block;
   width: 100%;
-  height: 170px;
-  aspect-ratio: auto;
+  height: auto;
+  aspect-ratio: 16 / 9;
   object-fit: cover;
 }
 
@@ -529,19 +582,31 @@ h3 {
 /* Paso 2 */
 .selector-semanas {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 8px;
   margin-bottom: 12px;
 }
 
 .selector-semana {
-  min-height: 44px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  min-height: 58px;
   padding: 8px 12px;
   border: 2px solid var(--color-ink-600);
   border-radius: 12px;
   background: var(--color-ink-900);
   color: var(--color-ink-100);
   font-weight: 800;
+  text-align: center;
+}
+
+.selector-semana-rango {
+  font-size: 0.75rem;
+  font-weight: 700;
+  opacity: 0.85;
 }
 
 .selector-semana:hover,
@@ -597,6 +662,46 @@ h3 {
 
 .selector-volver:focus-visible {
   outline-offset: 4px;
+}
+
+.selector-resumen {
+  display: grid;
+  gap: 6px;
+  margin: 0 0 10px;
+}
+
+.selector-resumen-titulo {
+  color: var(--color-ink-300);
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.selector-resumen-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.selector-resumen-chip {
+  display: inline-flex;
+  min-height: 34px;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 9px;
+  border: 1px solid var(--color-gold-700);
+  border-radius: 999px;
+  background: var(--color-ink-900);
+  color: var(--color-ink-100);
+  font-size: 0.82rem;
+  font-weight: 700;
+  line-height: 1.1;
+  white-space: nowrap;
+}
+
+.selector-resumen-chip-icon {
+  color: var(--color-gold-300);
+  font-size: 0.95rem;
+  line-height: 1;
 }
 
 .turno {
@@ -1141,7 +1246,7 @@ h3 {
 
 .numero-yape span {
   color: var(--color-gold-200);
-  font-size: 1.05rem;
+  font-size: 1.2rem;
   font-weight: 700;
 }
 
@@ -1339,13 +1444,16 @@ input {
   font-weight: 500;
 }
 
-input:focus {
-  border-color: var(--verde);
+input:focus,
+select:focus,
+textarea:focus {
+  border-color: var(--color-gold-300);
 }
 
-input:focus-visible {
-  outline: 3px solid var(--verde);
-  outline-offset: 2px;
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  outline: none;
 }
 
 .main-datos input:focus {
@@ -1438,7 +1546,7 @@ button:disabled {
   color: var(--color-ink-950);
 }
 
-.main-datos .boton-principal:hover {
+.main-datos .boton-principal:hover:not(:disabled) {
   background: var(--color-gold-300);
 }
 
@@ -1572,12 +1680,38 @@ button:disabled {
   font-weight: 800;
 }
 
+.mis-reservas .resumen div > span.aviso-cancelacion-confirmada {
+  display: block;
+  margin-top: 8px;
+  padding: 10px 12px;
+  border: 1px solid var(--color-ink-600);
+  border-radius: 9px;
+  background: var(--color-ink-800);
+  color: var(--color-ink-200);
+  font-size: 0.82rem;
+  font-weight: 700;
+  line-height: 1.35;
+}
+
 .mis-reservas .resumen .enlace.izquierda {
-  color: var(--color-gold-300);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 42px;
+  margin-top: 10px;
+  padding: 0 13px;
+  border: 1px solid #9f2d24;
+  border-radius: 9px;
+  background: #431d1b;
+  color: #fecaca;
+  font-weight: 800;
+  text-decoration: none;
+  cursor: pointer;
 }
 
 .mis-reservas .resumen .enlace.izquierda:hover {
-  color: var(--color-gold-100);
+  background: #59231f;
+  color: #fecaca;
 }
 
 .mis-reservas .confirmar {
@@ -1740,9 +1874,9 @@ button:disabled {
 }
 
 .main-completada > .listo {
-  width: min(100%, 560px);
+  width: min(100%, 720px);
   margin: 0 auto;
-  padding: 24px 24px 20px;
+  padding: 32px;
   border: 1px solid var(--color-gold-700);
   border-radius: var(--radius-card);
   background: var(--color-ink-900);
@@ -1750,14 +1884,22 @@ button:disabled {
 }
 
 .listo {
-  text-align: center;
+  text-align: left;
+}
+
+.reserva-completada-encabezado {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 18px;
+  margin-bottom: 24px;
 }
 
 .check {
   display: grid;
   width: 72px;
   height: 72px;
-  margin: 0 auto 16px;
+  margin: 0;
   place-items: center;
   border-radius: 50%;
   background: var(--color-gold-500);
@@ -1768,41 +1910,129 @@ button:disabled {
 }
 
 .main-completada h1 {
-  margin-top: 0;
+  margin: 0 0 6px;
   color: var(--color-ink-50);
+  font-size: clamp(2rem, 5vw, 2.8rem);
+  line-height: 1.08;
 }
 
 .main-completada .reserva-a-nombre,
 .main-completada .subtitulo {
+  margin: 0;
   color: var(--color-ink-300);
+  font-size: 1.1rem;
 }
 
 .main-completada .reserva-a-nombre strong {
+  display: inline-block;
+  margin-left: 4px;
   color: var(--color-gold-200);
-}
-
-.frase {
-  font-size: 1.2rem;
-}
-
-.main-completada .frase {
-  margin: 12px 0 10px;
-  color: var(--color-ink-100);
+  font-size: 1.3rem;
+  font-weight: 900;
 }
 
 .main-completada .pago-exito {
-  margin: 16px 0 12px;
-  padding: 12px;
-  border: 1px solid var(--color-gold-600);
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin: 0 0 24px;
+  padding: 16px 18px;
+  border: 2px solid var(--color-gold-600);
   border-radius: 12px;
   background: var(--color-ink-800);
   color: var(--color-gold-200);
+  font-size: 1.15rem;
+  font-weight: 800;
+  line-height: 1.35;
+}
+
+.main-completada .pago-exito svg {
+  flex: 0 0 auto;
+  color: var(--color-gold-300);
+}
+
+.reserva-detalles {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0;
+  margin: 0;
+  padding: 4px 0;
+  border-top: 1px solid var(--color-ink-700);
+  border-bottom: 1px solid var(--color-ink-700);
+}
+
+.reserva-detalle {
+  display: grid;
+  grid-template-columns: minmax(118px, 0.3fr) minmax(0, 1fr);
+  align-items: center;
+  gap: 16px;
+  padding: 16px 0;
+}
+
+.reserva-detalle-horario {
+  grid-column: auto;
+}
+
+.reserva-detalle dt {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--color-ink-300);
+  font-size: 1rem;
   font-weight: 800;
 }
 
-.main-completada .precio.grande {
-  margin: 0 0 12px;
+.reserva-detalle dt svg {
+  flex: 0 0 auto;
   color: var(--color-gold-300);
+}
+
+.reserva-detalle dd {
+  margin: 0;
+  color: var(--color-ink-50);
+  font-size: 1.2rem;
+  font-weight: 800;
+  line-height: 1.3;
+}
+
+.reserva-pago-resumen {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin: 24px 0 18px;
+  border: 2px solid var(--color-gold-700);
+  border-radius: 14px;
+  background: var(--color-ink-800);
+}
+
+.reserva-pago-item {
+  display: grid;
+  gap: 5px;
+  padding: 16px 20px;
+  text-align: center;
+}
+
+.reserva-pago-item + .reserva-pago-item {
+  border-left: 1px solid var(--color-gold-700);
+}
+
+.reserva-pago-item span {
+  color: var(--color-ink-300);
+  font-size: 1.05rem;
+  font-weight: 800;
+}
+
+.reserva-pago-item strong {
+  color: var(--color-gold-300);
+  font-size: 1.7rem;
+  line-height: 1.1;
+}
+
+.reserva-pago-item-unico {
+  grid-column: 1 / -1;
+}
+
+.main-completada .subtitulo {
+  text-align: center;
 }
 
 .main-completada .boton-principal {
@@ -1826,21 +2056,83 @@ button:disabled {
 }
 
 .main-completada .enlace {
-  margin-top: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  min-height: 56px;
+  margin-top: 0;
+  padding: 0 16px;
+  border: 2px solid var(--color-gold-700);
+  border-radius: var(--radio);
+  background: var(--color-ink-800);
   color: var(--color-gold-300);
+  font-size: 1.15rem;
+  font-weight: 800;
+  text-decoration: none;
+}
+
+.main-completada .enlace:hover {
+  border-color: var(--color-gold-500);
+  background: var(--color-ink-700);
+}
+
+.reserva-completada-acciones {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 20px;
+}
+
+.reserva-completada-acciones .boton-secundario,
+.reserva-completada-acciones .enlace {
+  margin-top: 0;
 }
 
 @media (max-width: 480px) {
   .main-completada > .listo {
-    padding-right: 16px;
-    padding-left: 16px;
+    padding: 24px 16px 20px;
   }
 
   .check {
     width: 64px;
     height: 64px;
-    margin-bottom: 12px;
+    margin-bottom: 0;
     font-size: 2.9rem;
+  }
+
+  .reserva-completada-encabezado {
+    gap: 14px;
+    margin-bottom: 20px;
+  }
+
+  .main-completada h1 {
+    font-size: 1.8rem;
+  }
+
+  .main-completada .reserva-a-nombre,
+  .main-completada .subtitulo {
+    font-size: 1rem;
+  }
+
+  .main-completada .pago-exito {
+    align-items: flex-start;
+    font-size: 1.05rem;
+  }
+
+  .reserva-detalle {
+    grid-template-columns: minmax(100px, 0.4fr) minmax(0, 1fr);
+    gap: 10px;
+  }
+
+  .reserva-pago-resumen,
+  .reserva-completada-acciones {
+    grid-template-columns: 1fr;
+  }
+
+  .reserva-pago-item + .reserva-pago-item {
+    border-top: 1px solid var(--color-gold-700);
+    border-left: 0;
   }
 }
 
@@ -1930,7 +2222,7 @@ button:disabled {
 .admin-auth-form input {
   min-height: 48px;
   padding: 0 12px;
-  border: 1px solid var(--color-ink-600);
+  border: 2px solid var(--color-ink-600);
   border-radius: 10px;
   background: var(--color-ink-800);
   color: var(--color-ink-50);
@@ -2072,6 +2364,63 @@ button:disabled {
   border: 1px solid var(--color-ink-700);
   border-radius: var(--radio);
   background: var(--color-ink-900);
+}
+
+.admin-alarma-popup {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  background: rgb(0 0 0 / 68%);
+}
+
+.admin-alarma-popup-contenido {
+  width: min(100%, 420px);
+  padding: 24px;
+  border: 2px solid var(--color-gold-500);
+  border-radius: var(--radio);
+  background: var(--color-ink-900);
+  box-shadow: 0 18px 48px rgb(0 0 0 / 42%);
+}
+
+.admin-alarma-popup-contenido h3 {
+  margin: 4px 0 8px;
+  color: var(--color-ink-50);
+  font-size: 1.35rem;
+}
+
+.admin-alarma-popup-contenido p:not(.admin-kicker) {
+  margin: 0;
+  color: var(--color-ink-300);
+}
+
+.admin-alarma-popup-acciones {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 20px;
+}
+
+.admin-alarma-popup-acciones .admin-alarma-activar {
+  flex: 1 1 190px;
+}
+
+.admin-alarma-popup-cerrar {
+  min-height: 44px;
+  padding: 8px 14px;
+  border: 1px solid var(--color-ink-600);
+  border-radius: 999px;
+  background: var(--color-ink-800);
+  color: var(--color-ink-200);
+  cursor: pointer;
+}
+
+.admin-alarma-popup-cerrar:hover {
+  background: var(--color-ink-700);
+  color: var(--color-ink-50);
 }
 
 .admin-alarma.tiene-alertas {
@@ -2222,7 +2571,7 @@ button:disabled {
   min-width: 0;
   min-height: 48px;
   padding: 0 10px;
-  border: 1px solid var(--color-ink-600);
+  border: 2px solid var(--color-ink-600);
   border-radius: 10px;
   background: var(--color-ink-800);
   color: var(--color-ink-50);
@@ -2306,6 +2655,7 @@ button:disabled {
 
 .admin-filtros {
   display: flex;
+  flex: 1;
   flex-wrap: wrap;
   justify-content: flex-end;
   gap: 8px;
@@ -2322,7 +2672,7 @@ button:disabled {
 .admin-filtros input {
   min-height: 44px;
   padding: 0 10px;
-  border: 1px solid var(--color-ink-600);
+  border: 2px solid var(--color-ink-600);
   border-radius: 10px;
   background: var(--color-ink-800);
   color: var(--color-ink-50);
@@ -2331,6 +2681,39 @@ button:disabled {
 
 .admin-filtros input {
   width: 170px;
+}
+
+.admin-filtros input:focus-visible {
+  outline: none;
+  border-color: var(--color-gold-300);
+}
+
+.admin-filtros-campos {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 16px;
+  padding: 14px 16px;
+  border: 1px solid var(--color-ink-700);
+  border-radius: 12px;
+  background: var(--color-ink-800);
+}
+
+.admin-filtro-campo {
+  min-height: 42px;
+  padding: 0 14px;
+  border: 1px solid var(--color-gold-700);
+  border-radius: 999px;
+  background: var(--color-ink-900);
+  color: var(--color-gold-100);
+  font-weight: 800;
+}
+
+.admin-filtro-campo:hover,
+.admin-filtro-campo[aria-pressed='true'] {
+  border-color: var(--color-gold-300);
+  background: var(--color-gold-500);
+  color: var(--color-ink-950);
 }
 
 .admin-reservas {
@@ -2348,6 +2731,168 @@ button:disabled {
   border-radius: 12px;
   background: var(--color-ink-800);
   color: var(--color-ink-100);
+}
+
+.admin-evento-agenda {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(220px, 0.38fr);
+  gap: 18px;
+  padding: 18px;
+  border: 1px solid var(--color-gold-700);
+  border-left: 8px solid var(--color-gold-500);
+  border-radius: 12px;
+  background: var(--color-ink-800);
+  color: var(--color-ink-100);
+}
+
+.admin-evento-agenda-principal {
+  min-width: 0;
+}
+
+.admin-evento-agenda-cabecera {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.admin-evento-agenda-icono {
+  display: grid;
+  width: 42px;
+  height: 42px;
+  flex: 0 0 42px;
+  place-items: center;
+  border-radius: 10px;
+  background: var(--color-gold-500);
+  color: var(--color-ink-950);
+}
+
+.admin-evento-agenda-etiqueta {
+  display: inline-flex;
+  align-items: center;
+  min-height: 24px;
+  padding: 2px 9px;
+  border-radius: 999px;
+  background: var(--color-gold-500);
+  color: var(--color-ink-950);
+  font-size: 0.72rem;
+  font-weight: 900;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.admin-evento-agenda h3 {
+  margin: 6px 0 0;
+  color: var(--color-ink-50);
+  font-size: 1.25rem;
+  overflow-wrap: anywhere;
+}
+
+.admin-evento-agenda-metadata {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 18px;
+}
+
+.admin-evento-agenda-dato {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-content: start;
+  gap: 2px 7px;
+  min-width: 0;
+}
+
+.admin-evento-agenda-dato > svg {
+  grid-row: span 2;
+  margin-top: 2px;
+  color: var(--color-gold-300);
+}
+
+.admin-evento-agenda-dato + .admin-evento-agenda-dato {
+  padding-left: 12px;
+  border-left: 1px solid var(--color-ink-700);
+}
+
+.admin-evento-agenda-dato span,
+.admin-evento-agenda-nota span {
+  color: var(--color-ink-300);
+  font-size: 0.78rem;
+}
+
+.admin-evento-agenda-dato strong,
+.admin-evento-agenda-nota strong {
+  min-width: 0;
+  color: var(--color-ink-100);
+  overflow-wrap: anywhere;
+}
+
+.admin-evento-agenda-nota {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  margin-top: 16px;
+  padding: 11px 12px;
+  border: 1px solid var(--color-ink-700);
+  border-radius: 10px;
+  background: var(--color-ink-950);
+}
+
+.admin-evento-agenda-nota > svg {
+  flex: 0 0 auto;
+  margin-top: 2px;
+  color: var(--color-gold-300);
+}
+
+.admin-evento-agenda-nota > div {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.admin-evento-agenda-aside {
+  display: grid;
+  align-content: center;
+  gap: 12px;
+  min-width: 0;
+  padding-left: 18px;
+  border-left: 1px solid var(--color-ink-700);
+}
+
+.admin-evento-agenda-bloqueo {
+  display: inline-flex;
+  width: fit-content;
+  align-items: center;
+  gap: 7px;
+  padding: 7px 10px;
+  border-radius: 999px;
+  background: var(--color-gold-950);
+  color: var(--color-gold-200);
+  font-weight: 800;
+}
+
+.admin-evento-agenda-ayuda {
+  margin: 0;
+  color: var(--color-ink-300);
+  font-size: 0.88rem;
+}
+
+.admin-evento-agenda-cancelar {
+  min-height: 42px;
+  padding: 0 13px;
+  border: 1px solid #9f2d24;
+  border-radius: 9px;
+  background: #431d1b;
+  color: #fecaca;
+  font-weight: 800;
+}
+
+.admin-evento-agenda-cancelar:hover:not(:disabled) {
+  background: #59231f;
+}
+
+.admin-evento-agenda-cancelar:disabled {
+  cursor: wait;
+  opacity: 0.7;
 }
 
 .admin-reserva-fecha,
@@ -2464,6 +3009,12 @@ button:disabled {
   grid-column: 4;
 }
 
+.admin-reserva-estados {
+  display: grid;
+  justify-items: end;
+  gap: 6px;
+}
+
 .estado {
   display: inline-flex;
   align-items: center;
@@ -2479,6 +3030,16 @@ button:disabled {
   color: var(--color-gold-200);
 }
 
+.estado-en-curso {
+  background: var(--color-gold-500);
+  color: var(--color-ink-950);
+}
+
+.estado-confirmado {
+  background: var(--verde);
+  color: #fff;
+}
+
 .estado-suave {
   background: var(--color-ink-700);
   color: var(--color-ink-200);
@@ -2492,6 +3053,11 @@ button:disabled {
 .estado-finalizado {
   background: var(--color-ink-700);
   color: var(--color-ink-100);
+}
+
+.estado-pago-confirmado {
+  background: var(--verde);
+  color: #fff;
 }
 
 .estado-cancelada {
@@ -2679,7 +3245,7 @@ button:disabled {
   min-width: 0;
   min-height: 44px;
   padding: 0 10px;
-  border: 1px solid var(--color-ink-600);
+  border: 2px solid var(--color-ink-600);
   border-radius: 10px;
   background: var(--color-ink-950);
   color: var(--color-ink-50);
@@ -2687,7 +3253,7 @@ button:disabled {
 }
 
 .admin-control-form input:focus-visible {
-  border-color: var(--color-gold-500);
+  border-color: var(--color-gold-300);
 }
 
 .admin-control-primario,
@@ -2801,7 +3367,7 @@ button:disabled {
   min-width: 0;
   min-height: 44px;
   padding: 9px 10px;
-  border: 1px solid var(--color-ink-600);
+  border: 2px solid var(--color-ink-600);
   border-radius: 10px;
   background: var(--color-ink-950);
   color: var(--color-ink-50);
@@ -2815,9 +3381,8 @@ button:disabled {
 .admin-eventos-form input:focus-visible,
 .admin-eventos-form select:focus-visible,
 .admin-eventos-form textarea:focus-visible {
-  border-color: var(--color-gold-500);
-  outline: 2px solid var(--color-gold-500);
-  outline-offset: 1px;
+  border-color: var(--color-gold-300);
+  outline: none;
 }
 
 .admin-eventos-notas {
@@ -2846,33 +3411,114 @@ button:disabled {
   color: var(--color-ink-300);
 }
 
-.admin-evento-fila {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 12px;
+.admin-simulador {
+  display: grid;
+  gap: 16px;
+  margin-top: 20px;
+  margin-bottom: 20px;
+  padding: 20px;
   border: 1px solid var(--color-ink-700);
-  border-radius: 10px;
+  border-radius: var(--radio);
+  background: var(--color-ink-900);
+}
+
+.admin-simulador-cabecera h2 {
+  margin: 4px 0 0;
+}
+
+.admin-simulador-ayuda {
+  max-width: 760px;
+  margin: 6px 0 0;
+  color: var(--color-ink-300);
+}
+
+.admin-simulador-controles {
+  display: grid;
+  grid-template-columns: minmax(220px, 1fr) auto auto auto auto;
+  align-items: end;
+  gap: 10px;
+  padding: 16px;
+  border: 1px solid var(--color-ink-700);
+  border-radius: 12px;
   background: var(--color-ink-800);
 }
 
-.admin-evento-fila > div {
+.admin-simulador-controles label {
+  display: grid;
+  gap: 5px;
+  color: var(--color-ink-200);
+  font-size: 0.85rem;
+  font-weight: 700;
+}
+
+.admin-simulador-controles select {
+  min-height: 44px;
+  padding: 0 10px;
+  border: 2px solid var(--color-ink-600);
+  border-radius: 10px;
+  background: var(--color-ink-950);
+  color: var(--color-ink-50);
+}
+
+.admin-simulador-controles select:focus-visible {
+  border-color: var(--color-gold-300);
+  outline: none;
+}
+
+.admin-simulador-reloj {
+  display: grid;
+  min-height: 44px;
+  align-content: center;
+  gap: 1px;
+  padding: 0 12px;
+  border: 1px solid var(--color-gold-700);
+  border-radius: 10px;
+  background: var(--color-gold-950);
+  color: var(--color-gold-100);
+  white-space: nowrap;
+}
+
+.admin-simulador-reloj span {
+  font-size: 0.72rem;
+}
+
+.admin-simulador-reloj strong {
+  color: var(--color-gold-50);
+}
+
+.admin-simulador-explicacion {
   display: grid;
   gap: 3px;
-  min-width: 0;
+  padding: 13px 15px;
+  border: 1px solid var(--color-gold-700);
+  border-radius: 10px;
+  background: var(--color-gold-950);
+  color: var(--color-gold-100);
 }
 
-.admin-evento-fila strong,
-.admin-evento-fila span {
-  overflow-wrap: anywhere;
+.admin-simulador-explicacion span {
+  color: var(--color-ink-200);
 }
 
-.admin-evento-fila strong {
+.admin-simulador-preview {
+  display: grid;
+  gap: 10px;
+}
+
+.admin-simulador-preview-cabecera {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.admin-simulador-preview-cabecera h3 {
+  margin: 0;
   color: var(--color-ink-100);
+  font-size: 1rem;
 }
 
-.admin-evento-fila span {
+.admin-simulador-preview-cabecera span {
   color: var(--color-ink-300);
   font-size: 0.85rem;
 }
@@ -2947,6 +3593,20 @@ button:disabled {
     flex-direction: column;
   }
 
+  .admin-navegacion-contenido {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .admin-navegacion-enlace {
+    min-height: 64px;
+    padding: 10px 8px;
+    font-size: 0.9rem;
+  }
+
+  .admin-navegacion-enlace:last-child {
+    grid-column: 1 / -1;
+  }
+
   .admin-alarma-activar,
   .admin-alarma-prueba,
   .admin-alarma-confirmar {
@@ -2970,6 +3630,19 @@ button:disabled {
     grid-column: 1 / -1;
   }
 
+  .admin-simulador-controles {
+    grid-template-columns: 1fr;
+    align-items: stretch;
+  }
+
+  .admin-simulador-controles .admin-boton {
+    width: 100%;
+  }
+
+  .admin-simulador-reloj {
+    justify-items: start;
+  }
+
   .admin-control-form {
     grid-template-columns: 1fr;
   }
@@ -2982,15 +3655,6 @@ button:disabled {
   .admin-control-fila {
     align-items: stretch;
     flex-direction: column;
-  }
-
-  .admin-evento-fila {
-    align-items: stretch;
-    flex-direction: column;
-  }
-
-  .admin-evento-fila .admin-boton {
-    width: 100%;
   }
 
   .admin-acciones,
@@ -3029,6 +3693,38 @@ button:disabled {
 
   .admin-reserva {
     grid-template-columns: 1fr 1fr;
+  }
+
+  .admin-evento-agenda {
+    grid-template-columns: 1fr;
+    gap: 16px;
+    border-left-width: 6px;
+  }
+
+  .admin-evento-agenda-metadata {
+    grid-template-columns: 1fr;
+    gap: 0;
+  }
+
+  .admin-evento-agenda-dato + .admin-evento-agenda-dato {
+    padding-top: 10px;
+    padding-left: 0;
+    margin-top: 10px;
+    border-top: 1px solid var(--color-ink-700);
+    border-left: 0;
+  }
+
+  .admin-evento-agenda-aside {
+    gap: 12px;
+    padding-top: 14px;
+    padding-left: 0;
+    border-top: 1px solid var(--color-ink-700);
+    border-left: 0;
+  }
+
+  .admin-evento-agenda-cancelar {
+    width: 100%;
+    min-height: 48px;
   }
 
   .admin-reserva-estado {
@@ -3096,7 +3792,7 @@ button:disabled {
   }
 
   .tarjeta-cancha .cancha-imagen {
-    height: 145px;
+    height: auto;
   }
 
   .admin-app {

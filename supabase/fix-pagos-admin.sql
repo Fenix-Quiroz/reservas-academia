@@ -9,6 +9,8 @@ set search_path = public, pg_temp
 as $function$
 declare
   v_pago public.pagos_reserva%rowtype;
+  v_reserva public.reservas%rowtype;
+  v_limite_confirmacion timestamptz;
 begin
   if coalesce(auth.jwt() -> 'app_metadata' ->> 'role', '') <> 'admin' then
     raise exception using errcode = '42501', message = 'admin_no_autorizado';
@@ -39,14 +41,27 @@ begin
     raise exception using errcode = 'P0001', message = 'comprobante_no_existe';
   end if;
 
-  perform 1
+  select * into v_reserva
   from public.reservas
   where id = v_pago.reserva_id
-    and estado = 'activo'
   for update;
 
   if not found then
     raise exception using errcode = 'P0001', message = 'reserva_no_activa';
+  end if;
+
+  if v_reserva.estado not in ('activo', 'iniciado', 'finalizado') then
+    raise exception using errcode = 'P0001', message = 'reserva_no_activa';
+  end if;
+
+  v_limite_confirmacion := (
+    v_reserva.fecha::timestamp
+    + (v_reserva.inicio + v_reserva.horas) * interval '1 hour'
+    + interval '2 hours'
+  ) at time zone 'America/Lima';
+
+  if now() > v_limite_confirmacion then
+    raise exception using errcode = 'P0001', message = 'confirmacion_fuera_de_plazo';
   end if;
 
   update public.pagos_reserva

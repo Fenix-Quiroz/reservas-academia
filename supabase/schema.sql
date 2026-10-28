@@ -550,6 +550,7 @@ set search_path = public, extensions, pg_temp
 as $function$
 declare
   v_evento public.bloqueos_eventos%rowtype;
+  v_entrenamiento record;
   v_hoy date := timezone('America/Lima', now())::date;
   v_nombre text := regexp_replace(trim(coalesce(p_nombre, '')), '\s+', ' ', 'g');
   v_celular text := regexp_replace(trim(coalesce(p_celular, '')), '[[:space:]-]+', '', 'g');
@@ -574,6 +575,23 @@ begin
   -- carrera entre un evento especial y una reserva del cliente.
   perform pg_advisory_xact_lock(hashtextextended(format('agenda:%s:%s', p_cancha_id, p_fecha), 0));
 
+  select horario.inicio_minuto, horario.fin_minuto
+  into v_entrenamiento
+  from public.horarios_bloqueados as horario
+  where horario.cancha_id = p_cancha_id
+    and horario.dia_semana = extract(dow from p_fecha)::smallint
+    and horario.activo
+    and p_inicio * 60 < horario.fin_minuto
+    and horario.inicio_minuto < p_fin * 60
+  order by horario.inicio_minuto
+  limit 1;
+
+  if found then
+    raise exception using
+      errcode = '23P01',
+      message = format('horario_entrenamiento_ocupado:%s:%s', v_entrenamiento.inicio_minuto, v_entrenamiento.fin_minuto);
+  end if;
+
   if exists (
     select 1
     from public.reservas as reserva
@@ -582,8 +600,7 @@ begin
       and reserva.estado <> 'cancelado'
       and numrange(reserva.inicio::numeric, reserva.inicio::numeric + reserva.horas, '[)')
         && numrange(p_inicio::numeric, p_fin::numeric, '[)')
-  ) or public.evento_bloquea(p_cancha_id, p_fecha, p_inicio, p_fin - p_inicio)
-    or public.horario_entrenamiento_bloqueado(p_cancha_id, p_fecha, p_inicio, p_fin - p_inicio) then
+  ) or public.evento_bloquea(p_cancha_id, p_fecha, p_inicio, p_fin - p_inicio) then
     raise exception using errcode = '23P01', message = 'evento_ocupado';
   end if;
 
@@ -826,7 +843,7 @@ begin
     raise exception using errcode = '22023', message = 'cancha_invalida';
   end if;
 
-  if p_fecha < v_hoy or p_fecha > v_hoy + 13 then
+  if p_fecha < v_hoy or p_fecha > v_hoy + 20 then
     raise exception using errcode = '22023', message = 'fecha_invalida';
   end if;
 
@@ -942,7 +959,7 @@ begin
     raise exception using errcode = '22023', message = 'cancha_invalida';
   end if;
 
-  if p_fecha < v_hoy or p_fecha > v_hoy + 13 then
+  if p_fecha < v_hoy or p_fecha > v_hoy + 20 then
     raise exception using errcode = '22023', message = 'fecha_invalida';
   end if;
 
@@ -1188,6 +1205,8 @@ set search_path = public, pg_temp
 as $function$
 declare
   v_pago public.pagos_reserva%rowtype;
+  v_reserva public.reservas%rowtype;
+  v_limite_confirmacion timestamptz;
 begin
   if coalesce(auth.jwt() -> 'app_metadata' ->> 'role', '') <> 'admin' then
     raise exception using errcode = '42501', message = 'admin_no_autorizado';
@@ -1209,11 +1228,22 @@ begin
     raise exception using errcode = 'P0001', message = 'comprobante_no_existe';
   end if;
 
-  perform 1 from public.reservas
-  where id = v_pago.reserva_id and estado = 'activo'
+  select * into v_reserva from public.reservas
+  where id = v_pago.reserva_id
   for update;
   if not found then
     raise exception using errcode = 'P0001', message = 'reserva_no_activa';
+  end if;
+  if v_reserva.estado not in ('activo', 'iniciado', 'finalizado') then
+    raise exception using errcode = 'P0001', message = 'reserva_no_activa';
+  end if;
+  v_limite_confirmacion := (
+    v_reserva.fecha::timestamp
+    + (v_reserva.inicio + v_reserva.horas) * interval '1 hour'
+    + interval '2 hours'
+  ) at time zone 'America/Lima';
+  if now() > v_limite_confirmacion then
+    raise exception using errcode = 'P0001', message = 'confirmacion_fuera_de_plazo';
   end if;
 
   update public.pagos_reserva

@@ -58,7 +58,7 @@ begin
     raise exception using errcode = '22023', message = 'cancha_invalida';
   end if;
 
-  if p_fecha < v_hoy or p_fecha > v_hoy + 13 then
+  if p_fecha < v_hoy or p_fecha > v_hoy + 20 then
     raise exception using errcode = '22023', message = 'fecha_invalida';
   end if;
 

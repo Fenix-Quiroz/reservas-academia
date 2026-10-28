@@ -9,7 +9,7 @@ export interface AdminFiltrosProps {
 
 const hoy = (): string => fechaISO(new Date())
 
-export default function AdminFiltros({ filtros, onChange, canchas }: AdminFiltrosProps) {
+export default function AdminFiltros({ filtros, onChange }: AdminFiltrosProps) {
   return (
     <div className="admin-filtros">
       <label>
@@ -32,15 +32,8 @@ export default function AdminFiltros({ filtros, onChange, canchas }: AdminFiltro
           <option value={fechaISO(sumarDias(1))}>Mañana</option>
         </select>
       </label>
-      <label>
-        <span>Campo</span>
-        <select value={filtros.canchaId} onChange={(e) => onChange({ canchaId: e.target.value })}>
-          <option value="todas">Todos los campos</option>
-          {canchas.map((cancha) => <option key={cancha.id} value={cancha.id}>{cancha.nombre}</option>)}
-        </select>
-      </label>
       <label className="admin-buscar">
-        <span>Alias o nombre</span>
+        <span>Nombre o número</span>
         <input
           type="search"
           value={filtros.buscar}
@@ -48,6 +41,35 @@ export default function AdminFiltros({ filtros, onChange, canchas }: AdminFiltro
           placeholder="Ej: David o 931..."
         />
       </label>
+    </div>
+  )
+}
+
+export function AdminFiltrosCampos({ filtros, onChange, canchas }: AdminFiltrosProps) {
+  return (
+    <div className="admin-filtros-campos" role="group" aria-label="Campos">
+      <button
+        className="admin-filtro-campo"
+        type="button"
+        aria-pressed={filtros.canchaId === 'todas'}
+        onClick={() => onChange({ canchaId: 'todas' })}
+      >
+        Todos los campos
+      </button>
+      {canchas.map((cancha) => {
+        const seleccionado = String(filtros.canchaId) === String(cancha.id)
+        return (
+          <button
+            key={cancha.id}
+            className="admin-filtro-campo"
+            type="button"
+            aria-pressed={seleccionado}
+            onClick={() => onChange({ canchaId: cancha.id })}
+          >
+            {cancha.id === 4 ? 'Campo de vóley' : `Campo ${cancha.id}`}
+          </button>
+        )
+      })}
     </div>
   )
 }

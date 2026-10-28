@@ -203,6 +203,7 @@ export default function MisReservas({
               {reservasVisibles.map((r) => {
                 const c = canchas.find((x) => x.id === r.canchaId)
                 if (!c) return null
+                const comprobanteConfirmado = r.pagoEstado === 'confirmado'
                 return (
                   <div key={r.id} className="resumen">
                     <img
@@ -221,8 +222,13 @@ export default function MisReservas({
                       ) : r.pagoEstado === 'pendiente' ? (
                         <span className="pago-pendiente" role="status">Esperando verificación</span>
                       ) : null}
+                      {comprobanteConfirmado && (
+                        <span className="aviso-cancelacion-confirmada" role="note">
+                          Reserva asegurada. Para cambios o cancelaciones, comunícate con la academia.
+                        </span>
+                      )}
 
-                      {porCancelar === r.id ? (
+                      {!comprobanteConfirmado && (porCancelar === r.id ? (
                         <div className="confirmar" role="group" aria-labelledby={`confirmar-cancelar-${r.id}`}>
                           <span id={`confirmar-cancelar-${r.id}`}>¿Seguro que quieres cancelar?</span>
                           <div className="duraciones">
@@ -238,7 +244,7 @@ export default function MisReservas({
                         <button className="enlace izquierda" onClick={() => setPorCancelar(r.id)}>
                           Cancelar reserva
                         </button>
-                      )}
+                      ))}
                     </div>
                   </div>
                 )

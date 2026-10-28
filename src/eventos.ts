@@ -1,8 +1,13 @@
 import type { BloqueoEvento, Reserva } from './types.js'
-import { entrenamientoBloquea } from './horariosEntrenamiento.js'
+import { horarioEntrenamientoQueBloquea } from './horariosEntrenamiento.js'
 
-export type ErrorEvento = 'ocupado' | 'datos-invalidos' | 'no-existe' | 'conexion'
-export type ResultadoEvento = { evento: BloqueoEvento } | { error: ErrorEvento }
+export type ErrorEvento = 'ocupado' | 'entrenamiento-ocupado' | 'datos-invalidos' | 'no-existe' | 'conexion'
+export interface DetalleEntrenamiento {
+  inicioMinuto: number
+  finMinuto: number
+}
+export type ErrorEventoResultado = { error: ErrorEvento; entrenamiento?: DetalleEntrenamiento }
+export type ResultadoEvento = { evento: BloqueoEvento } | ErrorEventoResultado
 export type ResultadoCancelacionEvento = Record<string, never> | { error: ErrorEvento }
 export type BloqueoEventoNuevo = Omit<BloqueoEvento, 'id' | 'estado' | 'createdAt'>
 
@@ -48,6 +53,20 @@ export function eventoChocaConReserva(
 export function eventoChocaConEntrenamiento(
   evento: Pick<BloqueoEvento, 'canchaId' | 'fecha' | 'inicio' | 'fin'>,
 ): boolean {
+  return Boolean(horarioEntrenamientoQueBloqueaEvento(evento))
+}
+
+export function horarioEntrenamientoQueBloqueaEvento(
+  evento: Pick<BloqueoEvento, 'canchaId' | 'fecha' | 'inicio' | 'fin'>,
+): DetalleEntrenamiento | undefined {
   const diaSemana = new Date(`${evento.fecha}T12:00:00`).getDay()
-  return entrenamientoBloquea(evento.canchaId, diaSemana, evento.inicio, evento.fin - evento.inicio)
+  const entrenamiento = horarioEntrenamientoQueBloquea(
+    evento.canchaId,
+    diaSemana,
+    evento.inicio,
+    evento.fin - evento.inicio,
+  )
+  return entrenamiento
+    ? { inicioMinuto: entrenamiento.inicioMinuto, finMinuto: entrenamiento.finMinuto }
+    : undefined
 }

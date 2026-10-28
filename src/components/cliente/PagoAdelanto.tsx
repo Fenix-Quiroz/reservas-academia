@@ -15,6 +15,7 @@ export default function PagoAdelanto({ archivo, disabled, error, onArchivoChange
   const [vistaPrevia, setVistaPrevia] = useState('')
   const inputRef = useRef<HTMLInputElement>(null)
   const bloqueoCopia = useRef(crearBloqueoAccion())
+  const numeroYapeVisible = NUMERO_YAPE.match(/.{1,3}/g)?.join(' ') ?? NUMERO_YAPE
 
   useEffect(() => {
     if (!archivo) {
@@ -54,7 +55,7 @@ export default function PagoAdelanto({ archivo, disabled, error, onArchivoChange
         Para reservar y asegurar debes yapear mínimo <strong>{ADELANTO_YAPE} soles</strong>, al NRO
       </p>
       <div className="numero-yape" aria-label={`NRO (${NUMERO_YAPE} ${TITULAR_YAPE})`}>
-        <strong>{NUMERO_YAPE}</strong>
+        <strong>{numeroYapeVisible}</strong>
         <span>{TITULAR_YAPE}</span>
         <button className="boton-copiar" type="button" onClick={() => void copiarNumero()} disabled={disabled}>
           {copiado ? 'Número copiado' : 'Copiar número'}

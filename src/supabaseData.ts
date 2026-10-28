@@ -1,6 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import type { BloqueoEvento, Cliente, ComprobanteAdmin, EstadoPago, EstadoReserva, Reserva, ReservaNueva } from './types.js'
-import { validarBloqueoEvento, type BloqueoEventoNuevo, type ErrorEvento, type ResultadoCancelacionEvento, type ResultadoEvento } from './eventos.js'
+import { validarBloqueoEvento, type BloqueoEventoNuevo, type DetalleEntrenamiento, type ErrorEventoResultado, type ResultadoCancelacionEvento, type ResultadoEvento } from './eventos.js'
 import type {
   NumeroBloqueado,
   NumeroConfiable,
@@ -32,7 +32,7 @@ export type ResultadoCliente = { cliente: Cliente } | ResultadoError
 export type ResultadoCancelacion = Record<string, never> | ResultadoError
 export type ErrorEstado = ErrorReserva | 'estado-invalido'
 export type ResultadoEstado = Record<string, never> | { error: ErrorEstado }
-export type ErrorPagoAdmin = 'conexion' | 'no-existe' | 'no-confirmable' | 'sin-comprobante' | 'reserva-no-activa'
+export type ErrorPagoAdmin = 'conexion' | 'no-existe' | 'no-confirmable' | 'sin-comprobante' | 'reserva-no-activa' | 'confirmacion-fuera-de-plazo'
 export type ResultadoPagoAdmin = Record<string, never> | { error: ErrorPagoAdmin }
 export type ResultadoLimpiezaDatos =
   | { eliminados: Record<string, number> }
@@ -156,11 +156,19 @@ export function errorDeSupabase(error?: ErrorSupabase): ErrorReserva {
   return 'conexion'
 }
 
-export function errorDeSupabaseEvento(error?: ErrorSupabase): ErrorEvento {
-  if (error?.code === '23P01' || error?.message?.includes('evento_ocupado')) return 'ocupado'
-  if (error?.code === '22023' && error?.message?.includes('evento_invalido')) return 'datos-invalidos'
-  if (error?.message?.includes('no_existe')) return 'no-existe'
-  return 'conexion'
+export function errorDeSupabaseEvento(error?: ErrorSupabase): ErrorEventoResultado {
+  const mensaje = error?.message ?? ''
+  const entrenamiento = mensaje.match(/horario_entrenamiento_ocupado(?::(\d+):(\d+))?/)
+  if (entrenamiento) {
+    const detalle: DetalleEntrenamiento | undefined = entrenamiento[1] && entrenamiento[2]
+      ? { inicioMinuto: Number(entrenamiento[1]), finMinuto: Number(entrenamiento[2]) }
+      : undefined
+    return detalle ? { error: 'entrenamiento-ocupado', entrenamiento: detalle } : { error: 'entrenamiento-ocupado' }
+  }
+  if (error?.code === '23P01' || mensaje.includes('evento_ocupado')) return { error: 'ocupado' }
+  if (error?.code === '22023' && mensaje.includes('evento_invalido')) return { error: 'datos-invalidos' }
+  if (mensaje.includes('no_existe')) return { error: 'no-existe' }
+  return { error: 'conexion' }
 }
 
 export const deBloqueoEvento = (fila: FilaBloqueoEvento): BloqueoEvento => ({
@@ -244,6 +252,7 @@ export async function confirmarPagoAdminRemoto(pagoId: string): Promise<Resultad
     if (mensaje.includes('pago_no_existe')) return { error: 'no-existe' }
     if (mensaje.includes('pago_no_confirmable')) return { error: 'no-confirmable' }
     if (mensaje.includes('comprobante_no_existe')) return { error: 'sin-comprobante' }
+    if (mensaje.includes('confirmacion_fuera_de_plazo')) return { error: 'confirmacion-fuera-de-plazo' }
     if (mensaje.includes('reserva_no_activa')) return { error: 'reserva-no-activa' }
     return { error: 'conexion' }
   }
@@ -472,14 +481,14 @@ export async function crearBloqueoEventoRemoto(nuevo: BloqueoEventoNuevo): Promi
     p_celular: nuevo.celular,
     p_notas: nuevo.notas,
   })
-  if (error) return { error: errorDeSupabaseEvento(error) }
+  if (error) return errorDeSupabaseEvento(error)
   const fila = (Array.isArray(data) ? data[0] : data) as FilaBloqueoEvento | null | undefined
   return fila ? { evento: deBloqueoEvento(fila) } : { error: 'conexion' }
 }
 
 export async function cancelarBloqueoEventoRemoto(id: string): Promise<ResultadoCancelacionEvento> {
   const { data, error } = await clienteSupabase().rpc('cancelar_bloqueo_evento_admin', { p_id: id })
-  if (error) return { error: errorDeSupabaseEvento(error) }
+  if (error) return { error: errorDeSupabaseEvento(error).error }
   return data === true ? {} : { error: 'no-existe' }
 }
 

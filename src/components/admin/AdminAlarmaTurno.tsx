@@ -42,6 +42,7 @@ function emitirTono(contexto: AudioContext): void {
 export default function AdminAlarmaTurno({ reservas, canchas }: AdminAlarmaTurnoProps) {
   const [alertas, setAlertas] = useState<Reserva[]>([])
   const [sonidoActivado, setSonidoActivado] = useState(false)
+  const [mostrarPopupActivar, setMostrarPopupActivar] = useState(true)
   const [errorSonido, setErrorSonido] = useState('')
   const emitidas = useRef(new Set<string>())
   const contextoAudio = useRef<AudioContext | null>(null)
@@ -92,16 +93,21 @@ export default function AdminAlarmaTurno({ reservas, canchas }: AdminAlarmaTurno
     return () => window.clearInterval(temporizador)
   }, [alertas.length, sonidoActivado])
 
-  async function activarSonido(): Promise<void> {
-    if (!bloqueoSonido.current.adquirir()) return
+  async function activarSonido(): Promise<boolean> {
+    if (!bloqueoSonido.current.adquirir()) return false
     try {
       if (!contextoAudio.current) contextoAudio.current = new AudioContext()
       await contextoAudio.current.resume()
+      if (contextoAudio.current.state !== 'running') throw new Error('audio-no-disponible')
       emitirTono(contextoAudio.current)
       setSonidoActivado(true)
+      setMostrarPopupActivar(false)
       setErrorSonido('')
+      return true
     } catch {
       setErrorSonido('No pudimos activar el sonido. Revisa el volumen del dispositivo.')
+      setMostrarPopupActivar(true)
+      return false
     } finally {
       bloqueoSonido.current.liberar()
     }
@@ -147,6 +153,24 @@ export default function AdminAlarmaTurno({ reservas, canchas }: AdminAlarmaTurno
           </button>
         </div>
       </div>
+
+      {mostrarPopupActivar && !sonidoActivado && (
+        <div className="admin-alarma-popup" role="dialog" aria-modal="true" aria-labelledby="titulo-popup-alarmas">
+          <div className="admin-alarma-popup-contenido">
+            <p className="admin-kicker">Avisos de turnos</p>
+            <h3 id="titulo-popup-alarmas">Activar alarmas</h3>
+            <p>Activa el sonido para recibir un aviso cuando termine una reserva.</p>
+            <div className="admin-alarma-popup-acciones">
+              <button className="admin-boton admin-alarma-activar" type="button" onClick={() => void activarSonido()}>
+                🔔 Activar alarmas
+              </button>
+              <button className="admin-alarma-popup-cerrar" type="button" onClick={() => setMostrarPopupActivar(false)}>
+                Ahora no
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {errorSonido && <p className="error" role="alert">{errorSonido}</p>}
 

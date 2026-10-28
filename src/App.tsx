@@ -23,7 +23,7 @@ import DatosReserva from './components/cliente/DatosReserva'
 import ReservaCompletada from './components/cliente/ReservaCompletada'
 import MisReservas from './components/cliente/MisReservas'
 
-const DIAS = 14
+const DIAS = 21
 const INTERVALO_MIS_RESERVAS_MS = 3000
 const NOMBRES_PASOS = ['Campo', 'Día y hora', 'Tus datos'] as const
 

@@ -4,10 +4,19 @@ import type { Campo } from '../../types.js'
 import { horaVisible, nombreDia, nombreDiaCorto } from '../../utils/fechasReserva'
 
 const DIAS_POR_SEMANA = 7
-const TOTAL_SEMANAS = 2
+const TOTAL_SEMANAS = 3
 const TOTAL_DIAS = DIAS_POR_SEMANA * TOTAL_SEMANAS
 const MIN_HORAS_SECUENCIA = 1
 const MAX_HORAS = 3
+
+const etiquetaSemana = (indice: number): string =>
+  indice === 0 ? 'Esta semana' : indice === 1 ? 'Próxima semana' : `En ${indice} semanas`
+
+const rangoSemana = (indice: number): string => {
+  const inicio = indice * DIAS_POR_SEMANA
+  return `${nombreDiaCorto(inicio).detalle}–${nombreDiaCorto(inicio + DIAS_POR_SEMANA - 1).detalle}`
+}
+
 const GRUPOS = [
   // `hasta` es exclusivo: 13 representa la 1:00 p. m., 19 las 7:00 p. m.
   { clave: 'manana', nombre: 'Mañana', icono: '🌅', desde: 7, hasta: 13 },
@@ -59,6 +68,7 @@ export default function SelectorHorario({
   const duracionMinima = (nuevoInicio: number): number =>
     esBloqueAislado(horariosDisponibles, nuevoInicio) ? DURACION_BLOQUE : MIN_HORAS_SECUENCIA
   const hayInicioValido = listaTurno.some((h) => h.libre && rangoLibre(horariosDisponibles, h.inicio, duracionMinima(h.inicio)))
+  const resumenDia = nombreDiaCorto(dia)
 
   const elegirDia = (nuevoDia: number) => {
     onDiaChange(nuevoDia)
@@ -132,15 +142,38 @@ export default function SelectorHorario({
 
   return (
     <section>
-      <h1 ref={tituloRef} tabIndex={-1}>¿Qué día y a qué hora?</h1>
-      <p className="subtitulo">
+      <h1 ref={tituloRef} tabIndex={-1}>
         {cancha.nombre} · {cancha.deporte ?? `Fútbol ${cancha.jugadores}`} · para {cancha.jugadores * 2} jugadores
-      </p>
+      </h1>
 
       {etapa !== 'dia' && (
         <button className="enlace selector-volver" type="button" onClick={volver}>
           ← {etapa === 'turno' ? 'Cambiar día' : 'Cambiar turno'}
         </button>
+      )}
+
+      {etapa !== 'dia' && (
+        <div className="selector-resumen" aria-label="Resumen de tu reserva">
+          <span className="selector-resumen-titulo">Resumen</span>
+          <div className="selector-resumen-chips" role="list">
+            <span className="selector-resumen-chip" role="listitem">
+              <span className="selector-resumen-chip-icon" aria-hidden="true">▣</span>
+              <span>{resumenDia.titulo} {resumenDia.detalle}</span>
+            </span>
+            {grupoSeleccionado && (
+              <span className="selector-resumen-chip" role="listitem">
+                <span className="selector-resumen-chip-icon" aria-hidden="true">☀</span>
+                <span>{grupoSeleccionado.nombre}</span>
+              </span>
+            )}
+            {inicio !== null && (
+              <span className="selector-resumen-chip" role="listitem">
+                <span className="selector-resumen-chip-icon" aria-hidden="true">◷</span>
+                <span>{horaVisible(inicio)}–{horaVisible(inicio + horas)}</span>
+              </span>
+            )}
+          </div>
+        </div>
       )}
 
       {etapa === 'dia' && (
@@ -155,7 +188,8 @@ export default function SelectorHorario({
                 aria-pressed={indice === semana}
                 onClick={() => cambiarSemana(indice)}
               >
-                {indice === 0 ? 'Esta semana' : 'Próxima semana'}
+                <span>{etiquetaSemana(indice)}</span>
+                {indice === 2 && <small className="selector-semana-rango">{rangoSemana(indice)}</small>}
               </button>
             ))}
           </div>

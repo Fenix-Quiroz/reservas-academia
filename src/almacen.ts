@@ -1,7 +1,7 @@
 // Fallback de la demo. Con Supabase activo, las reservas y clientes vienen de la base remota.
 import demo from './data/reservas-demo.json' with { type: 'json' }
 import type { BloqueoEvento, Cliente, EstadoReserva, Reserva, ReservaNueva } from './types.js'
-import { eventoChocaConEntrenamiento, eventoChocaConReserva, eventoBloquea, validarBloqueoEvento, type BloqueoEventoNuevo, type ResultadoCancelacionEvento, type ResultadoEvento } from './eventos.js'
+import { eventoChocaConReserva, eventoBloquea, horarioEntrenamientoQueBloqueaEvento, validarBloqueoEvento, type BloqueoEventoNuevo, type ResultadoCancelacionEvento, type ResultadoEvento } from './eventos.js'
 import type { NumeroBloqueado, NumeroConfiable, ResultadoControlCliente } from './controlClientes.js'
 import { INASISTENCIAS_PARA_BLOQUEAR } from './controlClientes.js'
 import { normalizarReserva, puedeCambiarEstado } from './estadoReserva.js'
@@ -207,7 +207,8 @@ export function crearBloqueoEventoLocal(
     notas: nuevo.notas.trim(),
     estado: 'activo',
   }
-  if (eventoChocaConEntrenamiento(evento)) return { error: 'ocupado' }
+  const entrenamiento = horarioEntrenamientoQueBloqueaEvento(evento)
+  if (entrenamiento) return { error: 'entrenamiento-ocupado', entrenamiento }
   if (reservas.some((reserva) => eventoChocaConReserva(evento, reserva))) return { error: 'ocupado' }
   if (leerBloqueosEventos().some((existente) => eventoBloquea(existente, evento.canchaId, evento.fecha, evento.inicio, evento.fin - evento.inicio))) {
     return { error: 'ocupado' }

@@ -3,12 +3,14 @@ import type { FormEvent } from 'react'
 import type { BloqueoEvento, Campo } from '../../types.js'
 import {
   validarBloqueoEvento,
+  horarioEntrenamientoQueBloqueaEvento,
   type BloqueoEventoNuevo,
   type ResultadoCancelacionEvento,
   type ResultadoEvento,
 } from '../../eventos.js'
 import { fechaISO } from '../../reservas.js'
 import { horaVisible } from '../../utils/fechasReserva.js'
+import AdminEventoCard from './AdminEventoCard'
 
 export interface AdminEventosProps {
   eventos: readonly BloqueoEvento[]
@@ -19,21 +21,22 @@ export interface AdminEventosProps {
   onCancelar: (id: string) => Promise<ResultadoCancelacionEvento>
 }
 
+function horaEntrenamientoVisible(minuto: number): string {
+  return horaVisible(minuto / 60)
+}
+
 function mensajeError(resultado: ResultadoEvento | ResultadoCancelacionEvento): string {
   if (!('error' in resultado)) return ''
+  if (resultado.error === 'entrenamiento-ocupado') {
+    const horario = 'entrenamiento' in resultado ? resultado.entrenamiento : undefined
+    return horario
+      ? `No es posible reservar estas horas porque hay entrenamiento de ${horaEntrenamientoVisible(horario.inicioMinuto)} a ${horaEntrenamientoVisible(horario.finMinuto)}.`
+      : 'No es posible reservar estas horas porque hay un entrenamiento programado.'
+  }
   if (resultado.error === 'ocupado') return 'Ese rango ya está ocupado por una reserva u otro evento.'
   if (resultado.error === 'datos-invalidos') return 'Revisa los datos: el evento debe durar al menos 5 horas.'
   if (resultado.error === 'no-existe') return 'Ese evento ya no existe o ya fue cancelado.'
   return 'No pudimos guardar el evento. Revisa la conexión e inténtalo de nuevo.'
-}
-
-function fechaVisible(fecha: string): string {
-  return new Date(`${fecha}T12:00:00`).toLocaleDateString('es-PE', {
-    weekday: 'long',
-    day: 'numeric',
-    month: 'long',
-    year: 'numeric',
-  })
 }
 
 function opcionesHora(desde: number, hasta: number): number[] {
@@ -91,6 +94,11 @@ export default function AdminEventos({
     }
     if (!validarBloqueoEvento(nuevo)) {
       setError(mensajeError({ error: 'datos-invalidos' }))
+      return
+    }
+    const entrenamiento = horarioEntrenamientoQueBloqueaEvento(nuevo)
+    if (entrenamiento) {
+      setError(mensajeError({ error: 'entrenamiento-ocupado', entrenamiento }))
       return
     }
     const resultado = await onCrear(nuevo)
@@ -178,17 +186,13 @@ export default function AdminEventos({
       <div className="admin-eventos-lista" aria-live="polite">
         <h3>Eventos activos</h3>
         {cargando ? <p>Cargando eventos…</p> : activos.length === 0 ? <p>No hay eventos especiales activos.</p> : activos.map((evento) => (
-          <article className="admin-evento-fila" key={evento.id}>
-            <div>
-              <strong>{evento.nombre}</strong>
-              <span>{canchas.find((cancha) => cancha.id === evento.canchaId)?.nombre ?? `Campo ${evento.canchaId}`} · {fechaVisible(evento.fecha)}</span>
-              <span>{horaVisible(evento.inicio)} a {horaVisible(evento.fin)}{evento.celular ? ` · ${evento.celular}` : ''}</span>
-              {evento.notas && <span>{evento.notas}</span>}
-            </div>
-            <button className="admin-boton admin-control-secundario" type="button" disabled={procesando} onClick={() => void cancelar(evento.id)}>
-              Cancelar evento
-            </button>
-          </article>
+          <AdminEventoCard
+            key={evento.id}
+            evento={evento}
+            cancha={canchas.find((cancha) => cancha.id === evento.canchaId)}
+            procesando={procesando}
+            onCancel={cancelar}
+          />
         ))}
       </div>
     </section>

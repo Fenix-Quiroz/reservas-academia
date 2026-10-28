@@ -43,12 +43,14 @@ import { esAdmin } from './adminAuth'
 import AdminLogin from './components/admin/AdminLogin'
 import AdminNoAutorizado from './components/admin/AdminNoAutorizado'
 import AdminCabecera from './components/admin/AdminCabecera'
-import AdminFiltros from './components/admin/AdminFiltros'
+import AdminFiltros, { AdminFiltrosCampos } from './components/admin/AdminFiltros'
 import AdminListado from './components/admin/AdminListado'
 import AdminAlarmaTurno from './components/admin/AdminAlarmaTurno'
 import AdminBalanceMensual from './components/admin/AdminBalanceMensual'
 import AdminControlClientes from './components/admin/AdminControlClientes'
 import AdminEventos from './components/admin/AdminEventos'
+import AdminSimuladorReservas from './components/admin/AdminSimuladorReservas'
+import AdminNavegacion from './components/admin/AdminNavegacion'
 import { crearBloqueoAccion } from './accionUnica'
 
 type EstadoConexion = 'sincronizando' | 'demo' | 'error' | 'sincronizado'
@@ -302,7 +304,7 @@ export default function AdminApp() {
         ? 'Turno iniciado.'
         : estado === 'no_asistio'
           ? 'Reserva marcada como inasistencia.'
-          : 'Reserva finalizada y pago confirmado.')
+          : 'Reserva finalizada y pago total confirmado.')
       setError('')
     } catch {
       setError('No pudimos actualizar el estado. Revisa tu conexión e inténtalo de nuevo.')
@@ -317,6 +319,7 @@ export default function AdminApp() {
     if (error === 'no-existe') return 'El comprobante ya no existe.'
     if (error === 'no-confirmable') return 'Este comprobante ya no puede confirmarse.'
     if (error === 'sin-comprobante') return 'No encontramos la imagen del comprobante.'
+    if (error === 'confirmacion-fuera-de-plazo') return 'El plazo para confirmar este comprobante venció (2 horas después de terminar el turno).'
     if (error === 'reserva-no-activa') return 'La reserva ya no está activa.'
     return 'No pudimos procesar el comprobante. Revisa la conexión.'
   }
@@ -476,7 +479,7 @@ export default function AdminApp() {
   }
 
   return (
-    <main className="admin-app" aria-busy={cargando}>
+    <main id="admin-inicio" className="admin-app" aria-busy={cargando}>
       <AdminCabecera
         supabaseConfigurado={supabaseConfigurado}
         porLimpiar={porLimpiar}
@@ -505,12 +508,14 @@ export default function AdminApp() {
               : ''}</span>
       </div>
 
+      <AdminNavegacion />
+
       {mensaje && <p className="exito" role="status">{mensaje}</p>}
       {error && <p className="error" role="alert">{error}</p>}
 
       <AdminAlarmaTurno reservas={reservas} canchas={canchas} />
 
-      <section className="admin-listado">
+      <section id="admin-agenda" className="admin-listado">
         <div className="admin-listado-cabecera">
           <div>
             <h2>Agenda</h2>
@@ -522,6 +527,12 @@ export default function AdminApp() {
             onChange={(siguiente) => setFiltros((actual) => ({ ...actual, ...siguiente }))}
           />
         </div>
+
+        <AdminFiltrosCampos
+          filtros={filtros}
+          canchas={canchas}
+          onChange={(siguiente) => setFiltros((actual) => ({ ...actual, ...siguiente }))}
+        />
 
         <AdminListado
           visibles={visibles}
@@ -543,39 +554,47 @@ export default function AdminApp() {
         />
       </section>
 
-      <AdminEventos
-        eventos={eventos}
-        canchas={canchas}
-        cargando={cargandoEventos}
-        procesando={procesandoEvento}
-        onCrear={(nuevo) => ejecutarEvento(() => supabaseConfigurado
-          ? crearBloqueoEventoRemoto(nuevo)
-          : crearBloqueoEventoLocal(nuevo, reservas))}
-        onCancelar={(id) => ejecutarEvento(() => supabaseConfigurado
-          ? cancelarBloqueoEventoRemoto(id)
-          : cancelarBloqueoEventoLocal(id))}
-      />
+      <div id="admin-reservas-especiales" className="admin-seccion-destino">
+        <AdminEventos
+          eventos={eventos}
+          canchas={canchas}
+          cargando={cargandoEventos}
+          procesando={procesandoEvento}
+          onCrear={(nuevo) => ejecutarEvento(() => supabaseConfigurado
+            ? crearBloqueoEventoRemoto(nuevo)
+            : crearBloqueoEventoLocal(nuevo, reservas))}
+          onCancelar={(id) => ejecutarEvento(() => supabaseConfigurado
+            ? cancelarBloqueoEventoRemoto(id)
+            : cancelarBloqueoEventoLocal(id))}
+        />
+      </div>
 
-      <AdminBalanceMensual reservas={reservas} canchas={canchas} />
+      <AdminSimuladorReservas cancha={canchas[0]} />
 
-      <AdminControlClientes
-        bloqueados={numerosBloqueados}
-        confiables={numerosConfiables}
-        cargando={cargandoControl}
-        procesando={procesandoControl}
-        onBloquear={(celular, motivo) => ejecutarControl(() => supabaseConfigurado
-          ? bloquearNumeroRemoto(celular, motivo)
-          : bloquearNumero(celular, motivo))}
-        onDesbloquear={(celular) => ejecutarControl(() => supabaseConfigurado
-          ? desbloquearNumeroRemoto(celular)
-          : desbloquearNumero(celular))}
-        onAgregarConfiable={(celular, alias) => ejecutarControl(() => supabaseConfigurado
-          ? agregarNumeroConfiableRemoto(celular, alias)
-          : agregarNumeroConfiable(celular, alias))}
-        onQuitarConfiable={(celular) => ejecutarControl(() => supabaseConfigurado
-          ? quitarNumeroConfiableRemoto(celular)
-          : quitarNumeroConfiable(celular))}
-      />
+      <div id="admin-balance" className="admin-seccion-destino">
+        <AdminBalanceMensual reservas={reservas} canchas={canchas} />
+      </div>
+
+      <div id="admin-clientes" className="admin-seccion-destino">
+        <AdminControlClientes
+          bloqueados={numerosBloqueados}
+          confiables={numerosConfiables}
+          cargando={cargandoControl}
+          procesando={procesandoControl}
+          onBloquear={(celular, motivo) => ejecutarControl(() => supabaseConfigurado
+            ? bloquearNumeroRemoto(celular, motivo)
+            : bloquearNumero(celular, motivo))}
+          onDesbloquear={(celular) => ejecutarControl(() => supabaseConfigurado
+            ? desbloquearNumeroRemoto(celular)
+            : desbloquearNumero(celular))}
+          onAgregarConfiable={(celular, alias) => ejecutarControl(() => supabaseConfigurado
+            ? agregarNumeroConfiableRemoto(celular, alias)
+            : agregarNumeroConfiable(celular, alias))}
+          onQuitarConfiable={(celular) => ejecutarControl(() => supabaseConfigurado
+            ? quitarNumeroConfiableRemoto(celular)
+            : quitarNumeroConfiable(celular))}
+        />
+      </div>
     </main>
   )
 }
