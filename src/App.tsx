@@ -15,6 +15,8 @@ import { leerHorariosRemotos, leerMisReservasRemotas, precalentarRegistrarAdelan
 import type { ErrorReserva, ResultadoCancelacion, ResultadoCliente, ResultadoPago } from './supabaseData'
 import { validarComprobante } from './pagos'
 import type { BloqueoEvento, Campo, Cliente, Reserva } from './types.js'
+import { borrarBorradorReserva, guardarBorradorReserva, leerBorradorReserva } from './borradorReserva'
+import type { EtapaHorario, TurnoHorario } from './borradorReserva'
 import CabeceraCliente from './components/cliente/CabeceraCliente'
 import ProgresoReserva from './components/cliente/ProgresoReserva'
 import SelectorCampos from './components/cliente/SelectorCampos'
@@ -33,11 +35,15 @@ type ResultadoReservaCliente =
   | { error: ErrorReserva | 'limite-intentos'; alternativa?: HorarioDisponible }
 
 export default function App() {
-  const [paso, setPaso] = useState(1)
-  const [cancha, setCancha] = useState<Campo | null>(null)
-  const [dia, setDia] = useState(0)
-  const [horas, setHoras] = useState(1)
-  const [inicio, setInicio] = useState<number | null>(null)
+  const estadoInicialReserva = leerBorradorReserva(canchas)
+  const [paso, setPaso] = useState(() => estadoInicialReserva?.paso ?? 1)
+  const [cancha, setCancha] = useState<Campo | null>(() => estadoInicialReserva ? canchas.find((c) => c.id === estadoInicialReserva.canchaId) ?? null : null)
+  const [dia, setDia] = useState(() => estadoInicialReserva?.dia ?? 0)
+  const [horas, setHoras] = useState(() => estadoInicialReserva?.horas ?? 1)
+  const [inicio, setInicio] = useState<number | null>(() => estadoInicialReserva?.inicio ?? null)
+  const [etapaHorario, setEtapaHorario] = useState<EtapaHorario>(() => estadoInicialReserva?.etapa ?? 'dia')
+  const [turnoHorario, setTurnoHorario] = useState<TurnoHorario | null>(() => estadoInicialReserva?.turno ?? null)
+  const [semanaHorario, setSemanaHorario] = useState(() => estadoInicialReserva?.semana ?? 0)
   const [reservas, setReservas] = useState<Reserva[]>(leerReservas)
   const [bloqueosEventos, setBloqueosEventos] = useState<BloqueoEvento[]>(leerBloqueosEventos)
   const [yo, setYo] = useState<Cliente | null>(leerYo)
@@ -61,6 +67,24 @@ export default function App() {
     : yo ? deCliente(reservas, yo.celular) : []
   const clienteMias = yo ?? (mias[0] ? { alias: mias[0].alias, celular: mias[0].celular } : null)
   const fecha = fechaISO(sumarDias(dia))
+
+  useEffect(() => {
+    if (paso === 1 || paso === 4) {
+      borrarBorradorReserva()
+      return
+    }
+    if ((paso !== 2 && paso !== 3) || !cancha) return
+    guardarBorradorReserva({
+      paso,
+      canchaId: cancha.id,
+      fecha,
+      horas,
+      inicio,
+      etapa: etapaHorario,
+      turno: turnoHorario,
+      semana: semanaHorario,
+    })
+  }, [paso, cancha, fecha, horas, inicio, etapaHorario, turnoHorario, semanaHorario])
 
   // En el cliente público solo se conserva la demo local. Supabase se consulta
   // mediante RPC en segundo plano para reservas y disponibilidad.
@@ -177,11 +201,15 @@ export default function App() {
   }, [paso, verMias, hecha])
 
   function reiniciar(): void {
+    borrarBorradorReserva()
     setPaso(1)
     setCancha(null)
     setDia(0)
     setHoras(1)
     setInicio(null)
+    setEtapaHorario('dia')
+    setTurnoHorario(null)
+    setSemanaHorario(0)
     setHecha(null)
   }
 
@@ -368,6 +396,9 @@ export default function App() {
                 setDia(primerLibre ?? 0)
                 setCancha(c)
                 setInicio(null)
+                setEtapaHorario('dia')
+                setTurnoHorario(null)
+                setSemanaHorario(0)
                 setHorariosDisponibles([])
                 setErrorConexion('')
                 setPaso(2)
@@ -381,6 +412,12 @@ export default function App() {
               horariosDisponibles={horariosDisponibles}
               cargando={cargandoHorarios}
               dia={dia}
+              etapa={etapaHorario}
+              onEtapaChange={setEtapaHorario}
+              turno={turnoHorario}
+              onTurnoChange={setTurnoHorario}
+              semana={semanaHorario}
+              onSemanaChange={setSemanaHorario}
               onDiaChange={(nuevoDia) => {
                 setInicio(null)
                 setDia(nuevoDia)
@@ -413,6 +450,7 @@ export default function App() {
               onBack={() => setPaso(2)}
               onViewBookings={() => setVerMias(true)}
               onReserved={(r) => {
+                borrarBorradorReserva()
                 setHecha(r)
                 setPaso(4)
               }}

@@ -1,6 +1,7 @@
-import { useState, type RefObject } from 'react'
+import { type RefObject } from 'react'
 import { DURACION_BLOQUE, esBloqueAislado, rangoLibre, type HorarioDisponible } from '../../reservas'
 import type { Campo } from '../../types.js'
+import type { EtapaHorario, TurnoHorario } from '../../borradorReserva'
 import { horaVisible, nombreDia, nombreDiaCorto } from '../../utils/fechasReserva'
 
 const DIAS_POR_SEMANA = 7
@@ -24,15 +25,18 @@ const GRUPOS = [
   { clave: 'noche', nombre: 'Noche', icono: '🌙', desde: 19, hasta: 25 },
 ] as const
 
-type Etapa = 'dia' | 'turno' | 'horario'
-type ClaveTurno = (typeof GRUPOS)[number]['clave']
-
 export interface SelectorHorarioProps {
   cancha: Campo
   horariosDisponibles: HorarioDisponible[]
   cargando: boolean
   dia: number
   onDiaChange: (dia: number) => void
+  etapa: EtapaHorario
+  onEtapaChange: (etapa: EtapaHorario) => void
+  turno: TurnoHorario | null
+  onTurnoChange: (turno: TurnoHorario | null) => void
+  semana: number
+  onSemanaChange: (semana: number) => void
   horas: number
   onHorasChange: (horas: number) => void
   fecha: string
@@ -49,6 +53,12 @@ export default function SelectorHorario({
   cargando,
   dia,
   onDiaChange,
+  etapa,
+  onEtapaChange,
+  turno,
+  onTurnoChange,
+  semana,
+  onSemanaChange,
   horas,
   onHorasChange,
   fecha,
@@ -58,9 +68,6 @@ export default function SelectorHorario({
   onConfirmHour,
   tituloRef,
 }: SelectorHorarioProps) {
-  const [etapa, setEtapa] = useState<Etapa>('dia')
-  const [turno, setTurno] = useState<ClaveTurno | null>(null)
-  const [semana, setSemana] = useState(0)
   const grupoSeleccionado = GRUPOS.find((grupo) => grupo.clave === turno)
   const listaTurno = grupoSeleccionado
     ? horariosDisponibles.filter((h) => h.inicio >= grupoSeleccionado.desde && h.inicio < grupoSeleccionado.hasta)
@@ -74,23 +81,23 @@ export default function SelectorHorario({
     onDiaChange(nuevoDia)
     onHorasChange(MIN_HORAS_SECUENCIA)
     onClearHour()
-    setTurno(null)
-    setEtapa('turno')
+    onTurnoChange(null)
+    onEtapaChange('turno')
   }
 
   const cambiarSemana = (nuevaSemana: number) => {
     onHorasChange(MIN_HORAS_SECUENCIA)
     onClearHour()
-    setTurno(null)
-    setEtapa('dia')
-    setSemana(nuevaSemana)
+    onTurnoChange(null)
+    onEtapaChange('dia')
+    onSemanaChange(nuevaSemana)
   }
 
-  const elegirTurno = (nuevoTurno: ClaveTurno) => {
+  const elegirTurno = (nuevoTurno: TurnoHorario) => {
     onHorasChange(MIN_HORAS_SECUENCIA)
     onClearHour()
-    setTurno(nuevoTurno)
-    setEtapa('horario')
+    onTurnoChange(nuevoTurno)
+    onEtapaChange('horario')
   }
 
   const elegirBloque = (nuevoInicio: number) => {
@@ -127,11 +134,11 @@ export default function SelectorHorario({
   const volver = () => {
     onClearHour()
     if (etapa === 'turno') {
-      setTurno(null)
-      setEtapa('dia')
+      onTurnoChange(null)
+      onEtapaChange('dia')
     } else if (etapa === 'horario') {
       onHorasChange(MIN_HORAS_SECUENCIA)
-      setEtapa('turno')
+      onEtapaChange('turno')
     }
   }
 
