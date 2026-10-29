@@ -1,6 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import type { BloqueoEvento, Cliente, ComprobanteAdmin, EstadoPago, EstadoReserva, Reserva, ReservaNueva } from './types.js'
-import { validarBloqueoEvento, type BloqueoEventoNuevo, type DetalleEntrenamiento, type ErrorEventoResultado, type ResultadoCancelacionEvento, type ResultadoEvento } from './eventos.js'
+import { validarBloqueoEvento, validarEventoEspecial, type BloqueoEventoNuevo, type DetalleEntrenamiento, type ErrorEventoResultado, type EventoEspecialNuevo, type ResultadoCancelacionEvento, type ResultadoEvento, type ResultadoEventoEspecial } from './eventos.js'
 import type {
   NumeroBloqueado,
   NumeroConfiable,
@@ -67,6 +67,7 @@ interface FilaHorarioPublico {
 
 interface FilaBloqueoEvento {
   id: string
+  evento_especial_id?: string | null
   cancha_id: number | string
   fecha: string
   inicio: number | string
@@ -76,6 +77,9 @@ interface FilaBloqueoEvento {
   notas?: string | null
   estado: 'activo' | 'cancelado'
   created_at?: string
+  updated_at?: string
+  tipo?: unknown
+  precio_cobrado?: number | string | null
 }
 
 interface FilaComprobanteAdmin {
@@ -171,18 +175,26 @@ export function errorDeSupabaseEvento(error?: ErrorSupabase): ErrorEventoResulta
   return { error: 'conexion' }
 }
 
-export const deBloqueoEvento = (fila: FilaBloqueoEvento): BloqueoEvento => ({
-  id: fila.id,
-  canchaId: Number(fila.cancha_id),
-  fecha: fila.fecha,
-  inicio: Number(fila.inicio),
-  fin: Number(fila.fin),
-  nombre: fila.nombre,
-  celular: fila.celular?.trim() ?? '',
-  notas: fila.notas?.trim() ?? '',
-  estado: fila.estado,
-  ...(fila.created_at ? { createdAt: fila.created_at } : {}),
-})
+export const deBloqueoEvento = (fila: FilaBloqueoEvento): BloqueoEvento => {
+  const precioCobrado = Number(fila.precio_cobrado)
+  return {
+    id: fila.id,
+    canchaId: Number(fila.cancha_id),
+    fecha: fila.fecha,
+    inicio: Number(fila.inicio),
+    fin: Number(fila.fin),
+    nombre: fila.nombre,
+    celular: fila.celular?.trim() ?? '',
+    notas: fila.notas?.trim() ?? '',
+    estado: fila.estado,
+    grupoId: fila.evento_especial_id ?? fila.id,
+    tipo: fila.tipo === 'todos_los_campos' ? 'todos_los_campos' : 'individual',
+    precioCobrado: Number.isFinite(precioCobrado) && precioCobrado >= 0
+      ? Math.round(precioCobrado * 100) / 100
+      : 0,
+    ...(fila.created_at ? { createdAt: fila.created_at } : {}),
+  }
+}
 
 function clienteSupabase(): SupabaseClient {
   if (!supabase) throw new Error('supabase-no-configurado')
@@ -486,10 +498,46 @@ export async function crearBloqueoEventoRemoto(nuevo: BloqueoEventoNuevo): Promi
   return fila ? { evento: deBloqueoEvento(fila) } : { error: 'conexion' }
 }
 
+export async function crearEventoEspecialRemoto(nuevo: EventoEspecialNuevo): Promise<ResultadoEventoEspecial> {
+  if (!validarEventoEspecial(nuevo)) return { error: 'datos-invalidos' }
+  const { data, error } = await clienteSupabase().rpc('crear_evento_especial_admin', {
+    p_cancha_ids: nuevo.canchaIds,
+    p_fecha: nuevo.fecha,
+    p_inicio: nuevo.inicio,
+    p_fin: nuevo.fin,
+    p_nombre: nuevo.nombre,
+    p_celular: nuevo.celular,
+    p_notas: nuevo.notas,
+    p_tipo: nuevo.tipo,
+    p_precio_cobrado: nuevo.precioCobrado,
+  })
+  if (error) return errorDeSupabaseEvento(error)
+  const filas = (Array.isArray(data) ? data : data ? [data] : []) as FilaBloqueoEvento[]
+  const precioCobrado = Math.round(nuevo.precioCobrado * 100) / 100
+  const eventos = filas.map((fila) => ({
+    ...deBloqueoEvento(fila),
+    tipo: nuevo.tipo,
+    precioCobrado,
+  }))
+  return eventos.length > 0 ? { eventos } : { error: 'conexion' }
+}
+
 export async function cancelarBloqueoEventoRemoto(id: string): Promise<ResultadoCancelacionEvento> {
   const { data, error } = await clienteSupabase().rpc('cancelar_bloqueo_evento_admin', { p_id: id })
   if (error) return { error: errorDeSupabaseEvento(error).error }
   return data === true ? {} : { error: 'no-existe' }
+}
+
+export async function cancelarEventoEspecialRemoto(grupoId: string): Promise<ResultadoCancelacionEvento> {
+  const { data, error } = await clienteSupabase().rpc('cancelar_evento_especial_admin', {
+    p_evento_especial_id: grupoId,
+  })
+  if (error) return { error: errorDeSupabaseEvento(error).error }
+  if (data === true) return {}
+
+  // Los eventos creados antes de la migración no tienen grupo principal.
+  // Se mantienen cancelables como un bloqueo individual.
+  return cancelarBloqueoEventoRemoto(grupoId)
 }
 
 export async function actualizarEstadoReservaRemota(id: string, estado: EstadoReserva): Promise<ResultadoEstado> {

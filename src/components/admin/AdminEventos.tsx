@@ -1,31 +1,36 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import type { FormEvent } from 'react'
+import { CalendarPlus } from 'lucide-react'
 import type { BloqueoEvento, Campo } from '../../types.js'
 import {
-  validarBloqueoEvento,
+  validarEventoEspecial,
   horarioEntrenamientoQueBloqueaEvento,
-  type BloqueoEventoNuevo,
+  type EventoEspecialNuevo,
   type ResultadoCancelacionEvento,
-  type ResultadoEvento,
+  type ResultadoEventoEspecial,
 } from '../../eventos.js'
 import { fechaISO } from '../../reservas.js'
 import { horaVisible } from '../../utils/fechasReserva.js'
 import AdminEventoCard from './AdminEventoCard'
+import { AdminFiltroMenu } from './AdminFiltros'
+import AdminSelectorHorario from './AdminSelectorHorario'
 
 export interface AdminEventosProps {
   eventos: readonly BloqueoEvento[]
   canchas: readonly Campo[]
   cargando: boolean
   procesando: boolean
-  onCrear: (evento: BloqueoEventoNuevo) => Promise<ResultadoEvento>
-  onCancelar: (id: string) => Promise<ResultadoCancelacionEvento>
+  onCrear: (evento: EventoEspecialNuevo) => Promise<ResultadoEventoEspecial>
+  onCancelar: (grupoId: string) => Promise<ResultadoCancelacionEvento>
 }
+
+type SeleccionCancha = number | 'futbol'
 
 function horaEntrenamientoVisible(minuto: number): string {
   return horaVisible(minuto / 60)
 }
 
-function mensajeError(resultado: ResultadoEvento | ResultadoCancelacionEvento): string {
+function mensajeError(resultado: ResultadoEventoEspecial | ResultadoCancelacionEvento): string {
   if (!('error' in resultado)) return ''
   if (resultado.error === 'entrenamiento-ocupado') {
     const horario = 'entrenamiento' in resultado ? resultado.entrenamiento : undefined
@@ -43,6 +48,17 @@ function opcionesHora(desde: number, hasta: number): number[] {
   return Array.from({ length: Math.max(0, hasta - desde + 1) }, (_, indice) => desde + indice)
 }
 
+export function agruparEventosEspeciales(eventos: readonly BloqueoEvento[]): BloqueoEvento[][] {
+  const grupos = new Map<string, BloqueoEvento[]>()
+  for (const evento of eventos) {
+    const clave = evento.grupoId?.trim() || evento.id
+    const grupo = grupos.get(clave) ?? []
+    grupo.push(evento)
+    grupos.set(clave, grupo)
+  }
+  return [...grupos.values()]
+}
+
 export default function AdminEventos({
   eventos,
   canchas,
@@ -51,15 +67,18 @@ export default function AdminEventos({
   onCrear,
   onCancelar,
 }: AdminEventosProps) {
-  const [canchaId, setCanchaId] = useState(canchas[0]?.id ?? 1)
+  const [canchaId, setCanchaId] = useState<SeleccionCancha>(canchas[0]?.id ?? 1)
   const [fecha, setFecha] = useState(fechaISO(new Date()))
   const [inicio, setInicio] = useState('7')
   const [fin, setFin] = useState('12')
   const [nombre, setNombre] = useState('')
   const [celular, setCelular] = useState('')
   const [notas, setNotas] = useState('')
+  const [precioCobrado, setPrecioCobrado] = useState('0')
   const [error, setError] = useState('')
   const [exito, setExito] = useState('')
+  const [guardando, setGuardando] = useState(false)
+  const guardandoRef = useRef(false)
 
   useEffect(() => {
     if (!exito) return undefined
@@ -72,6 +91,12 @@ export default function AdminEventos({
     () => opcionesHora(inicioNumero + 5, 25),
     [inicioNumero],
   )
+  const opcionesCampo = [
+    { value: 'futbol', label: 'Todos los campos de fútbol' },
+    ...canchas.map((cancha) => ({ value: String(cancha.id), label: cancha.nombre })),
+  ]
+  const opcionesDesde = opcionesHora(7, 20).map((hora) => ({ value: String(hora), label: horaVisible(hora) }))
+  const opcionesHasta = finalesDisponibles.map((hora) => ({ value: String(hora), label: horaVisible(hora) }))
 
   function cambiarInicio(valor: string): void {
     const nuevoInicio = Number(valor)
@@ -81,41 +106,67 @@ export default function AdminEventos({
 
   async function crear(evento: FormEvent<HTMLFormElement>): Promise<void> {
     evento.preventDefault()
-    setError('')
-    setExito('')
-    const nuevo: BloqueoEventoNuevo = {
-      canchaId,
-      fecha,
-      inicio: inicioNumero,
-      fin: Number(fin),
-      nombre: nombre.trim(),
-      celular: celular.trim(),
-      notas: notas.trim(),
+    if (guardandoRef.current) return
+    guardandoRef.current = true
+    setGuardando(true)
+    try {
+      setError('')
+      setExito('')
+      const idsCanchaSeleccionadas = canchaId === 'futbol'
+        ? canchas.filter((cancha) => cancha.deporte.startsWith('Fútbol')).map((cancha) => cancha.id)
+        : [canchaId]
+      const nuevo: EventoEspecialNuevo = {
+        canchaIds: idsCanchaSeleccionadas,
+        fecha,
+        inicio: inicioNumero,
+        fin: Number(fin),
+        nombre: nombre.trim(),
+        celular: celular.trim(),
+        notas: notas.trim(),
+        tipo: canchaId === 'futbol' ? 'todos_los_campos' : 'individual',
+        precioCobrado: Number(precioCobrado),
+      }
+
+      if (!validarEventoEspecial(nuevo)) {
+        setError(mensajeError({ error: 'datos-invalidos' }))
+        return
+      }
+      for (const id of idsCanchaSeleccionadas) {
+        const entrenamiento = horarioEntrenamientoQueBloqueaEvento({
+          canchaId: id,
+          fecha: nuevo.fecha,
+          inicio: nuevo.inicio,
+          fin: nuevo.fin,
+        })
+        if (entrenamiento) {
+          setError(mensajeError({ error: 'entrenamiento-ocupado', entrenamiento }))
+          return
+        }
+      }
+
+      const resultado = await onCrear(nuevo)
+      if ('error' in resultado) {
+        setError(mensajeError(resultado))
+        return
+      }
+      setError('')
+      setNombre('')
+      setCelular('')
+      setNotas('')
+      setPrecioCobrado('0')
+      setExito(canchaId === 'futbol'
+        ? 'Evento guardado en todos los campos de fútbol. Esas horas ya no aparecen disponibles para los clientes.'
+        : 'Evento guardado. Esas horas ya no aparecen disponibles para los clientes.')
+    } finally {
+      guardandoRef.current = false
+      setGuardando(false)
     }
-    if (!validarBloqueoEvento(nuevo)) {
-      setError(mensajeError({ error: 'datos-invalidos' }))
-      return
-    }
-    const entrenamiento = horarioEntrenamientoQueBloqueaEvento(nuevo)
-    if (entrenamiento) {
-      setError(mensajeError({ error: 'entrenamiento-ocupado', entrenamiento }))
-      return
-    }
-    const resultado = await onCrear(nuevo)
-    if ('error' in resultado) {
-      setError(mensajeError(resultado))
-      return
-    }
-    setNombre('')
-    setCelular('')
-    setNotas('')
-    setExito('Evento guardado. Esas horas ya no aparecen disponibles para los clientes.')
   }
 
-  async function cancelar(id: string): Promise<void> {
+  async function cancelar(grupoId: string): Promise<void> {
     setError('')
     setExito('')
-    const resultado = await onCancelar(id)
+    const resultado = await onCancelar(grupoId)
     if ('error' in resultado) {
       setError(mensajeError(resultado))
       return
@@ -124,6 +175,7 @@ export default function AdminEventos({
   }
 
   const activos = eventos.filter((evento) => evento.estado === 'activo')
+  const activosAgrupados = agruparEventosEspeciales(activos)
 
   return (
     <section className="admin-eventos" aria-labelledby="titulo-eventos">
@@ -144,31 +196,32 @@ export default function AdminEventos({
       )}
 
       <form className="admin-eventos-form" onSubmit={(evento) => void crear(evento)}>
-        <label>
-          <span>Campo</span>
-          <select value={canchaId} onChange={(evento) => setCanchaId(Number(evento.target.value))}>
-            {canchas.map((cancha) => <option key={cancha.id} value={cancha.id}>{cancha.nombre}</option>)}
-          </select>
-        </label>
+        <AdminFiltroMenu
+          id="evento-campo"
+          label="Campo"
+          value={String(canchaId)}
+          opciones={opcionesCampo}
+          onChange={(valor) => setCanchaId(valor === 'futbol' ? 'futbol' : Number(valor))}
+        />
         <label>
           <span>Fecha</span>
           <input type="date" value={fecha} min={fechaISO(new Date())} required onChange={(evento) => setFecha(evento.target.value)} />
         </label>
-        <label>
-          <span>Desde</span>
-          <select value={inicio} onChange={(evento) => cambiarInicio(evento.target.value)}>
-            {opcionesHora(7, 20).map((hora) => <option key={hora} value={hora}>{horaVisible(hora)}</option>)}
-          </select>
-        </label>
-        <label>
-          <span>Hasta</span>
-          <select value={fin} onChange={(evento) => setFin(evento.target.value)}>
-            {finalesDisponibles.map((hora) => <option key={hora} value={hora}>{horaVisible(hora)}</option>)}
-          </select>
-        </label>
+        <AdminSelectorHorario
+          inicio={inicio}
+          fin={fin}
+          opcionesDesde={opcionesDesde}
+          opcionesHasta={opcionesHasta}
+          onChangeInicio={cambiarInicio}
+          onChangeFin={setFin}
+        />
         <label>
           <span>Nombre del evento</span>
           <input value={nombre} required maxLength={80} placeholder="Ej.: torneo escolar" onChange={(evento) => setNombre(evento.target.value)} />
+        </label>
+        <label>
+          <span>Precio cobrado</span>
+          <input type="number" min="0" step="0.01" inputMode="decimal" value={precioCobrado} required onChange={(evento) => setPrecioCobrado(evento.target.value)} />
         </label>
         <label>
           <span>Celular (opcional)</span>
@@ -178,18 +231,19 @@ export default function AdminEventos({
           <span>Notas (opcional)</span>
           <textarea value={notas} maxLength={240} rows={2} placeholder="Información para el encargado" onChange={(evento) => setNotas(evento.target.value)} />
         </label>
-        <button className="admin-boton admin-control-primario admin-eventos-guardar" type="submit" disabled={procesando}>
-          {procesando ? 'Guardando…' : 'Reservar evento'}
+        <button className="admin-boton admin-control-primario admin-eventos-guardar" type="submit" disabled={procesando || guardando}>
+          <CalendarPlus size={20} strokeWidth={2.5} aria-hidden="true" />
+          <span>{procesando || guardando ? 'Guardando…' : 'Crear evento especial'}</span>
         </button>
       </form>
 
       <div className="admin-eventos-lista" aria-live="polite">
         <h3>Eventos activos</h3>
-        {cargando ? <p>Cargando eventos…</p> : activos.length === 0 ? <p>No hay eventos especiales activos.</p> : activos.map((evento) => (
+        {cargando ? <p>Cargando eventos…</p> : activos.length === 0 ? <p>No hay eventos especiales activos.</p> : activosAgrupados.map((grupo) => (
           <AdminEventoCard
-            key={evento.id}
-            evento={evento}
-            cancha={canchas.find((cancha) => cancha.id === evento.canchaId)}
+            key={grupo.map((evento) => evento.id).join('-')}
+            eventos={grupo}
+            canchas={canchas}
             procesando={procesando}
             onCancel={cancelar}
           />

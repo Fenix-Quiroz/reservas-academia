@@ -21,7 +21,7 @@ export default function CabeceraCliente({
     <header className="cabecera">
       <div className="cabecera-interior">
         <div className="cabecera-marca">
-          <img className="cabecera-logo" src="/favicon-jaguar.png" alt="" aria-hidden="true" />
+          <img className="cabecera-logo" src="/logo-polideportivo-el-jaguar.png" alt="" aria-hidden="true" />
           <div className="cabecera-identidad">
             <strong className="cabecera-nombre">Reserva tu campo</strong>
             <span className="cabecera-subtitulo">Polideportivo El Jaguar</span>
@@ -38,8 +38,12 @@ export default function CabeceraCliente({
             </button>
           ) : null}
           {yo && !verMias && (
-            <button className="cabecera-boton cabecera-boton-principal" onClick={onViewBookings}>
-              <span aria-hidden="true">📋</span> Mis reservas{cantidadReservas > 0 && ` (${cantidadReservas})`}
+            <button className="cabecera-boton cabecera-boton-principal cabecera-boton-reservas" onClick={onViewBookings}>
+              <span aria-hidden="true">📋</span>
+              <span className="cabecera-reservas-texto">
+                <span>Mis</span>
+                <span>reservas{cantidadReservas > 0 && ` (${cantidadReservas})`}</span>
+              </span>
             </button>
           )}
         </div>

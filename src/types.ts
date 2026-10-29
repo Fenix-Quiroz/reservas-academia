@@ -31,6 +31,7 @@ export interface ComprobanteAdmin {
 }
 
 export type EstadoBloqueoEvento = 'activo' | 'cancelado'
+export type TipoEventoEspecial = 'individual' | 'todos_los_campos'
 
 export interface Reserva {
   id: string
@@ -56,12 +57,15 @@ export interface BloqueoEvento {
   celular: string
   notas: string
   estado: EstadoBloqueoEvento
+  grupoId?: string
+  tipo?: TipoEventoEspecial
+  precioCobrado?: number
   createdAt?: string
 }
 
 export type ReservaNueva = Omit<Reserva, 'id' | 'estado'>
 
-export type VistaAdmin = 'proximas' | 'en-curso' | 'por-revisar' | 'finalizadas' | 'no-asistieron' | 'canceladas' | 'todas'
+export type VistaAdmin = 'proximas' | 'en-curso' | 'por-revisar' | 'historial' | 'finalizadas' | 'no-asistieron' | 'canceladas' | 'todas'
 export type FiltroFecha = 'todas' | string
 export type FiltroCancha = 'todas' | number | string
 

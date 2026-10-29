@@ -1,5 +1,5 @@
 import { useMemo, useRef, useState } from 'react'
-import type { Campo, Reserva } from '../../types.js'
+import type { BloqueoEvento, Campo, Reserva } from '../../types.js'
 import reservasDemoJson from '../../data/reservasBalanceDemo.json'
 import { construirBalanceMensual, mesActual } from '../../balanceMensual.js'
 import { descargarBalanceMensual } from '../../exportarBalance.js'
@@ -8,18 +8,19 @@ import { crearBloqueoAccion } from '../../accionUnica'
 export interface AdminBalanceMensualProps {
   reservas: readonly Reserva[]
   canchas: readonly Campo[]
+  eventos: readonly BloqueoEvento[]
 }
 
 const reservasBalanceDemo = reservasDemoJson as readonly Reserva[]
 
-export default function AdminBalanceMensual({ reservas, canchas }: AdminBalanceMensualProps) {
+export default function AdminBalanceMensual({ reservas, canchas, eventos }: AdminBalanceMensualProps) {
   const [mes, setMes] = useState(mesActual)
   const [descargando, setDescargando] = useState(false)
   const [errorDescarga, setErrorDescarga] = useState('')
   const bloqueoDescarga = useRef(crearBloqueoAccion())
   const esModoDemo = import.meta.env.DEV || import.meta.env.VITE_BALANCE_DEMO === 'true'
   const reservasParaBalance = esModoDemo ? reservasBalanceDemo : reservas
-  const balance = useMemo(() => construirBalanceMensual(mes, reservasParaBalance, canchas), [mes, reservasParaBalance, canchas])
+  const balance = useMemo(() => construirBalanceMensual(mes, reservasParaBalance, canchas, eventos), [mes, reservasParaBalance, canchas, eventos])
 
   async function descargar(): Promise<void> {
     if (!bloqueoDescarga.current.adquirir()) return
@@ -72,6 +73,7 @@ export default function AdminBalanceMensual({ reservas, canchas }: AdminBalanceM
         <span><strong>{balance.reservasFinalizadas}</strong> reservas finalizadas</span>
         <span><strong>{balance.horasAlquiladas}</strong> horas alquiladas</span>
         <span><strong>S/ {balance.ingresosTotales}</strong> generados</span>
+        <span><strong>S/ {balance.ingresosEventosEspeciales}</strong> en eventos especiales</span>
       </div>
     </section>
   )

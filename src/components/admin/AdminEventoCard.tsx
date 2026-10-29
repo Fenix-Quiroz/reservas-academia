@@ -1,12 +1,12 @@
-import { CalendarDays, Clock3, FileText, LockKeyhole, MapPin, Phone } from 'lucide-react'
+import { CalendarDays, CircleDollarSign, Clock3, FileText, LockKeyhole, MapPin, Phone } from 'lucide-react'
 import type { BloqueoEvento, Campo } from '../../types.js'
 import { horaVisible } from '../../utils/fechasReserva.js'
 
 export interface AdminEventoCardProps {
-  evento: BloqueoEvento
-  cancha?: Campo
+  eventos: readonly BloqueoEvento[]
+  canchas: readonly Campo[]
   procesando: boolean
-  onCancel: (id: string) => void | Promise<unknown>
+  onCancel: (grupoId: string) => void | Promise<unknown>
 }
 
 function fechaVisible(fecha: string): string {
@@ -18,8 +18,17 @@ function fechaVisible(fecha: string): string {
   })
 }
 
-export default function AdminEventoCard({ evento, cancha, procesando, onCancel }: AdminEventoCardProps) {
+export default function AdminEventoCard({ eventos, canchas, procesando, onCancel }: AdminEventoCardProps) {
+  const evento = eventos[0]
+  if (!evento) return null
+
   const tituloId = `evento-agenda-${evento.id}`
+  const nombresCampos = eventos.map((eventoCampo) => (
+    canchas.find((cancha) => cancha.id === eventoCampo.canchaId)?.nombre ?? `Campo ${eventoCampo.canchaId}`
+  ))
+  const textoCampos = nombresCampos.length === 1
+    ? nombresCampos[0]
+    : `${nombresCampos.slice(0, -1).join(', ')} y ${nombresCampos[nombresCampos.length - 1]}`
 
   return (
     <article className="admin-evento-agenda" aria-labelledby={tituloId}>
@@ -38,7 +47,7 @@ export default function AdminEventoCard({ evento, cancha, procesando, onCancel }
           <div className="admin-evento-agenda-dato">
             <MapPin size={16} aria-hidden="true" />
             <span>Campo</span>
-            <strong>{cancha?.nombre ?? `Campo ${evento.canchaId}`}</strong>
+            <strong>{textoCampos}</strong>
           </div>
           <div className="admin-evento-agenda-dato">
             <CalendarDays size={16} aria-hidden="true" />
@@ -57,6 +66,11 @@ export default function AdminEventoCard({ evento, cancha, procesando, onCancel }
               <strong>{evento.celular}</strong>
             </div>
           )}
+          <div className="admin-evento-agenda-dato">
+            <CircleDollarSign size={16} aria-hidden="true" />
+            <span>Precio cobrado</span>
+            <strong>S/ {(evento.precioCobrado ?? 0).toFixed(2)}</strong>
+          </div>
         </div>
 
         {evento.notas && (
@@ -80,7 +94,7 @@ export default function AdminEventoCard({ evento, cancha, procesando, onCancel }
           className="admin-evento-agenda-cancelar"
           type="button"
           disabled={procesando}
-          onClick={() => void onCancel(evento.id)}
+          onClick={() => void onCancel(evento.grupoId ?? evento.id)}
         >
           {procesando ? 'Cancelando…' : 'Cancelar evento'}
         </button>

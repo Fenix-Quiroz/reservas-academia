@@ -100,6 +100,7 @@ export default function DatosReserva({
   const [comprobandoConfiable, setComprobandoConfiable] = useState(false)
   const [idempotencia] = useState(() => crypto.randomUUID())
   const bloqueoAccion = useRef(crearBloqueoAccion())
+  const errorRef = useRef<HTMLParagraphElement | null>(null)
   const comprobarNumeroRef = useRef(actions.checkTrustedNumber)
   comprobarNumeroRef.current = actions.checkTrustedNumber
 
@@ -132,6 +133,14 @@ export default function DatosReserva({
       montado = false
     }
   }, [celularActual])
+
+  useEffect(() => {
+    if (!error) return undefined
+    const frame = window.requestAnimationFrame(() => {
+      errorRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    })
+    return () => window.cancelAnimationFrame(frame)
+  }, [error])
 
   function mensajeErrorComprobante(error: ErrorComprobante): string {
     if (error === 'archivo-requerido') return 'Selecciona la captura de tu Yape para asegurar la reserva.'
@@ -318,6 +327,9 @@ export default function DatosReserva({
           {capital(nombreDia(dia, true))}, {rangoHablado(inicio, horas)}
         </span>
         <span className="precio">S/ {cancha.precioHora * horas} · pagas en el campo</span>
+        <span className="resumen-oferta" role="note">
+          Reclama tu agua GRATIS de 2.5 litros al cancelar el total de tu reserva
+        </span>
       </div>
     </div>
   )
@@ -387,12 +399,7 @@ export default function DatosReserva({
         <h1 ref={tituloRef} tabIndex={-1}>¿Todo bien, {yo.alias}?</h1>
         <p className="reserva-a-nombre">Reserva a nombre de <strong>{yo.alias}</strong></p>
         {resumen}
-        {sinAdelanto ? (
-          <div className="reserva-sin-adelanto" role="status">
-            <strong>Reserva sin adelanto</strong>
-            <span>Este número está autorizado para reservar sin pagar Yape.</span>
-          </div>
-        ) : (
+        {!sinAdelanto && (
           <PagoAdelanto
             archivo={comprobante}
             disabled={Boolean(procesando)}
@@ -401,7 +408,7 @@ export default function DatosReserva({
           />
         )}
         {comprobandoConfiable && <p className="ayuda-campo" role="status">Verificando si este número tiene beneficio…</p>}
-        {error && <p className="error" role="alert">{error}</p>}
+        {error && <p ref={errorRef} className="error" role="alert" tabIndex={-1}>{error}</p>}
         {error && (
           <button className="enlace" onClick={onViewBookings}>
             Ver mis reservas
@@ -463,12 +470,7 @@ export default function DatosReserva({
           />
           <small id="ayuda-celular" className="ayuda-campo">Lo usamos para encontrar tu reserva. No necesitas crear una cuenta.</small>
         </label>
-        {sinAdelanto ? (
-          <div className="reserva-sin-adelanto" role="status">
-            <strong>Reserva sin adelanto</strong>
-            <span>Este número está autorizado para reservar sin pagar Yape.</span>
-          </div>
-        ) : (
+        {!sinAdelanto && (
           <PagoAdelanto
             archivo={comprobante}
             disabled={Boolean(procesando)}
@@ -477,7 +479,7 @@ export default function DatosReserva({
           />
         )}
         {comprobandoConfiable && <p className="ayuda-campo" role="status">Verificando si este número tiene beneficio…</p>}
-        {error && <p id="datos-error" className="error" role="alert">{error}</p>}
+        {error && <p ref={errorRef} id="datos-error" className="error" role="alert" tabIndex={-1}>{error}</p>}
         <button className="boton-principal" type="submit" disabled={Boolean(procesando) || comprobandoConfiable || !puedeConfirmar}>
           {textoAccion}
         </button>

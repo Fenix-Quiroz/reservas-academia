@@ -51,6 +51,7 @@ export function filtrarReservas(
       if (vista === 'proximas') return esProxima(r, ahora)
       if (vista === 'en-curso') return esEnCurso(r, ahora)
       if (vista === 'por-revisar') return esPorRevisar(r, ahora)
+      if (vista === 'historial') return esFinalizada(r, ahora) || r.estado === 'no_asistio' || r.estado === 'cancelado'
       if (vista === 'finalizadas') return esFinalizada(r, ahora)
       if (vista === 'no-asistieron') return r.estado === 'no_asistio'
       return r.estado === 'cancelado'

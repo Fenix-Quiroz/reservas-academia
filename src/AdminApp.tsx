@@ -9,8 +9,8 @@ import {
   bloquearNumero,
   cancelarReservaAdmin,
   cargarReservas,
-  cancelarBloqueoEventoLocal,
-  crearBloqueoEventoLocal,
+  cancelarEventoEspecialLocal,
+  crearEventoEspecialLocal,
   leerBloqueosEventos,
   desbloquearNumero,
   leerNumerosBloqueados,
@@ -23,11 +23,11 @@ import { supabase, supabaseFaltaEnProduccion, supabaseConfigurado } from './supa
 import {
   agregarNumeroConfiableRemoto,
   bloquearNumeroRemoto,
-  cancelarBloqueoEventoRemoto,
+  cancelarEventoEspecialRemoto,
   confirmarPagoAdminRemoto,
   crearUrlComprobanteAdminRemota,
   nombreDescargaComprobante,
-  crearBloqueoEventoRemoto,
+  crearEventoEspecialRemoto,
   desbloquearNumeroRemoto,
   leerComprobantesAdminRemotos,
   leerBloqueosEventosRemotos,
@@ -38,7 +38,6 @@ import {
   suscribirseAReservas,
 } from './supabaseData'
 import { filtrarReservas } from './admin'
-import { fechaISO } from './reservas'
 import { esAdmin } from './adminAuth'
 import AdminLogin from './components/admin/AdminLogin'
 import AdminNoAutorizado from './components/admin/AdminNoAutorizado'
@@ -71,7 +70,7 @@ export default function AdminApp() {
   const [authError, setAuthError] = useState('')
   const [reservas, setReservas] = useState<Reserva[]>(leerReservas)
   const [comprobantesAdmin, setComprobantesAdmin] = useState<ComprobanteAdmin[]>([])
-  const [filtros, setFiltros] = useState<FiltrosAdmin>({ vista: 'proximas', fecha: fechaISO(new Date()), canchaId: 'todas', buscar: '' })
+  const [filtros, setFiltros] = useState<FiltrosAdmin>({ vista: 'todas', fecha: 'todas', canchaId: 'todas', buscar: '' })
   const [porCancelar, setPorCancelar] = useState<string | null>(null)
   const [porLimpiar, setPorLimpiar] = useState(false)
   const [limpiandoDatosPrueba, setLimpiandoDatosPrueba] = useState(false)
@@ -213,6 +212,7 @@ export default function AdminApp() {
   }, [usuario])
 
   const visibles = useMemo(() => filtrarReservas(reservas, filtros, canchas), [reservas, filtros])
+  const porRevisar = useMemo(() => filtrarReservas(reservas, { vista: 'por-revisar' }, canchas).length, [reservas])
 
   async function ingresar(email: string, password: string) {
     if (!supabase) return { error: { message: 'Supabase no configurado' } }
@@ -524,6 +524,7 @@ export default function AdminApp() {
           <AdminFiltros
             filtros={filtros}
             canchas={canchas}
+            porRevisar={porRevisar}
             onChange={(siguiente) => setFiltros((actual) => ({ ...actual, ...siguiente }))}
           />
         </div>
@@ -561,18 +562,18 @@ export default function AdminApp() {
           cargando={cargandoEventos}
           procesando={procesandoEvento}
           onCrear={(nuevo) => ejecutarEvento(() => supabaseConfigurado
-            ? crearBloqueoEventoRemoto(nuevo)
-            : crearBloqueoEventoLocal(nuevo, reservas))}
-          onCancelar={(id) => ejecutarEvento(() => supabaseConfigurado
-            ? cancelarBloqueoEventoRemoto(id)
-            : cancelarBloqueoEventoLocal(id))}
+            ? crearEventoEspecialRemoto(nuevo)
+            : crearEventoEspecialLocal(nuevo, reservas))}
+          onCancelar={(grupoId) => ejecutarEvento(() => supabaseConfigurado
+            ? cancelarEventoEspecialRemoto(grupoId)
+            : cancelarEventoEspecialLocal(grupoId))}
         />
       </div>
 
       <AdminSimuladorReservas cancha={canchas[0]} />
 
       <div id="admin-balance" className="admin-seccion-destino">
-        <AdminBalanceMensual reservas={reservas} canchas={canchas} />
+        <AdminBalanceMensual reservas={reservas} canchas={canchas} eventos={eventos} />
       </div>
 
       <div id="admin-clientes" className="admin-seccion-destino">

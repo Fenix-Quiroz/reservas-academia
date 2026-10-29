@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import { eventoBloquea, eventoChocaConEntrenamiento, esRangoEventoValido } from './eventos'
 import { horarios } from './reservas'
-import { crearBloqueoEventoLocal, crearReserva, limpiarDatosLocales } from './almacen'
+import { cancelarEventoEspecialLocal, crearBloqueoEventoLocal, crearEventoEspecialLocal, crearReserva, leerBloqueosEventos, limpiarDatosLocales } from './almacen'
 import type { BloqueoEvento } from './types'
 
 const evento: BloqueoEvento = {
@@ -75,5 +75,37 @@ assert.deepEqual(crearReserva({
   alias: 'Prueba',
   celular: '912345678',
 }), { error: 'ocupado' })
+
+const eventoEspecial = crearEventoEspecialLocal({
+  canchaIds: [1, 2, 3],
+  fecha: '2099-01-10',
+  inicio: 7,
+  fin: 12,
+  nombre: 'Torneo de fútbol',
+  celular: '',
+  notas: '',
+  tipo: 'todos_los_campos',
+  precioCobrado: 900.5,
+}, [])
+assert.ok('eventos' in eventoEspecial)
+assert.equal(eventoEspecial.eventos.length, 3)
+assert.deepEqual(eventoEspecial.eventos.map((item) => item.canchaId), [1, 2, 3])
+assert.equal(new Set(eventoEspecial.eventos.map((item) => item.grupoId)).size, 1)
+assert.ok(eventoEspecial.eventos.every((item) => item.tipo === 'todos_los_campos' && item.precioCobrado === 900.5))
+const grupoId = eventoEspecial.eventos[0]?.grupoId
+assert.equal(typeof grupoId, 'string')
+assert.deepEqual(cancelarEventoEspecialLocal(grupoId ?? ''), {})
+assert.ok(leerBloqueosEventos().filter((item) => item.grupoId === grupoId).every((item) => item.estado === 'cancelado'))
+assert.deepEqual(crearEventoEspecialLocal({
+  canchaIds: [1],
+  fecha: '2099-01-11',
+  inicio: 7,
+  fin: 12,
+  nombre: 'Precio inválido',
+  celular: '',
+  notas: '',
+  tipo: 'individual',
+  precioCobrado: -1,
+}, []), { error: 'datos-invalidos' })
 
 console.log('✔ eventos.check.ts OK')

@@ -23,16 +23,21 @@ function seccionMasCercana(): SeccionAdmin {
   if (window.scrollY < POSICION_ACTIVA) return 'admin-inicio'
 
   let mejor: { id: SeccionAdmin; distancia: number } | null = null
+  let ultimaVisible: { id: SeccionAdmin; top: number } | null = null
   for (const item of ITEMS_NAVEGACION.slice(1)) {
     const elemento = document.getElementById(item.id)
     if (!elemento) continue
     const rectangulo = elemento.getBoundingClientRect()
-    if (rectangulo.top > POSICION_ACTIVA + 40 || rectangulo.bottom <= 0) continue
+    if (rectangulo.bottom <= 0 || rectangulo.top >= window.innerHeight) continue
+    if (!ultimaVisible || rectangulo.top > ultimaVisible.top) {
+      ultimaVisible = { id: item.id, top: rectangulo.top }
+    }
+    if (rectangulo.top > POSICION_ACTIVA + 40) continue
     const distancia = Math.abs(rectangulo.top - POSICION_ACTIVA)
     if (!mejor || distancia < mejor.distancia) mejor = { id: item.id, distancia }
   }
 
-  return mejor?.id ?? 'admin-inicio'
+  return mejor?.id ?? ultimaVisible?.id ?? 'admin-inicio'
 }
 
 export default function AdminNavegacion() {

@@ -1,7 +1,7 @@
 // Fallback de la demo. Con Supabase activo, las reservas y clientes vienen de la base remota.
 import demo from './data/reservas-demo.json' with { type: 'json' }
 import type { BloqueoEvento, Cliente, EstadoReserva, Reserva, ReservaNueva } from './types.js'
-import { eventoChocaConReserva, eventoBloquea, horarioEntrenamientoQueBloqueaEvento, validarBloqueoEvento, type BloqueoEventoNuevo, type ResultadoCancelacionEvento, type ResultadoEvento } from './eventos.js'
+import { eventoChocaConReserva, eventoBloquea, horarioEntrenamientoQueBloqueaEvento, validarBloqueoEvento, validarEventoEspecial, type BloqueoEventoNuevo, type EventoEspecialNuevo, type ResultadoCancelacionEvento, type ResultadoEvento, type ResultadoEventoEspecial } from './eventos.js'
 import type { NumeroBloqueado, NumeroConfiable, ResultadoControlCliente } from './controlClientes.js'
 import { INASISTENCIAS_PARA_BLOQUEAR } from './controlClientes.js'
 import { normalizarReserva, puedeCambiarEstado } from './estadoReserva.js'
@@ -188,6 +188,11 @@ export function leerBloqueosEventos(): BloqueoEvento[] {
     ))
     .map((evento) => ({
       ...evento,
+      grupoId: evento.grupoId?.trim() || evento.id,
+      tipo: evento.tipo === 'todos_los_campos' ? 'todos_los_campos' as const : 'individual' as const,
+      precioCobrado: typeof evento.precioCobrado === 'number' && Number.isFinite(evento.precioCobrado) && evento.precioCobrado >= 0
+        ? Math.round(evento.precioCobrado * 100) / 100
+        : 0,
       nombre: evento.nombre.trim(),
       celular: evento.celular?.trim() ?? '',
       notas: evento.notas?.trim() ?? '',
@@ -206,6 +211,9 @@ export function crearBloqueoEventoLocal(
     celular: nuevo.celular.trim(),
     notas: nuevo.notas.trim(),
     estado: 'activo',
+    grupoId: crypto.randomUUID(),
+    tipo: 'individual',
+    precioCobrado: 0,
   }
   const entrenamiento = horarioEntrenamientoQueBloqueaEvento(evento)
   if (entrenamiento) return { error: 'entrenamiento-ocupado', entrenamiento }
@@ -217,11 +225,57 @@ export function crearBloqueoEventoLocal(
   return { evento }
 }
 
+export function crearEventoEspecialLocal(
+  nuevo: EventoEspecialNuevo,
+  reservas: readonly Reserva[] = leerReservas(),
+): ResultadoEventoEspecial {
+  if (!validarEventoEspecial(nuevo)) return { error: 'datos-invalidos' }
+
+  const grupoId = crypto.randomUUID()
+  const eventos: BloqueoEvento[] = nuevo.canchaIds.map((canchaId) => ({
+    canchaId,
+    fecha: nuevo.fecha,
+    inicio: nuevo.inicio,
+    fin: nuevo.fin,
+    nombre: nuevo.nombre.trim(),
+    celular: nuevo.celular.trim(),
+    notas: nuevo.notas.trim(),
+    id: crypto.randomUUID(),
+    estado: 'activo',
+    grupoId,
+    tipo: nuevo.tipo,
+    precioCobrado: Math.round(nuevo.precioCobrado * 100) / 100,
+  }))
+  const existentes = leerBloqueosEventos()
+
+  for (const evento of eventos) {
+    const entrenamiento = horarioEntrenamientoQueBloqueaEvento(evento)
+    if (entrenamiento) return { error: 'entrenamiento-ocupado', entrenamiento }
+    if (reservas.some((reserva) => eventoChocaConReserva(evento, reserva))) return { error: 'ocupado' }
+    if (existentes.some((existente) => eventoBloquea(existente, evento.canchaId, evento.fecha, evento.inicio, evento.fin - evento.inicio))) {
+      return { error: 'ocupado' }
+    }
+  }
+
+  guardar(CLAVE_BLOQUEOS_EVENTOS, [...existentes, ...eventos])
+  return { eventos }
+}
+
 export function cancelarBloqueoEventoLocal(id: string): ResultadoCancelacionEvento {
   const eventos = leerBloqueosEventos()
   if (!eventos.some((evento) => evento.id === id && evento.estado === 'activo')) return { error: 'no-existe' }
   guardar(CLAVE_BLOQUEOS_EVENTOS, eventos.map((evento) => (
     evento.id === id ? { ...evento, estado: 'cancelado' as const } : evento
+  )))
+  return {}
+}
+
+export function cancelarEventoEspecialLocal(grupoId: string): ResultadoCancelacionEvento {
+  const eventos = leerBloqueosEventos()
+  const activos = eventos.filter((evento) => evento.grupoId === grupoId && evento.estado === 'activo')
+  if (!activos.length) return { error: 'no-existe' }
+  guardar(CLAVE_BLOQUEOS_EVENTOS, eventos.map((evento) => (
+    evento.grupoId === grupoId ? { ...evento, estado: 'cancelado' as const } : evento
   )))
   return {}
 }

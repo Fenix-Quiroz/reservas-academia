@@ -54,7 +54,7 @@ assert.match(read('src/components/admin/AdminLogin.tsx'), /import AdminMarca.* f
 assert.match(read('src/components/admin/AdminNoAutorizado.tsx'), /import AdminMarca.* from/)
 assert.match(read('src/components/admin/AdminAlarmaTurno.tsx'), /className="admin-alarma/)
 assert.match(read('src/components/admin/AdminAlarmaTurno.tsx'), /Probar alarmas/)
-assert.match(read('src/components/admin/AdminEventos.tsx'), /Reservar evento/)
+assert.match(read('src/components/admin/AdminEventos.tsx'), /Crear evento especial/)
 
 assert.doesNotMatch(app, /function (Progreso|DibujoCancha|PasoCancha|PasoHorario|PasoDatos|PasoListo|MisReservas)\s*\(/)
 assert.doesNotMatch(adminApp, /function (AdminMarca|AdminLogin|AdminNoAutorizado)\s*\(/)

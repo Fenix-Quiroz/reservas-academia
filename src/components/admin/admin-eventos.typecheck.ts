@@ -1,10 +1,10 @@
 import type { BloqueoEvento, Campo } from '../../types.js'
-import type { BloqueoEventoNuevo, ResultadoCancelacionEvento, ResultadoEvento } from '../../eventos.js'
+import type { EventoEspecialNuevo, ResultadoCancelacionEvento, ResultadoEventoEspecial } from '../../eventos.js'
 import type { AdminEventosProps } from './AdminEventos.js'
 
 const campos: readonly Campo[] = []
 const eventos: readonly BloqueoEvento[] = []
-const crear = async (_evento: BloqueoEventoNuevo): Promise<ResultadoEvento> => ({ error: 'conexion' })
+const crear = async (_evento: EventoEspecialNuevo): Promise<ResultadoEventoEspecial> => ({ error: 'conexion' })
 const cancelar = async (_id: string): Promise<ResultadoCancelacionEvento> => ({ error: 'conexion' })
 
 const props: AdminEventosProps = {

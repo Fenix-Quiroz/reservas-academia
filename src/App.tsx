@@ -24,7 +24,8 @@ import ReservaCompletada from './components/cliente/ReservaCompletada'
 import MisReservas from './components/cliente/MisReservas'
 
 const DIAS = 21
-const INTERVALO_MIS_RESERVAS_MS = 3000
+const EDAD_MAXIMA_MIS_RESERVAS_MS = 2 * 60_000
+const INTERVALO_MIS_RESERVAS_ACTIVAS_MS = 10_000
 const NOMBRES_PASOS = ['Campo', 'Día y hora', 'Tus datos'] as const
 
 type ResultadoReservaCliente =
@@ -45,12 +46,16 @@ export default function App() {
   const [errorMias, setErrorMias] = useState('')
   const [horariosDisponibles, setHorariosDisponibles] = useState<HorarioDisponible[]>([])
   const [cargandoHorarios, setCargandoHorarios] = useState(false)
-  const [tokens, setTokens] = useState<string[]>(() => leerTokensReservas(leerYo()?.celular))
   const [cargandoMias, setCargandoMias] = useState(false)
   const [intentoCarga, setIntentoCarga] = useState(0)
   // "Mis reservas" se abre encima del paso actual, así al volver no se pierde lo elegido
   const [verMias, setVerMias] = useState(false)
   const tituloRef = useRef<HTMLHeadingElement>(null)
+  const ultimaCargaMias = useRef('')
+  const ultimaSincronizacionMias = useRef(0)
+  const sincronizarMiasRef = useRef<(() => void) | null>(null)
+  const tokens = leerTokensReservas(yo?.celular)
+  const claveTokens = tokens.join('|')
   const mias = supabaseConfigurado
     ? yo ? reservas.filter((r) => r.celular === yo.celular && activa(r)) : []
     : yo ? deCliente(reservas, yo.celular) : []
@@ -58,7 +63,7 @@ export default function App() {
   const fecha = fechaISO(sumarDias(dia))
 
   // En el cliente público solo se conserva la demo local. Supabase se consulta
-  // mediante RPC cuando el usuario elige un día; la disponibilidad llega en bloques de 30 minutos.
+  // mediante RPC en segundo plano para reservas y disponibilidad.
   useEffect(() => {
     const alCambiar = () => {
       if (!supabaseConfigurado) setReservas(leerReservas())
@@ -73,12 +78,24 @@ export default function App() {
   }, [])
 
   useEffect(() => {
-    if (!supabaseConfigurado || !verMias) return
+    if (!supabaseConfigurado) return
+    if (!tokens.length) {
+      sincronizarMiasRef.current = null
+      setReservas([])
+      setCargandoMias(false)
+      setErrorMias('')
+      ultimaCargaMias.current = claveTokens
+      ultimaSincronizacionMias.current = Date.now()
+      return
+    }
+
     let montado = true
     let cargaMiasEnCurso = false
-    setCargandoMias(true)
-    setErrorMias('')
-    setErrorConexion('')
+    const mostrarCargaInicial = ultimaCargaMias.current !== claveTokens
+    if (mostrarCargaInicial) {
+      setCargandoMias(true)
+      setErrorMias('')
+    }
     const cargarMias = async (mostrarCarga: boolean) => {
       if (!montado || cargaMiasEnCurso) return
       cargaMiasEnCurso = true
@@ -87,6 +104,8 @@ export default function App() {
         const actuales = await leerMisReservasRemotas(tokens)
         if (!montado) return
         setReservas(actuales)
+        ultimaCargaMias.current = claveTokens
+        ultimaSincronizacionMias.current = Date.now()
         setErrorMias('')
         setErrorConexion('')
       } catch {
@@ -96,19 +115,32 @@ export default function App() {
         if (montado && mostrarCarga) setCargandoMias(false)
       }
     }
-    void cargarMias(true)
-    const temporizador = window.setInterval(() => {
+    sincronizarMiasRef.current = () => void cargarMias(false)
+    const sincronizarSiEstaDesactualizada = () => {
+      if (document.visibilityState !== 'visible') return
+      if (Date.now() - ultimaSincronizacionMias.current < EDAD_MAXIMA_MIS_RESERVAS_MS) return
       void cargarMias(false)
-    }, INTERVALO_MIS_RESERVAS_MS)
+    }
+    void cargarMias(mostrarCargaInicial)
+    document.addEventListener('visibilitychange', sincronizarSiEstaDesactualizada)
+    window.addEventListener('focus', sincronizarSiEstaDesactualizada)
     return () => {
       montado = false
-      window.clearInterval(temporizador)
+      sincronizarMiasRef.current = null
+      document.removeEventListener('visibilitychange', sincronizarSiEstaDesactualizada)
+      window.removeEventListener('focus', sincronizarSiEstaDesactualizada)
     }
-  }, [verMias, tokens, intentoCarga])
+  }, [claveTokens, intentoCarga])
 
   useEffect(() => {
-    setTokens(leerTokensReservas(yo?.celular))
-  }, [yo?.celular])
+    if (!supabaseConfigurado || !verMias || !tokens.length) return
+    const sincronizarMientrasSeVe = () => {
+      if (document.visibilityState !== 'visible') return
+      sincronizarMiasRef.current?.()
+    }
+    const temporizador = window.setInterval(sincronizarMientrasSeVe, INTERVALO_MIS_RESERVAS_ACTIVAS_MS)
+    return () => window.clearInterval(temporizador)
+  }, [verMias, claveTokens])
 
   useEffect(() => {
     if (paso !== 2 || !cancha) {
@@ -156,13 +188,11 @@ export default function App() {
   function recordarCliente(cliente: Cliente): void {
     guardarYo(cliente)
     setYo(cliente)
-    setTokens(leerTokensReservas(cliente.celular))
   }
 
   function olvidarCliente(): void {
     olvidarYo()
     setYo(null)
-    setTokens([])
   }
 
   async function crearCliente(alias: string, celular: string): Promise<ResultadoCliente> {
@@ -185,7 +215,6 @@ export default function App() {
       }, sinAdelanto))
       if ('token' in r && r.token) {
         guardarTokenReserva(r.reserva.id, r.token, cliente.celular)
-        setTokens(leerTokensReservas(cliente.celular))
       }
       if (!supabaseConfigurado) setReservas(leerReservas())
       if ('error' in r && r.error === 'ocupado') {
@@ -303,7 +332,11 @@ export default function App() {
             canchas={canchas}
             cargando={cargandoMias}
             errorCarga={errorMias}
-            onRetry={() => setIntentoCarga((n) => n + 1)}
+            onRetry={() => {
+              ultimaCargaMias.current = ''
+              ultimaSincronizacionMias.current = 0
+              setIntentoCarga((n) => n + 1)
+            }}
             permitirEdicion={!supabaseConfigurado}
             onCancel={cancelarCliente}
             onUpdateData={actualizarMisDatos}
