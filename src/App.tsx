@@ -56,7 +56,7 @@ export default function App() {
   const [cargandoHorarios, setCargandoHorarios] = useState(false)
   const [cargandoMias, setCargandoMias] = useState(false)
   const [intentoCarga, setIntentoCarga] = useState(0)
-  const [mostrarPromo, setMostrarPromo] = useState(true)
+  const [mostrarPromo, setMostrarPromo] = useState(() => (estadoInicialReserva?.paso ?? 1) === 1)
   // "Mis reservas" se abre encima del paso actual, así al volver no se pierde lo elegido
   const [verMias, setVerMias] = useState(false)
   const tituloRef = useRef<HTMLHeadingElement>(null)
@@ -483,7 +483,7 @@ export default function App() {
           )}
         </main>
       )}
-      <PopupPromocion abierto={mostrarPromo} onCerrar={() => setMostrarPromo(false)} />
+      <PopupPromocion abierto={mostrarPromo && paso === 1 && !verMias} onCerrar={() => setMostrarPromo(false)} />
     </div>
   )
 }

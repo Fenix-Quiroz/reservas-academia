@@ -224,7 +224,7 @@ export default function MisReservas({
                       <span>
                         {capital(nombreDia(diaDe(r.fecha), true))}, {rangoHablado(r.inicio, r.horas)}
                       </span>
-                      <span className="precio">S/ {c.precioHora * r.horas} · pagas en el campo</span>
+                      <span className="precio">S/ {c.precioHora * r.horas} · total a pagar</span>
                       {r.estado === 'cancelado' ? (
                         <span className="pago-cancelado" role="status">Cancelada</span>
                       ) : r.pagoEstado === 'confirmado' || r.pagoEstado === 'no_requerido' ? (
