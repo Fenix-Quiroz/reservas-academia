@@ -1,0 +1,46 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 90" width="320" height="90">
+  <defs>
+    <linearGradient id="solidGold" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#fff8d6" />
+      <stop offset="25%" stop-color="#fbd350" />
+      <stop offset="50%" stop-color="#e5a800" />
+      <stop offset="85%" stop-color="#b27500" />
+      <stop offset="100%" stop-color="#7a4b00" />
+    </linearGradient>
+    <linearGradient id="shineReflect" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#ffffff" stop-opacity="0.6" />
+      <stop offset="50%" stop-color="#ffffff" stop-opacity="0" />
+    </linearGradient>
+    <linearGradient id="innerGlow" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#ffffff" stop-opacity="0.8" />
+      <stop offset="50%" stop-color="#fff0be" stop-opacity="0.2" />
+      <stop offset="100%" stop-color="#7a4b00" stop-opacity="0.8" />
+    </linearGradient>
+    <filter id="shadowMetal" x="-10%" y="-10%" width="120%" height="130%">
+      <feDropShadow dx="0" dy="6" stdDeviation="5" flood-color="#000000" flood-opacity="0.4" />
+    </filter>
+  </defs>
+
+  <!-- Fondo base con sombra metálica -->
+  <rect x="8" y="8" width="304" height="74" rx="20" fill="url(#solidGold)" filter="url(#shadowMetal)" stroke="#ffe484" stroke-width="1.5" />
+
+  <!-- Reflejo superior -->
+  <path d="M 12 28 Q 12 12 28 12 L 292 12 Q 308 12 308 28 L 308 42 Q 160 52 12 42 Z" fill="url(#shineReflect)" />
+
+  <!-- Marco interior punteado/grabado de lujo -->
+  <rect x="16" y="16" width="288" height="58" rx="14" fill="none" stroke="#683d00" stroke-width="1.2" stroke-dasharray="4,3" opacity="0.4" />
+
+  <!-- Icono etiqueta -->
+  <path d="M 40 45 L 50 35 L 64 35 L 64 49 L 54 59 Z" fill="#201502" />
+  <circle cx="56" cy="41" r="2.5" fill="url(#solidGold)" />
+
+  <!-- Texto Principal -->
+  <text x="80" y="54" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif" font-size="33" font-weight="900" fill="#150f02" letter-spacing="-0.5">S/ 55</text>
+  
+  <!-- Divisor vertical -->
+  <line x1="184" y1="26" x2="184" y2="64" stroke="#5a3900" stroke-width="1.5" opacity="0.3" />
+
+  <!-- Texto secundario -->
+  <text x="242" y="42" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif" font-size="11" font-weight="800" fill="#5a3900" text-anchor="middle" letter-spacing="1">PRECIO</text>
+  <text x="242" y="58" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif" font-size="14" font-weight="900" fill="#150f02" text-anchor="middle" letter-spacing="0.5">X HORA</text>
+</svg>

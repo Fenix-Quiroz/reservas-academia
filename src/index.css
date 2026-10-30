@@ -479,77 +479,120 @@ h3 {
   object-fit: cover;
 }
 
+.cancha-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 16px;
+  background: var(--color-ink-850, #16171c);
+  border-bottom: 1px solid var(--color-ink-700);
+}
+
+.cancha-nombre {
+  color: var(--color-ink-50, #ffffff);
+  font-size: 1.25rem;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+}
+
+.cancha-deporte {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 10px;
+  border-radius: 9999px;
+  background: rgb(245 158 11 / 15%);
+  border: 1px solid rgb(245 158 11 / 30%);
+  color: var(--color-gold-300, #f6c042);
+  font-size: 0.75rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
 .cancha-visual {
   position: relative;
   display: block;
+  overflow: hidden;
   z-index: 1;
 }
 
-.dibujo {
-  width: 110px;
+.cancha-precio-badge {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  z-index: 2;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px 6px 10px;
+  border-radius: 9999px;
+  background: radial-gradient(circle at 50% 30%, #2a2215 0%, #151412 70%, #0b0b0a 100%);
+  border: 1.5px solid var(--color-gold-400, #e4b339);
+  box-shadow:
+    0 4px 16px rgba(0, 0, 0, 0.7),
+    0 0 12px rgba(210, 154, 20, 0.35);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+}
+
+.tarjeta-cancha:hover .cancha-precio-badge {
+  transform: translateY(-2px) scale(1.03);
+  border-color: var(--color-gold-300, #f1c75b);
+  box-shadow:
+    0 6px 20px rgba(0, 0, 0, 0.8),
+    0 0 18px rgba(228, 179, 57, 0.55);
+}
+
+.cancha-precio-punto {
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #fff0be 0%, #f6d98a 50%, #d29a14 100%);
+  box-shadow: 0 0 6px rgba(246, 217, 138, 0.8);
   flex-shrink: 0;
 }
 
-.cancha-info {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  padding: 52px 16px 16px;
+.cancha-precio-badge strong,
+.cancha-precio-monto {
+  font-size: 1.05rem;
+  font-weight: 900;
+  letter-spacing: -0.01em;
+  background: linear-gradient(180deg, #ffffff 10%, #f6d98a 50%, #e4b339 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.6));
+  line-height: 1;
 }
 
-.cancha-info strong {
-  font-size: 1.35rem;
+.cancha-precio-badge span:not(.cancha-precio-punto),
+.cancha-precio-tiempo {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 8px;
+  border-radius: 9999px;
+  background: rgba(228, 179, 57, 0.16);
+  border: 1px solid rgba(210, 154, 20, 0.45);
+  color: var(--color-gold-200, #f6d98a);
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  line-height: 1;
+  white-space: nowrap;
 }
 
-.jugadores {
-  color: var(--color-ink-300);
-  font-size: 0.9rem;
-  font-weight: 600;
-}
-
-.cancha-info .precio {
-  color: var(--color-gold-300);
-  font-size: 1.1rem;
-}
-
-.oferta-sticker {
-  position: absolute;
-  right: 6px;
-  bottom: -68px;
-  z-index: 2;
-  width: min(44%, 190px);
-  aspect-ratio: 1;
-  pointer-events: none;
-  filter: drop-shadow(0 5px 5px rgb(0 0 0 / 40%));
-}
-
-.oferta-sticker-imagen {
+.cancha-footer {
   display: block;
-  width: 100%;
-  height: 100%;
-  object-fit: contain;
+  padding: 14px 16px 16px;
+  background: var(--color-ink-900);
 }
 
-.cancha-visual + .cancha-info {
-  position: relative;
+.cancha-footer .seleccionar-cancha {
   margin-top: 0;
-}
-
-.oferta {
-  display: none;
-}
-
-.cancha-info > .oferta {
-  display: none;
-}
-
-.cancha-visual {
-  overflow: visible;
-}
-
-.cancha-imagen {
-  position: relative;
-  z-index: 1;
+  width: 100%;
 }
 
 .seleccionar-cancha {
@@ -1687,6 +1730,32 @@ button:disabled {
   color: var(--verde);
   font-size: 0.82rem;
   font-weight: 800;
+}
+
+.mis-reservas .resumen div > span.pago-cancelado {
+  display: inline-flex;
+  align-self: flex-start;
+  margin-top: 8px;
+  padding: 6px 10px;
+  border: 1px solid #9f2d24;
+  border-radius: 999px;
+  background: #431d1b;
+  color: #fecaca;
+  font-size: 0.82rem;
+  font-weight: 800;
+}
+
+.mis-reservas .resumen div > span.aviso-cancelada {
+  display: block;
+  margin-top: 8px;
+  padding: 10px 12px;
+  border: 1px solid #9f2d24;
+  border-radius: 9px;
+  background: #2b1312;
+  color: #fca5a5;
+  font-size: 0.82rem;
+  font-weight: 700;
+  line-height: 1.35;
 }
 
 .mis-reservas .resumen div > span.aviso-cancelacion-confirmada {
@@ -4289,4 +4358,309 @@ button:disabled {
     margin-right: auto;
     margin-left: auto;
   }
+}
+
+
+/* ==========================================================================
+   POPUP DE PROMOCIÓN (AGUA CIELO 2.5L)
+   ========================================================================== */
+
+.promo-popup-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  background-color: rgba(11, 11, 10, 0.85);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  animation: promoFadeIn 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes promoFadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.promo-popup-dialog {
+  position: relative;
+  width: 100%;
+  max-width: 420px;
+  max-height: calc(100vh - 32px);
+  overflow-y: auto;
+  border-radius: 24px;
+  padding: 30px 22px 24px;
+  text-align: center;
+  background: radial-gradient(circle at 50% 0%, #2a2215 0%, #171511 65%, #0d0c0a 100%);
+  border: 2px solid var(--color-gold-400, #e4b339);
+  box-shadow:
+    0 0 35px rgba(228, 179, 57, 0.35),
+    0 24px 48px -12px rgba(0, 0, 0, 0.85);
+  animation: promoZoomIn 0.35s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+
+@keyframes promoZoomIn {
+  from {
+    opacity: 0;
+    transform: scale(0.85) translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+.promo-popup-cerrar {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--color-ink-200, #d6d0c5);
+  font-size: 1.15rem;
+  line-height: 1;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  z-index: 10;
+}
+
+.promo-popup-cerrar:hover,
+.promo-popup-cerrar:focus-visible {
+  background: var(--color-gold-500, #d29a14);
+  color: var(--color-ink-950, #0b0b0a);
+  border-color: var(--color-gold-300, #f1c75b);
+  transform: scale(1.08);
+  outline: none;
+}
+
+.promo-popup-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 14px;
+  border-radius: 9999px;
+  font-size: 0.78rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  background: linear-gradient(135deg, #f6d98a 0%, #d29a14 50%, #996400 100%);
+  color: #0b0b0a;
+  box-shadow: 0 2px 10px rgba(210, 154, 20, 0.4);
+  margin-bottom: 12px;
+}
+
+.promo-popup-titulo {
+  margin: 0;
+  font-size: clamp(1.6rem, 5vw, 2.05rem);
+  font-weight: 900;
+  line-height: 1.15;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  background: linear-gradient(180deg, #ffffff 15%, #f6d98a 65%, #e4b339 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  filter: drop-shadow(0 2px 8px rgba(228, 179, 57, 0.35));
+}
+
+.promo-popup-subtitulo {
+  margin: 6px 0 0;
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: var(--color-ink-100, #f0ece4);
+  letter-spacing: 0.01em;
+}
+
+.promo-popup-imagen-box {
+  position: relative;
+  margin: 16px auto 14px;
+  max-width: 250px;
+  border-radius: 20px;
+  background: #ffffff;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  box-shadow:
+    0 10px 30px rgba(0, 0, 0, 0.4),
+    0 0 24px rgba(228, 179, 57, 0.2);
+  border: 2px solid var(--color-gold-300, #f1c75b);
+  overflow: hidden;
+}
+
+.promo-popup-imagen {
+  width: 100%;
+  max-height: 200px;
+  object-fit: contain;
+  border-radius: 10px;
+  transition: transform 0.3s ease;
+}
+
+.promo-popup-dialog:hover .promo-popup-imagen {
+  transform: scale(1.03);
+}
+
+.promo-popup-badge-gratis {
+  margin-top: 10px;
+  background: #dc2626;
+  color: #ffffff;
+  font-size: 0.82rem;
+  font-weight: 900;
+  letter-spacing: 0.05em;
+  padding: 6px 16px;
+  border-radius: 9999px;
+  box-shadow: 0 4px 14px rgba(220, 38, 38, 0.45);
+  animation: pulsePromo 2s infinite ease-in-out;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+@keyframes pulsePromo {
+  0%, 100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.08);
+  }
+}
+
+.promo-popup-condicion {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  margin: 14px 0 20px;
+  padding: 12px 14px;
+  border-radius: 14px;
+  background: rgba(228, 179, 57, 0.12);
+  border: 1px dashed var(--color-gold-500, #d29a14);
+}
+
+.promo-popup-condicion-icono {
+  font-size: 1.35rem;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.promo-popup-condicion-texto {
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--color-gold-200, #f6d98a);
+  line-height: 1.35;
+  text-align: left;
+}
+
+.promo-popup-acciones {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.promo-popup-btn-principal {
+  width: 100%;
+  padding: 14px 20px;
+  border-radius: 9999px;
+  border: none;
+  background: linear-gradient(135deg, #f6d98a 0%, #e4b339 40%, #c58b1d 100%);
+  color: #0b0b0a;
+  font-size: 1.05rem;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  cursor: pointer;
+  box-shadow:
+    0 6px 20px rgba(228, 179, 57, 0.45),
+    0 2px 4px rgba(0, 0, 0, 0.2);
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.promo-popup-btn-principal:hover,
+.promo-popup-btn-principal:focus-visible {
+  transform: translateY(-2px);
+  box-shadow:
+    0 10px 28px rgba(228, 179, 57, 0.6),
+    0 4px 8px rgba(0, 0, 0, 0.3);
+  filter: brightness(1.05);
+  outline: none;
+}
+
+.promo-popup-btn-principal:active {
+  transform: translateY(1px);
+}
+
+
+
+/* Banner en SelectorCampos */
+.banner-promo-reserva {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+  max-width: 680px;
+  margin: 0 auto 20px;
+  padding: 12px 18px;
+  border-radius: 16px;
+  background: linear-gradient(135deg, rgba(228, 179, 57, 0.15) 0%, rgba(33, 31, 27, 0.8) 100%);
+  border: 1px solid var(--color-gold-500, #d29a14);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-align: left;
+  color: inherit;
+}
+
+.banner-promo-reserva:hover,
+.banner-promo-reserva:focus-visible {
+  background: linear-gradient(135deg, rgba(228, 179, 57, 0.25) 0%, rgba(33, 31, 27, 0.9) 100%);
+  border-color: var(--color-gold-300, #f1c75b);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.35);
+  outline: none;
+}
+
+.banner-promo-icono {
+  font-size: 1.8rem;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.banner-promo-texto {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.banner-promo-texto strong {
+  font-size: 0.95rem;
+  color: var(--color-gold-200, #f6d98a);
+}
+
+.banner-promo-texto span {
+  font-size: 0.82rem;
+  color: var(--color-ink-200, #d6d0c5);
+}
+
+.banner-promo-accion {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--color-gold-400, #e4b339);
+  white-space: nowrap;
 }

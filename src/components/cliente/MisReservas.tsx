@@ -5,7 +5,6 @@ import { rangoHablado } from '../../reservas'
 import type { Campo, Cliente, Reserva } from '../../types.js'
 import { ALIAS_MAXIMO } from '../../validacionCliente'
 import { crearBloqueoAccion } from '../../accionUnica'
-
 type ErrorAccion =
   | 'ocupado'
   | 'limite'
@@ -33,6 +32,7 @@ export interface MisReservasProps {
   onReserve: () => void
   onRetry: () => void
   tituloRef: RefObject<HTMLHeadingElement | null>
+  esReservaVisible?: (reserva: Reserva) => boolean
 }
 
 export default function MisReservas({
@@ -47,8 +47,16 @@ export default function MisReservas({
   onReserve,
   onRetry,
   tituloRef,
+  esReservaVisible,
 }: MisReservasProps) {
-  const reservasVisibles = reservas.filter((reserva) => reserva.estado !== 'cancelado')
+  const reservasVisibles = reservas
+    .filter((reserva) => reserva.estado !== 'cancelado' || (esReservaVisible ? esReservaVisible(reserva) : true))
+    .sort((a, b) => {
+      const aCancelada = a.estado === 'cancelado'
+      const bCancelada = b.estado === 'cancelado'
+      if (aCancelada !== bCancelada) return aCancelada ? 1 : -1
+      return a.fecha.localeCompare(b.fecha) || a.inicio - b.inicio
+    })
   const [porCancelar, setPorCancelar] = useState<string | null>(null)
   const [editando, setEditando] = useState(false)
   const [alias, setAlias] = useState(yo?.alias ?? '')
@@ -217,18 +225,27 @@ export default function MisReservas({
                         {capital(nombreDia(diaDe(r.fecha), true))}, {rangoHablado(r.inicio, r.horas)}
                       </span>
                       <span className="precio">S/ {c.precioHora * r.horas} · pagas en el campo</span>
-                      {r.pagoEstado === 'confirmado' || r.pagoEstado === 'no_requerido' ? (
+                      {r.estado === 'cancelado' ? (
+                        <span className="pago-cancelado" role="status">Cancelada</span>
+                      ) : r.pagoEstado === 'confirmado' || r.pagoEstado === 'no_requerido' ? (
                         <span className="pago-confirmado" role="status">Reserva confirmada</span>
                       ) : r.pagoEstado === 'pendiente' ? (
                         <span className="pago-pendiente" role="status">Esperando verificación</span>
                       ) : null}
-                      {comprobanteConfirmado && (
+
+                      {r.estado === 'cancelado' && (
+                        <span className="aviso-cancelada" role="note">
+                          Esta reserva fue cancelada y desaparecerá de tu lista en 5 horas.
+                        </span>
+                      )}
+
+                      {r.estado !== 'cancelado' && comprobanteConfirmado && (
                         <span className="aviso-cancelacion-confirmada" role="note">
                           Reserva asegurada. Para cambios o cancelaciones, comunícate con la academia.
                         </span>
                       )}
 
-                      {!comprobanteConfirmado && (porCancelar === r.id ? (
+                      {r.estado !== 'cancelado' && !comprobanteConfirmado && (porCancelar === r.id ? (
                         <div className="confirmar" role="group" aria-labelledby={`confirmar-cancelar-${r.id}`}>
                           <span id={`confirmar-cancelar-${r.id}`}>¿Seguro que quieres cancelar?</span>
                           <div className="duraciones">

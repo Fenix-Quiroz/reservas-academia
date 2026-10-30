@@ -25,7 +25,9 @@ import {
 type ReservaDemo = Omit<Reserva, 'id' | 'fecha' | 'estado'> & { dia: number }
 type ReservaGuardada = Omit<Reserva, 'estado'> & { estado?: unknown }
 type ResultadoClienteLocal = ResultadoCliente | { error: 'celular'; alias: string }
-type TokenReservaGuardado = { token: string; celular: string }
+type TokenReservaGuardado = { token: string; celular: string; canceladoAt?: number }
+export const HORAS_GRACIA_CANCELADA_MS = 5 * 60 * 60 * 1000 // 5 horas visible cancelada
+export const HORAS_EXPIRACION_TOKEN_MS = 5 * 60 * 60 * 1000 // 5 horas token
 type TokensReserva = Record<string, TokenReservaGuardado>
 const CLAVE_TOKENS_RESERVA = 'reserva-tokens'
 const CLAVE_NUMEROS_BLOQUEADOS = 'numeros-bloqueados'
@@ -292,7 +294,11 @@ function leerTokensGuardados(): TokensReserva {
       if (typeof registro.celular !== 'string') continue
       const celular = normalizarCelular(registro.celular)
       if (validarCelular(celular)) continue
-      guardados[id] = { token: registro.token, celular }
+      guardados[id] = {
+        token: registro.token,
+        celular,
+        ...(typeof registro.canceladoAt === 'number' ? { canceladoAt: registro.canceladoAt } : {}),
+      }
     }
   }
 
@@ -305,11 +311,12 @@ export function leerTokensReservas(celular?: string): string[] {
   const guardados = leerTokensGuardados()
   if (!celular) return []
   const celularNormalizado = normalizarCelular(celular)
-  return [...new Set(
+  const tokens = [...new Set(
     Object.values(guardados)
       .filter((registro) => registro.celular === celularNormalizado)
       .map((registro) => registro.token),
   )]
+  return tokens.slice(-20)
 }
 
 export function tokenReserva(id: string, celular?: string): string | undefined {
@@ -326,6 +333,78 @@ export function guardarTokenReserva(id: string, token: string, celular: string):
     ...guardados,
     [id]: { token, celular: celularNormalizado },
   })
+}
+
+export function eliminarTokenReserva(id: string): void {
+  if (!id) return
+  const guardados = leerTokensGuardados()
+  if (guardados[id]) {
+    delete guardados[id]
+    guardar(CLAVE_TOKENS_RESERVA, guardados)
+  }
+}
+
+export function marcarTokenCancelado(id: string, ahora = Date.now()): void {
+  const guardados = leerTokensGuardados()
+  if (guardados[id] && !guardados[id].canceladoAt) {
+    guardados[id].canceladoAt = ahora
+    guardar(CLAVE_TOKENS_RESERVA, guardados)
+  }
+}
+
+export function esReservaVisibleCliente(reserva: Reserva, ahora = Date.now()): boolean {
+  if (activa(reserva)) return true
+  if (reserva.estado === 'cancelado') {
+    const guardados = leerTokensGuardados()
+    const registro = guardados[reserva.id]
+    const canceladoAt = registro?.canceladoAt
+    if (!canceladoAt) {
+      marcarTokenCancelado(reserva.id, ahora)
+      return true
+    }
+    return ahora - canceladoAt < HORAS_GRACIA_CANCELADA_MS
+  }
+  return false
+}
+
+export function limpiarTokensInactivos(reservas: Reserva[], ahora = Date.now()): void {
+  const guardados = leerTokensGuardados()
+  let huboCambio = false
+
+  for (const reserva of reservas) {
+    const registro = guardados[reserva.id]
+    if (!registro) continue
+
+    if (reserva.estado === 'cancelado' && !registro.canceladoAt) {
+      registro.canceladoAt = ahora
+      huboCambio = true
+    }
+
+    // 1. Si está cancelada: eliminar token después de 24 horas
+    if (registro.canceladoAt) {
+      if (ahora - registro.canceladoAt >= HORAS_EXPIRACION_TOKEN_MS) {
+        delete guardados[reserva.id]
+        huboCambio = true
+      }
+      continue
+    }
+
+    // 2. Si el partido terminó: eliminar token después de 24 horas de la hora fin
+    if (!activa(reserva)) {
+      const finHora = Number(reserva.inicio) + Number(reserva.horas)
+      const [anio, mes, dia] = reserva.fecha.split('-').map(Number)
+      const finPartidoMs = new Date(anio, mes - 1, dia, Math.floor(finHora), (finHora % 1) * 60).getTime()
+
+      if (ahora - finPartidoMs >= HORAS_EXPIRACION_TOKEN_MS) {
+        delete guardados[reserva.id]
+        huboCambio = true
+      }
+    }
+  }
+
+  if (huboCambio) {
+    guardar(CLAVE_TOKENS_RESERVA, guardados)
+  }
 }
 
 // Vuelve a leer justo antes de guardar: si otra pestaña reservó primero, lo detectamos
@@ -360,13 +439,20 @@ export function cancelarReserva(id: string, celular?: string): ResultadoCancelac
   if (supabaseFaltaEnProduccion) return { error: 'conexion' }
   if (supabaseConfigurado) {
     const token = tokenReserva(id, celular)
-    return token ? cancelarReservaPublicaRemota(id, token) : { error: 'no-existe' }
+    if (!token) return { error: 'no-existe' }
+    return cancelarReservaPublicaRemota(id, token).then((res) => {
+      if (!('error' in res)) {
+        marcarTokenCancelado(id)
+      }
+      return res
+    })
   }
 
   const guardadas = leer<ReservaGuardada[]>('reservas', []).map(normalizarReserva)
   const reserva = guardadas.find((r) => r.id === id)
   if (!reserva) return { error: 'no-existe' }
   if (!sePuedeCancelar(reserva)) return { error: 'tarde' }
+  marcarTokenCancelado(id)
   guardar('reservas', guardadas.map((r) => r.id === id ? { ...r, estado: 'cancelado' as const } : r))
   return {}
 }

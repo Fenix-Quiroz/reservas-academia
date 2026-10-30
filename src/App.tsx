@@ -7,7 +7,8 @@ import {
 import type { HorarioDisponible } from './reservas'
 import {
   leerReservas, crearReserva, cancelarReserva, registrarCliente, actualizarCliente,
-  leerTokensReservas, guardarTokenReserva,
+  leerTokensReservas, guardarTokenReserva, eliminarTokenReserva, limpiarTokensInactivos,
+  marcarTokenCancelado, esReservaVisibleCliente,
   leerYo, guardarYo, olvidarYo, leerBloqueosEventos, leerNumerosBloqueados, leerNumerosConfiables,
 } from './almacen'
 import { supabaseFaltaEnProduccion, supabaseConfigurado } from './supabase'
@@ -24,6 +25,7 @@ import SelectorHorario from './components/cliente/SelectorHorario'
 import DatosReserva from './components/cliente/DatosReserva'
 import ReservaCompletada from './components/cliente/ReservaCompletada'
 import MisReservas from './components/cliente/MisReservas'
+import PopupPromocion from './components/cliente/PopupPromocion'
 
 const DIAS = 21
 const EDAD_MAXIMA_MIS_RESERVAS_MS = 2 * 60_000
@@ -54,6 +56,7 @@ export default function App() {
   const [cargandoHorarios, setCargandoHorarios] = useState(false)
   const [cargandoMias, setCargandoMias] = useState(false)
   const [intentoCarga, setIntentoCarga] = useState(0)
+  const [mostrarPromo, setMostrarPromo] = useState(true)
   // "Mis reservas" se abre encima del paso actual, así al volver no se pierde lo elegido
   const [verMias, setVerMias] = useState(false)
   const tituloRef = useRef<HTMLHeadingElement>(null)
@@ -63,7 +66,7 @@ export default function App() {
   const tokens = leerTokensReservas(yo?.celular)
   const claveTokens = tokens.join('|')
   const mias = supabaseConfigurado
-    ? yo ? reservas.filter((r) => r.celular === yo.celular && activa(r)) : []
+    ? yo ? reservas.filter((r) => r.celular === yo.celular && (activa(r) || esReservaVisibleCliente(r))) : []
     : yo ? deCliente(reservas, yo.celular) : []
   const clienteMias = yo ?? (mias[0] ? { alias: mias[0].alias, celular: mias[0].celular } : null)
   const fecha = fechaISO(sumarDias(dia))
@@ -128,6 +131,7 @@ export default function App() {
         const actuales = await leerMisReservasRemotas(tokens)
         if (!montado) return
         setReservas(actuales)
+        limpiarTokensInactivos(actuales)
         ultimaCargaMias.current = claveTokens
         ultimaSincronizacionMias.current = Date.now()
         setErrorMias('')
@@ -292,10 +296,13 @@ export default function App() {
   async function cancelarCliente(id: string): Promise<ResultadoCancelacion> {
     return Promise.resolve(cancelarReserva(id, yo?.celular)).then(async (r) => {
       if (!r.error) {
+        marcarTokenCancelado(id)
         if (!supabaseConfigurado) setReservas(leerReservas())
         else {
           try {
-            setReservas(await leerMisReservasRemotas(leerTokensReservas(yo?.celular)))
+            const actuales = await leerMisReservasRemotas(leerTokensReservas(yo?.celular))
+            setReservas(actuales)
+            limpiarTokensInactivos(actuales)
           } catch {
             return { error: 'conexion' as const }
           }
@@ -336,7 +343,7 @@ export default function App() {
         verMias={verMias}
         paso={paso}
         yo={yo}
-        cantidadReservas={mias.length}
+        cantidadReservas={mias.filter((r) => activa(r)).length}
         onBack={() => (verMias ? setVerMias(false) : setPaso(paso - 1))}
         onViewBookings={() => setVerMias(true)}
       />
@@ -366,6 +373,7 @@ export default function App() {
               setIntentoCarga((n) => n + 1)
             }}
             permitirEdicion={!supabaseConfigurado}
+            esReservaVisible={esReservaVisibleCliente}
             onCancel={cancelarCliente}
             onUpdateData={actualizarMisDatos}
             onReserve={() => {
@@ -386,6 +394,7 @@ export default function App() {
             <SelectorCampos
               campos={canchas}
               tituloRef={tituloRef}
+              onOpenPromo={() => setMostrarPromo(true)}
               onSelect={(c) => {
                 // Arranca en el primer día que tenga horas libres (de noche, "Hoy" ya no tiene)
                 const primerLibre = supabaseConfigurado
@@ -475,6 +484,7 @@ export default function App() {
           )}
         </main>
       )}
+      <PopupPromocion abierto={mostrarPromo} onCerrar={() => setMostrarPromo(false)} />
     </div>
   )
 }

@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 90" width="320" height="90">
+  <defs>
+    <linearGradient id="champagneGold" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#fff6ed" />
+      <stop offset="50%" stop-color="#ecd599" />
+      <stop offset="100%" stop-color="#c99e4b" />
+    </linearGradient>
+    <linearGradient id="champagneBg" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#1f1e1c" />
+      <stop offset="100%" stop-color="#11100e" />
+    </linearGradient>
+  </defs>
+
+  <!-- Contenedor sutil y sofisticado -->
+  <rect x="6" y="6" width="308" height="78" rx="16" fill="url(#champagneBg)" stroke="url(#champagneGold)" stroke-width="1.5" />
+
+  <!-- Línea decorativa vertical izquierda -->
+  <rect x="22" y="24" width="4" height="42" rx="2" fill="url(#champagneGold)" />
+
+  <!-- Texto Principal -->
+  <text x="38" y="52" font-family="'Helvetica Neue', system-ui, sans-serif" font-size="34" font-weight="300" fill="#ffffff" letter-spacing="1">S/<tspan font-weight="700" fill="url(#champagneGold)"> 55</tspan></text>
+  
+  <!-- Separador fino -->
+  <circle cx="190" cy="45" r="2.5" fill="#c99e4b" opacity="0.6" />
+
+  <!-- Texto secundario elegante -->
+  <text x="246" y="42" font-family="'Helvetica Neue', system-ui, sans-serif" font-size="11" font-weight="600" fill="#ecd599" text-anchor="middle" letter-spacing="2">TARIFA</text>
+  <text x="246" y="56" font-family="'Helvetica Neue', system-ui, sans-serif" font-size="12" font-weight="300" fill="#dcd5cb" text-anchor="middle" letter-spacing="1">POR HORA</text>
+</svg>

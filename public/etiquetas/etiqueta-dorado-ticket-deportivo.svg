@@ -1,0 +1,40 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 90" width="320" height="90">
+  <defs>
+    <linearGradient id="ticketGold" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#fff0be" />
+      <stop offset="50%" stop-color="#e4b339" />
+      <stop offset="100%" stop-color="#8f6416" />
+    </linearGradient>
+    <filter id="ticketShadow">
+      <feDropShadow dx="0" dy="4" stdDeviation="4" flood-color="#000000" flood-opacity="0.5"/>
+    </filter>
+  </defs>
+
+  <!-- Forma de ticket con muescas en los lados -->
+  <path d="
+    M 20 8 
+    L 300 8 
+    A 12 12 0 0 1 312 20 
+    L 312 36 
+    A 10 10 0 0 0 312 54 
+    L 312 70 
+    A 12 12 0 0 1 300 82 
+    L 20 82 
+    A 12 12 0 0 1 8 70 
+    L 8 54 
+    A 10 10 0 0 0 8 36 
+    L 8 20 
+    A 12 12 0 0 1 20 8 Z" 
+    fill="#1a1815" stroke="url(#ticketGold)" stroke-width="2" filter="url(#ticketShadow)" />
+
+  <!-- Línea de corte punteada -->
+  <line x1="205" y1="12" x2="205" y2="78" stroke="#e4b339" stroke-width="1.5" stroke-dasharray="4,4" opacity="0.6" />
+
+  <!-- Sección izquierda: Precio -->
+  <text x="32" y="53" font-family="'Arial Black', system-ui, sans-serif" font-size="34" font-weight="900" fill="#ffffff">S/ <tspan fill="url(#ticketGold)">55</tspan></text>
+  <text x="32" y="71" font-family="system-ui, sans-serif" font-size="10" font-weight="700" fill="#8c8271" letter-spacing="1">POLIDEPORTIVO EL JAGUAR</text>
+
+  <!-- Sección derecha: Alquiler / Hora -->
+  <text x="256" y="42" font-family="system-ui, sans-serif" font-size="11" font-weight="800" fill="#f6d98a" text-anchor="middle" letter-spacing="1">ALQUILER</text>
+  <text x="256" y="58" font-family="system-ui, sans-serif" font-size="14" font-weight="900" fill="#ffffff" text-anchor="middle">1 HORA</text>
+</svg>
