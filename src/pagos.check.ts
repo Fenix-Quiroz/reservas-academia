@@ -11,7 +11,7 @@ import { deReserva } from './supabaseData'
 
 type ArchivoPrueba = { type: string; size: number }
 
-assert.equal(ADELANTO_YAPE, 10)
+assert.equal(ADELANTO_YAPE, 15)
 assert.equal(NUMERO_YAPE, '995933438')
 assert.equal(MAX_COMPROBANTE_BYTES, 5 * 1024 * 1024)
 

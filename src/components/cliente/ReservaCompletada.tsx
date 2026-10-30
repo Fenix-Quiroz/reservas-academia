@@ -2,6 +2,7 @@ import type { RefObject } from 'react'
 import { CalendarDays, Clock3, FileText, MapPin } from 'lucide-react'
 import { rangoHablado } from '../../reservas'
 import { nombreDia } from '../../utils/fechasReserva'
+import { ADELANTO_YAPE } from '../../pagos'
 import type { Campo, Reserva } from '../../types.js'
 
 export interface ReservaCompletadaProps {
@@ -22,7 +23,7 @@ export default function ReservaCompletada({
   tituloRef,
 }: ReservaCompletadaProps) {
   const total = cancha.precioHora * reserva.horas
-  const saldo = Math.max(total - 10, 0)
+  const saldo = Math.max(total - ADELANTO_YAPE, 0)
   const sinAdelanto = reserva.pagoEstado === 'no_requerido'
   const estadoPago = sinAdelanto
     ? 'Reserva confirmada. No requiere adelanto.'
@@ -68,7 +69,7 @@ export default function ReservaCompletada({
           <>
             <div className="reserva-pago-item">
               <span>Adelanto</span>
-              <strong>S/ 10</strong>
+              <strong>S/ {ADELANTO_YAPE}</strong>
             </div>
             <div className="reserva-pago-item">
               <span>Saldo pendiente</span>

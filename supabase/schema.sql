@@ -1263,7 +1263,7 @@ begin
   perform public.registrar_intento_reserva(v_celular);
 
   v_pago_estado := case when p_sin_adelanto then 'no_requerido' else 'pendiente' end;
-  v_pago_requerido := case when p_sin_adelanto then 0 else 10 end;
+  v_pago_requerido := case when p_sin_adelanto then 0 else 15 end;
   v_pago_expira_at := case when p_sin_adelanto then null else now() + interval '30 minutes' end;
 
   insert into public.clientes (alias, celular)

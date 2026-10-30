@@ -1,4 +1,4 @@
-export const ADELANTO_YAPE = 10
+export const ADELANTO_YAPE = 15
 export const NUMERO_YAPE = '995933438'
 export const TITULAR_YAPE = 'Jesús Leg*'
 export const MAX_COMPROBANTE_BYTES = 5 * 1024 * 1024
