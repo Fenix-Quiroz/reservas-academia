@@ -15,27 +15,31 @@ export default function SelectorCampos({ campos = canchasPorDefecto, onSelect, t
       <h1 ref={tituloRef} tabIndex={-1}>¿EN QUÉ CAMPO QUIERES JUGAR?</h1>
       <div className="canchas">
         {campos.map((c) => (
-          <button key={c.id} className="tarjeta-cancha" onClick={() => onSelect(c)}>
-            <span className="cancha-header">
+          <article key={c.id} className="tarjeta-cancha">
+            <div className="cancha-header">
               <strong className="cancha-nombre">{c.nombre}</strong>
               <span className="cancha-deporte">{tipoCampo(c)}</span>
-            </span>
+            </div>
 
-            <span className="cancha-visual">
+            <div className="cancha-visual">
               <img className="cancha-imagen" src={c.imagen} alt={`Vista del ${c.nombre}, ${tipoCampo(c)}`} />
               <span className="cancha-precio-badge">
                 <span className="cancha-precio-punto" aria-hidden="true" />
                 <strong className="cancha-precio-monto">S/ {c.precioHora}</strong>
                 <span className="cancha-precio-tiempo">LA HORA</span>
               </span>
-            </span>
+            </div>
 
-            <span className="cancha-footer">
-              <span className="seleccionar-cancha">
+            <div className="cancha-footer">
+              <button
+                type="button"
+                className="seleccionar-cancha"
+                onClick={() => onSelect(c)}
+              >
                 Elegir este campo <span aria-hidden="true">→</span>
-              </span>
-            </span>
-          </button>
+              </button>
+            </div>
+          </article>
         ))}
       </div>
     </section>

@@ -534,15 +534,6 @@ h3 {
     0 0 12px rgba(210, 154, 20, 0.35);
   backdrop-filter: blur(6px);
   -webkit-backdrop-filter: blur(6px);
-  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
-}
-
-.tarjeta-cancha:hover .cancha-precio-badge {
-  transform: translateY(-2px) scale(1.03);
-  border-color: var(--color-gold-300, #f1c75b);
-  box-shadow:
-    0 6px 20px rgba(0, 0, 0, 0.8),
-    0 0 18px rgba(228, 179, 57, 0.55);
 }
 
 .cancha-precio-punto {
