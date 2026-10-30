@@ -7,28 +7,12 @@ export interface SelectorCamposProps {
   campos?: readonly Campo[]
   onSelect: (campo: Campo) => void
   tituloRef: RefObject<HTMLHeadingElement | null>
-  onOpenPromo?: () => void
 }
 
-export default function SelectorCampos({ campos = canchasPorDefecto, onSelect, tituloRef, onOpenPromo }: SelectorCamposProps) {
+export default function SelectorCampos({ campos = canchasPorDefecto, onSelect, tituloRef }: SelectorCamposProps) {
   return (
     <section>
-      <h1 ref={tituloRef} tabIndex={-1}>¿En qué campo quieres jugar?</h1>
-      {onOpenPromo && (
-        <button
-          type="button"
-          className="banner-promo-reserva"
-          onClick={onOpenPromo}
-          aria-label="Ver promoción de agua gratis"
-        >
-          <span className="banner-promo-icono" aria-hidden="true">🎁</span>
-          <div className="banner-promo-texto">
-            <strong>¡Agua Cielo 2.5 L GRATIS por reservar aquí!</strong>
-            <span>Al cancelar la totalidad de tu reserva. Toca para ver los detalles.</span>
-          </div>
-          <span className="banner-promo-accion">Ver promo →</span>
-        </button>
-      )}
+      <h1 ref={tituloRef} tabIndex={-1}>¿EN QUÉ CAMPO QUIERES JUGAR?</h1>
       <div className="canchas">
         {campos.map((c) => (
           <button key={c.id} className="tarjeta-cancha" onClick={() => onSelect(c)}>

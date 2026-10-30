@@ -4035,41 +4035,76 @@ button:disabled {
   }
 
   .cabecera-interior {
-    align-items: flex-start;
-    flex-direction: column;
-    gap: 12px;
-    padding: 12px 0;
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    min-height: auto;
+    padding: 10px 0;
+  }
+
+  .cabecera-marca {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+    flex: 1 1 auto;
   }
 
   .cabecera-logo {
-    width: 56px;
-    height: 56px;
-    flex-basis: 56px;
+    width: 48px;
+    height: 48px;
+    flex: 0 0 48px;
+  }
+
+  .cabecera-identidad {
+    min-width: 0;
+  }
+
+  .cabecera-nombre {
+    font-size: 0.95rem;
+    font-weight: 800;
+  }
+
+  .cabecera-subtitulo {
+    font-size: 0.75rem;
   }
 
   .cabecera-acciones {
-    width: 100%;
+    display: flex;
+    align-items: center;
     justify-content: flex-end;
+    flex: 0 0 auto;
+    width: auto;
+    gap: 6px;
   }
 
   .cabecera-boton {
-    flex: 1;
+    min-height: 38px;
+    height: 38px;
+    padding: 6px 12px;
   }
 
   .cabecera-boton-reservas {
     flex: 0 0 auto;
-    min-width: 132px;
-    min-height: 58px;
-    padding: 6px 14px;
+    min-width: auto;
+    min-height: 38px;
+    height: 38px;
+    padding: 6px 12px;
+    border-radius: 9999px;
+    font-size: 0.8rem;
+    font-weight: 700;
     background: var(--color-gold-500);
     color: var(--color-ink-950);
   }
 
   .cabecera-boton-reservas .cabecera-reservas-texto {
-    flex-direction: column;
+    display: inline-flex;
+    flex-direction: row;
     align-items: center;
-    gap: 2px;
-    line-height: 1.05;
+    gap: 3px;
+    line-height: 1;
   }
 
   .cabecera-boton-atras {

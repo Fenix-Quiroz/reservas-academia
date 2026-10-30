@@ -394,7 +394,6 @@ export default function App() {
             <SelectorCampos
               campos={canchas}
               tituloRef={tituloRef}
-              onOpenPromo={() => setMostrarPromo(true)}
               onSelect={(c) => {
                 // Arranca en el primer día que tenga horas libres (de noche, "Hoy" ya no tiene)
                 const primerLibre = supabaseConfigurado
