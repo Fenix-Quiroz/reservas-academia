@@ -13,6 +13,7 @@ import {
 import { fechaISO } from '../../reservas.js'
 import { horaVisible } from '../../utils/fechasReserva.js'
 import AdminSelectorHorario from './AdminSelectorHorario'
+import { validarCelular } from '../../validacionCliente.js'
 
 export interface AdminModalEditarEventoProps {
   eventos: readonly BloqueoEvento[]
@@ -149,6 +150,22 @@ export default function AdminModalEditarEvento({
         precioCobrado: Number(precioCobrado),
       }
 
+      if (nombre.trim().length < 2) {
+        setError('El nombre del evento debe tener al menos 2 caracteres.')
+        return
+      }
+      if (celular.trim() && validarCelular(celular.trim()) !== null) {
+        setError('El celular debe tener 9 dígitos y empezar con 9.')
+        return
+      }
+      if (Number(precioCobrado) < 0 || Number.isNaN(Number(precioCobrado))) {
+        setError('El precio cobrado debe ser un número mayor o igual a 0.')
+        return
+      }
+      if (finNumero - inicioNumero < 1) {
+        setError('La duración mínima de un evento es de 1 hora.')
+        return
+      }
       if (!validarEventoEspecial(simulado)) {
         setError('Revisa los datos del evento.')
         return
@@ -189,6 +206,10 @@ export default function AdminModalEditarEvento({
               ? `Hay entrenamiento de ${horaEntrenamientoVisible(h.inicioMinuto)} a ${horaEntrenamientoVisible(h.finMinuto)}.`
               : 'Hay entrenamiento programado en ese horario.',
           )
+          return
+        }
+        if (res.error === 'datos-invalidos') {
+          setError('Revisa los datos del evento. Si ingresaste un celular, debe tener 9 dígitos y empezar con 9.')
           return
         }
         if (res.error === 'ocupado') {

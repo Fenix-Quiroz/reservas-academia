@@ -54,10 +54,14 @@ export function esRangoEventoValido(inicio: number, fin: number): boolean {
 }
 
 export function validarBloqueoEvento(evento: BloqueoEventoNuevo): boolean {
+  const celularValido = !evento.celular || evento.celular.trim() === '' || /^9\d{8}$/.test(evento.celular.trim())
+  const notasValidas = !evento.notas || evento.notas.trim().length <= 240
   return esRangoEventoValido(evento.inicio, evento.fin)
     && Boolean(evento.fecha)
     && evento.nombre.trim().length >= 2
     && evento.nombre.trim().length <= 80
+    && celularValido
+    && notasValidas
 }
 
 export function validarEventoEspecial(evento: EventoEspecialNuevo): boolean {

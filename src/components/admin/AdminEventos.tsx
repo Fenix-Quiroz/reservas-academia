@@ -18,6 +18,7 @@ import AdminEventoCard from './AdminEventoCard'
 import AdminModalEditarEvento from './AdminModalEditarEvento'
 import { AdminFiltroMenu } from './AdminFiltros'
 import AdminSelectorHorario from './AdminSelectorHorario'
+import { validarCelular } from '../../validacionCliente.js'
 
 export interface AdminEventosProps {
   eventos: readonly BloqueoEvento[]
@@ -56,7 +57,7 @@ function mensajeError(
     }
     return 'Ese rango ya está ocupado por una reserva u otro evento.'
   }
-  if (resultado.error === 'datos-invalidos') return 'Revisa los datos del evento.'
+  if (resultado.error === 'datos-invalidos') return 'Revisa los datos del evento. Si ingresaste un celular, debe tener 9 dígitos y empezar con 9.'
   if (resultado.error === 'no-existe') return 'Ese evento ya no existe o ya fue cancelado.'
   return 'No pudimos guardar el evento. Revisa la conexión e inténtalo de nuevo.'
 }
@@ -212,8 +213,24 @@ export default function AdminEventos({
         precioCobrado: Number(precioCobrado),
       }
 
+      if (nombre.trim().length < 2) {
+        setError('El nombre del evento debe tener al menos 2 caracteres.')
+        return
+      }
+      if (celular.trim() && validarCelular(celular.trim()) !== null) {
+        setError('El celular debe tener 9 dígitos y empezar con 9.')
+        return
+      }
+      if (Number(precioCobrado) < 0 || Number.isNaN(Number(precioCobrado))) {
+        setError('El precio cobrado debe ser un número mayor o igual a 0.')
+        return
+      }
+      if (Number(fin) - inicioNumero < 1) {
+        setError('La duración mínima de un evento es de 1 hora.')
+        return
+      }
       if (!validarEventoEspecial(nuevo)) {
-        setError(mensajeError({ error: 'datos-invalidos' }))
+        setError('Revisa los datos del evento.')
         return
       }
       for (const id of idsCanchaSeleccionadas) {
@@ -266,7 +283,7 @@ export default function AdminEventos({
           <p className="admin-kicker">Reservas especiales</p>
           <h2 id="titulo-eventos">Bloquear horas para eventos</h2>
           <p className="admin-eventos-ayuda">
-            Úsalo para torneos o eventos especiales (mínimo 2 horas). El cliente verá esas horas como no disponibles.
+            Úsalo para torneos o eventos especiales (mínimo 1 hora). El cliente verá esas horas como no disponibles.
           </p>
         </div>
       </div>
