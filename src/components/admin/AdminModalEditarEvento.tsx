@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import type { FormEvent } from 'react'
-import { AlertTriangle, Check, Pencil, X } from 'lucide-react'
+import { Check, Pencil, X } from 'lucide-react'
 import type { BloqueoEvento, Campo, Reserva } from '../../types.js'
 import {
   buscarConflictosEvento,
@@ -97,8 +97,6 @@ export default function AdminModalEditarEvento({
       grupoId,
     )
   }, [canchaIds, fecha, inicioNumero, finNumero, reservas, todosLosEventos, canchas, grupoId])
-
-  const hayConflictos = conflictos.reservas.length > 0 || conflictos.eventos.length > 0
 
   useEffect(() => {
     const overflowPrevio = document.body.style.overflow
@@ -343,62 +341,6 @@ export default function AdminModalEditarEvento({
             </label>
           </div>
 
-          {hayConflictos && (
-            <div className="admin-eventos-conflicto" role="alert">
-              <div className="admin-eventos-conflicto-titulo">
-                <AlertTriangle size={18} strokeWidth={2.5} aria-hidden="true" />
-                <h4>
-                  {conflictos.reservas.length > 0 && conflictos.eventos.length > 0
-                    ? `Conflicto: ${conflictos.reservas.length} reserva(s) y ${conflictos.eventos.length} evento(s) en este horario`
-                    : conflictos.reservas.length > 0
-                      ? `Conflicto con ${conflictos.reservas.length} reserva(s) en este horario`
-                      : `Conflicto con ${conflictos.eventos.length} evento(s) en este horario`}
-                </h4>
-              </div>
-
-              {conflictos.reservas.length > 0 && (
-                <div className="admin-eventos-conflicto-seccion">
-                  <span className="admin-eventos-conflicto-subtitulo">Reservas afectadas:</span>
-                  <ul className="admin-eventos-conflicto-lista">
-                    {conflictos.reservas.map((item) => (
-                      <li key={item.id} className="admin-eventos-conflicto-item">
-                        <span className="admin-eventos-conflicto-campo">{item.canchaNombre}</span>
-                        <span className="admin-eventos-conflicto-horario">{item.horarioTexto}</span>
-                        <span className="admin-eventos-conflicto-cliente">
-                          <strong>{item.cliente}</strong> · Cel: {item.celular}
-                        </span>
-                        <span className={`admin-eventos-conflicto-badge estado-${item.estado}`}>
-                          {item.estado === 'confirmado' ? 'Confirmada' : item.estado === 'pendiente' ? 'Pendiente' : item.estado}
-                        </span>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-
-              {conflictos.eventos.length > 0 && (
-                <div className="admin-eventos-conflicto-seccion">
-                  <span className="admin-eventos-conflicto-subtitulo">Eventos coincidentes:</span>
-                  <ul className="admin-eventos-conflicto-lista">
-                    {conflictos.eventos.map((item) => (
-                      <li key={item.id} className="admin-eventos-conflicto-item">
-                        <span className="admin-eventos-conflicto-campo">{item.canchaNombre}</span>
-                        <span className="admin-eventos-conflicto-horario">{item.horarioTexto}</span>
-                        <span className="admin-eventos-conflicto-cliente">
-                          <strong>{item.nombre}</strong>
-                        </span>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-
-              <p className="admin-eventos-conflicto-aviso">
-                Debes elegir un horario sin cruces o cancelar la reserva en conflicto antes de guardar.
-              </p>
-            </div>
-          )}
-
           <div className="admin-modal-editar-acciones">
             <button
               type="button"
@@ -411,7 +353,7 @@ export default function AdminModalEditarEvento({
             <button
               type="submit"
               className="admin-modal-btn admin-modal-btn-confirmar"
-              disabled={guardando || procesando || hayConflictos}
+              disabled={guardando || procesando}
             >
               <Check size={16} aria-hidden="true" />
               <span>{guardando || procesando ? 'Guardando…' : 'Guardar cambios'}</span>

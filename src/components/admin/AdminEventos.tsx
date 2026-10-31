@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import type { FormEvent } from 'react'
-import { AlertTriangle, Ban, CalendarDays, CalendarPlus, CheckCircle2 } from 'lucide-react'
+import { Ban, CalendarDays, CalendarPlus, CheckCircle2 } from 'lucide-react'
 import type { BloqueoEvento, Campo, Reserva } from '../../types.js'
 import {
   validarEventoEspecial,
@@ -174,8 +174,6 @@ export default function AdminEventos({
     )
   }, [idsCanchaSeleccionadas, fecha, inicioNumero, finNumero, reservas, activos, canchas])
 
-  const hayConflictos = conflictos.reservas.length > 0 || conflictos.eventos.length > 0
-
   async function crear(evento: FormEvent<HTMLFormElement>): Promise<void> {
     evento.preventDefault()
     if (guardandoRef.current) return
@@ -335,61 +333,6 @@ export default function AdminEventos({
           <span>Notas (opcional)</span>
           <textarea value={notas} maxLength={240} rows={2} placeholder="Información para el encargado" onChange={(evento) => setNotas(evento.target.value)} />
         </label>
-        {hayConflictos && !exito && (
-          <div className="admin-eventos-conflicto" role="alert">
-            <div className="admin-eventos-conflicto-titulo">
-              <AlertTriangle size={18} strokeWidth={2.5} aria-hidden="true" />
-              <h4>
-                {conflictos.reservas.length > 0 && conflictos.eventos.length > 0
-                  ? `Conflicto: ${conflictos.reservas.length} reserva(s) y ${conflictos.eventos.length} evento(s) en este horario`
-                  : conflictos.reservas.length > 0
-                    ? `Conflicto con ${conflictos.reservas.length} reserva(s) de clientes en este horario`
-                    : `Conflicto con ${conflictos.eventos.length} evento(s) especial(es) en este horario`}
-              </h4>
-            </div>
-
-            {conflictos.reservas.length > 0 && (
-              <div className="admin-eventos-conflicto-seccion">
-                <span className="admin-eventos-conflicto-subtitulo">Reservas afectadas:</span>
-                <ul className="admin-eventos-conflicto-lista">
-                  {conflictos.reservas.map((item) => (
-                    <li key={item.id} className="admin-eventos-conflicto-item">
-                      <span className="admin-eventos-conflicto-campo">{item.canchaNombre}</span>
-                      <span className="admin-eventos-conflicto-horario">{item.horarioTexto}</span>
-                      <span className="admin-eventos-conflicto-cliente">
-                        <strong>{item.cliente}</strong> · Cel: {item.celular}
-                      </span>
-                      <span className={`admin-eventos-conflicto-badge estado-${item.estado}`}>
-                        {item.estado === 'confirmado' ? 'Confirmada' : item.estado === 'pendiente' ? 'Pendiente' : item.estado}
-                      </span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            )}
-
-            {conflictos.eventos.length > 0 && (
-              <div className="admin-eventos-conflicto-seccion">
-                <span className="admin-eventos-conflicto-subtitulo">Eventos coincidentes:</span>
-                <ul className="admin-eventos-conflicto-lista">
-                  {conflictos.eventos.map((item) => (
-                    <li key={item.id} className="admin-eventos-conflicto-item">
-                      <span className="admin-eventos-conflicto-campo">{item.canchaNombre}</span>
-                      <span className="admin-eventos-conflicto-horario">{item.horarioTexto}</span>
-                      <span className="admin-eventos-conflicto-cliente">
-                        <strong>{item.nombre}</strong>
-                      </span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            )}
-
-            <p className="admin-eventos-conflicto-aviso">
-              Para bloquear estas horas para el evento, primero debes contactar a los clientes y cancelar o reprogramar sus reservas.
-            </p>
-          </div>
-        )}
 
         <button className="admin-boton admin-control-primario admin-eventos-guardar" type="submit" disabled={procesando || guardando}>
           <CalendarPlus size={20} strokeWidth={2.5} aria-hidden="true" />
