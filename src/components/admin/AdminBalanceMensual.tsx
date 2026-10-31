@@ -1,8 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Download, FileText } from 'lucide-react'
 import type { BloqueoEvento, Campo, Reserva } from '../../types.js'
-import reservasDemoJson from '../../data/reservasBalanceDemo.json'
-import eventosDemoJson from '../../data/eventosBalanceDemo.json'
 import { construirBalanceMensual, mesActual } from '../../balanceMensual.js'
 import { descargarBalanceMensual } from '../../exportarBalance.js'
 import { descargarBalanceTexto } from '../../exportarBalanceTexto.js'
@@ -12,13 +10,9 @@ export interface AdminBalanceMensualProps {
   reservas: readonly Reserva[]
   canchas: readonly Campo[]
   eventos: readonly BloqueoEvento[]
-  esModoDemo?: boolean
 }
 
-const reservasBalanceDemo = reservasDemoJson as readonly Reserva[]
-const eventosBalanceDemo = eventosDemoJson as readonly BloqueoEvento[]
-
-export default function AdminBalanceMensual({ reservas, canchas, eventos, esModoDemo: modoDemoProp }: AdminBalanceMensualProps) {
+export default function AdminBalanceMensual({ reservas, canchas, eventos }: AdminBalanceMensualProps) {
   const [mes, setMes] = useState(mesActual)
   const [descargando, setDescargando] = useState(false)
   const [descargandoTexto, setDescargandoTexto] = useState(false)
@@ -30,10 +24,8 @@ export default function AdminBalanceMensual({ reservas, canchas, eventos, esModo
     const temporizador = window.setTimeout(() => setErrorDescarga(''), 5000)
     return () => window.clearTimeout(temporizador)
   }, [errorDescarga])
-  const esModoDemo = Boolean(modoDemoProp ?? (import.meta.env.VITE_BALANCE_DEMO === 'true'))
-  const reservasParaBalance = esModoDemo ? reservasBalanceDemo : reservas
-  const eventosParaBalance = esModoDemo ? eventosBalanceDemo : eventos
-  const balance = useMemo(() => construirBalanceMensual(mes, reservasParaBalance, canchas, eventosParaBalance), [mes, reservasParaBalance, canchas, eventosParaBalance])
+
+  const balance = useMemo(() => construirBalanceMensual(mes, reservas, canchas, eventos), [mes, reservas, canchas, eventos])
 
   function descargarTexto(): void {
     if (!bloqueoDescarga.current.adquirir()) return
@@ -70,9 +62,7 @@ export default function AdminBalanceMensual({ reservas, canchas, eventos, esModo
           <p className="admin-kicker">Reportes</p>
           <h2 id="titulo-balance">Balance mensual</h2>
           <p className="admin-balance-ayuda">
-            {esModoDemo
-              ? 'Modo prueba local: se usan reservas ficticias de agosto, septiembre y octubre de 2026.'
-              : 'Descarga un resumen ordenado de reservas finalizadas, horas e ingresos.'}
+            Descarga un resumen ordenado de reservas finalizadas, horas e ingresos.
           </p>
         </div>
         <div className="admin-balance-controles">

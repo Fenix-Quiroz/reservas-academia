@@ -43,6 +43,11 @@ export default function AdminControlClientes({
   const [error, setError] = useState('')
   const [exito, setExito] = useState('')
 
+  const [bloqueando, setBloqueando] = useState(false)
+  const [agregandoConfiable, setAgregandoConfiable] = useState(false)
+  const [desbloqueandoNumero, setDesbloqueandoNumero] = useState<string | null>(null)
+  const [quitandoNumero, setQuitandoNumero] = useState<string | null>(null)
+
   useEffect(() => {
     if (!error) return undefined
     const temporizador = window.setTimeout(() => setError(''), 5000)
@@ -55,41 +60,73 @@ export default function AdminControlClientes({
     return () => window.clearTimeout(temporizador)
   }, [exito])
 
+  const accionEnCurso = procesando || bloqueando || agregandoConfiable || Boolean(desbloqueandoNumero) || Boolean(quitandoNumero)
+
   async function bloquear(evento: FormEvent<HTMLFormElement>): Promise<void> {
     evento.preventDefault()
+    if (accionEnCurso) return
     setError('')
     setExito('')
-    const resultado = await onBloquear(celularBloqueado, motivo)
-    if ('error' in resultado) {
-      setError(mensajeError(resultado))
-      return
+    setBloqueando(true)
+    try {
+      const resultado = await onBloquear(celularBloqueado, motivo)
+      if ('error' in resultado) {
+        setError(mensajeError(resultado))
+        return
+      }
+      setCelularBloqueado('')
+      setExito('Número bloqueado.')
+    } finally {
+      setBloqueando(false)
     }
-    setCelularBloqueado('')
-    setExito('Número bloqueado.')
   }
 
   async function agregarConfiable(evento: FormEvent<HTMLFormElement>): Promise<void> {
     evento.preventDefault()
+    if (accionEnCurso) return
     setError('')
     setExito('')
-    const resultado = await onAgregarConfiable(celularConfiable, aliasConfiable)
-    if ('error' in resultado) {
-      setError(mensajeError(resultado))
-      return
+    setAgregandoConfiable(true)
+    try {
+      const resultado = await onAgregarConfiable(celularConfiable, aliasConfiable)
+      if ('error' in resultado) {
+        setError(mensajeError(resultado))
+        return
+      }
+      setCelularConfiable('')
+      setAliasConfiable('')
+      setExito('Cliente confiable guardado.')
+    } finally {
+      setAgregandoConfiable(false)
     }
-    setCelularConfiable('')
-    setAliasConfiable('')
-    setExito('Cliente confiable guardado.')
   }
 
-  async function cambiarEstado(
-    accion: () => Promise<ResultadoControlCliente>,
-  ): Promise<void> {
+  async function desbloquear(celular: string): Promise<void> {
+    if (accionEnCurso) return
     setError('')
     setExito('')
-    const resultado = await accion()
-    if ('error' in resultado) setError(mensajeError(resultado))
-    else setExito('Cambio guardado.')
+    setDesbloqueandoNumero(celular)
+    try {
+      const resultado = await onDesbloquear(celular)
+      if ('error' in resultado) setError(mensajeError(resultado))
+      else setExito('Número desbloqueado.')
+    } finally {
+      setDesbloqueandoNumero(null)
+    }
+  }
+
+  async function quitarConfiable(celular: string): Promise<void> {
+    if (accionEnCurso) return
+    setError('')
+    setExito('')
+    setQuitandoNumero(celular)
+    try {
+      const resultado = await onQuitarConfiable(celular)
+      if ('error' in resultado) setError(mensajeError(resultado))
+      else setExito('Cliente confiable removido.')
+    } finally {
+      setQuitandoNumero(null)
+    }
   }
 
   const bloqueadosActivos = bloqueados.filter((numero) => numero.activo)
@@ -142,9 +179,9 @@ export default function AdminControlClientes({
                 onChange={(evento) => setMotivo(evento.target.value)}
               />
             </label>
-            <button className="admin-boton admin-control-primario admin-control-guardar" type="submit" disabled={procesando}>
+            <button className="admin-boton admin-control-primario admin-control-guardar" type="submit" disabled={accionEnCurso}>
               <UserX size={20} strokeWidth={2.5} aria-hidden="true" />
-              <span>{procesando ? 'Guardando…' : 'Bloquear número'}</span>
+              <span>{bloqueando ? 'Guardando…' : 'Bloquear número'}</span>
             </button>
           </form>
           <div className="admin-control-lista" aria-live="polite">
@@ -159,10 +196,10 @@ export default function AdminControlClientes({
                 <button
                   className="admin-boton admin-control-secundario"
                   type="button"
-                  disabled={procesando}
-                  onClick={() => void cambiarEstado(() => onDesbloquear(numero.celular))}
+                  disabled={accionEnCurso}
+                  onClick={() => void desbloquear(numero.celular)}
                 >
-                  Desbloquear
+                  {desbloqueandoNumero === numero.celular ? 'Desbloqueando…' : 'Desbloquear'}
                 </button>
               </article>
             ))}
@@ -197,9 +234,9 @@ export default function AdminControlClientes({
                 onChange={(evento) => setAliasConfiable(evento.target.value)}
               />
             </label>
-            <button className="admin-boton admin-control-primario admin-control-guardar" type="submit" disabled={procesando}>
+            <button className="admin-boton admin-control-primario admin-control-guardar" type="submit" disabled={accionEnCurso}>
               <UserCheck size={20} strokeWidth={2.5} aria-hidden="true" />
-              <span>{procesando ? 'Guardando…' : 'Agregar confiable'}</span>
+              <span>{agregandoConfiable ? 'Guardando…' : 'Agregar confiable'}</span>
             </button>
           </form>
           <div className="admin-control-lista" aria-live="polite">
@@ -214,10 +251,10 @@ export default function AdminControlClientes({
                 <button
                   className="admin-boton admin-control-secundario"
                   type="button"
-                  disabled={procesando}
-                  onClick={() => void cambiarEstado(() => onQuitarConfiable(numero.celular))}
+                  disabled={accionEnCurso}
+                  onClick={() => void quitarConfiable(numero.celular)}
                 >
-                  Quitar
+                  {quitandoNumero === numero.celular ? 'Quitando…' : 'Quitar'}
                 </button>
               </article>
             ))}

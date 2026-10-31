@@ -101,6 +101,7 @@ export default function AdminEventos({
   const [error, setError] = useState('')
   const [exito, setExito] = useState('')
   const [guardando, setGuardando] = useState(false)
+  const [cancelandoGrupoId, setCancelandoGrupoId] = useState<string | null>(null)
   const guardandoRef = useRef(false)
   const [eventoAEditar, setEventoAEditar] = useState<readonly BloqueoEvento[] | null>(null)
   const [filtroPill, setFiltroPill] = useState<'activos' | 'finalizados' | 'cancelados'>('activos')
@@ -277,12 +278,17 @@ export default function AdminEventos({
   async function cancelar(grupoId: string): Promise<void> {
     setError('')
     setExito('')
-    const resultado = await onCancelar(grupoId)
-    if ('error' in resultado) {
-      setError(mensajeError(resultado))
-      return
+    setCancelandoGrupoId(grupoId)
+    try {
+      const resultado = await onCancelar(grupoId)
+      if ('error' in resultado) {
+        setError(mensajeError(resultado))
+        return
+      }
+      setExito('Evento cancelado. El horario puede volver a reservarse.')
+    } finally {
+      setCancelandoGrupoId(null)
     }
-    setExito('Evento cancelado. El horario puede volver a reservarse.')
   }
 
   return (
@@ -311,10 +317,12 @@ export default function AdminEventos({
           opciones={opcionesCampo}
           onChange={(valor) => setCanchaId(valor === 'futbol' ? 'futbol' : Number(valor))}
         />
+
         <label>
           <span>Fecha</span>
-          <input type="date" value={fecha} min={fechaISO(new Date())} required onChange={(evento) => setFecha(evento.target.value)} />
+          <input type="date" value={fecha} required onChange={(evento) => setFecha(evento.target.value)} />
         </label>
+
         <AdminSelectorHorario
           inicio={inicio}
           fin={fin}
@@ -323,9 +331,10 @@ export default function AdminEventos({
           onChangeInicio={cambiarInicio}
           onChangeFin={setFin}
         />
+
         <label>
           <span>Nombre del evento</span>
-          <input value={nombre} required maxLength={80} placeholder="Ej.: torneo escolar" onChange={(evento) => setNombre(evento.target.value)} />
+          <input value={nombre} required maxLength={60} placeholder="Ej.: torneo escolar" onChange={(evento) => setNombre(evento.target.value)} />
         </label>
         <label>
           <span>Precio cobrado</span>
@@ -340,9 +349,9 @@ export default function AdminEventos({
           <textarea value={notas} maxLength={240} rows={2} placeholder="Información para el encargado" onChange={(evento) => setNotas(evento.target.value)} />
         </label>
 
-        <button className="admin-boton admin-control-primario admin-eventos-guardar" type="submit" disabled={procesando || guardando}>
+        <button className="admin-boton admin-control-primario admin-eventos-guardar" type="submit" disabled={procesando || guardando || Boolean(cancelandoGrupoId)}>
           <CalendarPlus size={20} strokeWidth={2.5} aria-hidden="true" />
-          <span>{procesando || guardando ? 'Guardando…' : 'Crear evento especial'}</span>
+          <span>{guardando ? 'Guardando…' : 'Crear evento especial'}</span>
         </button>
       </form>
 
@@ -360,7 +369,7 @@ export default function AdminEventos({
               type="button"
               role="tab"
               aria-selected={filtroPill === 'activos'}
-              className={`admin-eventos-pill ${filtroPill === 'activos' ? 'activa' : ''}`}
+              className={`admin-eventos-pill${filtroPill === 'activos' ? ' activa' : ''}`}
               onClick={() => setFiltroPill('activos')}
             >
               <CalendarDays size={16} aria-hidden="true" />
@@ -371,7 +380,7 @@ export default function AdminEventos({
               type="button"
               role="tab"
               aria-selected={filtroPill === 'finalizados'}
-              className={`admin-eventos-pill ${filtroPill === 'finalizados' ? 'activa' : ''}`}
+              className={`admin-eventos-pill${filtroPill === 'finalizados' ? ' activa' : ''}`}
               onClick={() => setFiltroPill('finalizados')}
             >
               <CheckCircle2 size={16} aria-hidden="true" />
@@ -382,7 +391,7 @@ export default function AdminEventos({
               type="button"
               role="tab"
               aria-selected={filtroPill === 'cancelados'}
-              className={`admin-eventos-pill ${filtroPill === 'cancelados' ? 'activa' : ''}`}
+              className={`admin-eventos-pill${filtroPill === 'cancelados' ? ' activa' : ''}`}
               onClick={() => setFiltroPill('cancelados')}
             >
               <Ban size={16} aria-hidden="true" />
@@ -398,49 +407,61 @@ export default function AdminEventos({
           proximosAgrupados.length === 0 ? (
             <p className="admin-eventos-vacio">No hay eventos especiales activos.</p>
           ) : (
-            proximosAgrupados.map((grupo) => (
-              <AdminEventoCard
-                key={grupo.map((evento) => evento.id).join('-')}
-                eventos={grupo}
-                canchas={canchas}
-                procesando={procesando}
-                onCancel={cancelar}
-                onEditar={onEditar ? (grupo) => setEventoAEditar(grupo) : undefined}
-                ahora={ahora}
-              />
-            ))
+            proximosAgrupados.map((grupo) => {
+              const grupoIdActual = grupo[0]?.grupoId?.trim() || grupo[0]?.id || ''
+              return (
+                <AdminEventoCard
+                  key={grupo.map((evento) => evento.id).join('-')}
+                  eventos={grupo}
+                  canchas={canchas}
+                  procesando={procesando || Boolean(cancelandoGrupoId)}
+                  cancelando={cancelandoGrupoId === grupoIdActual}
+                  onCancel={cancelar}
+                  onEditar={onEditar ? (g) => setEventoAEditar(g) : undefined}
+                  ahora={ahora}
+                />
+              )
+            })
           )
         ) : filtroPill === 'finalizados' ? (
           concluidosAgrupados.length === 0 ? (
             <p className="admin-eventos-vacio">No hay eventos especiales finalizados.</p>
           ) : (
-            concluidosAgrupados.map((grupo) => (
-              <AdminEventoCard
-                key={grupo.map((evento) => evento.id).join('-')}
-                eventos={grupo}
-                canchas={canchas}
-                procesando={procesando}
-                onCancel={cancelar}
-                onEditar={onEditar ? (grupo) => setEventoAEditar(grupo) : undefined}
-                ahora={ahora}
-              />
-            ))
+            concluidosAgrupados.map((grupo) => {
+              const grupoIdActual = grupo[0]?.grupoId?.trim() || grupo[0]?.id || ''
+              return (
+                <AdminEventoCard
+                  key={grupo.map((evento) => evento.id).join('-')}
+                  eventos={grupo}
+                  canchas={canchas}
+                  procesando={procesando || Boolean(cancelandoGrupoId)}
+                  cancelando={cancelandoGrupoId === grupoIdActual}
+                  onCancel={cancelar}
+                  onEditar={onEditar ? (g) => setEventoAEditar(g) : undefined}
+                  ahora={ahora}
+                />
+              )
+            })
           )
         ) : (
           canceladosAgrupados.length === 0 ? (
             <p className="admin-eventos-vacio">No hay eventos especiales cancelados.</p>
           ) : (
-            canceladosAgrupados.map((grupo) => (
-              <AdminEventoCard
-                key={grupo.map((evento) => evento.id).join('-')}
-                eventos={grupo}
-                canchas={canchas}
-                procesando={procesando}
-                onCancel={cancelar}
-                onEditar={onEditar ? (grupo) => setEventoAEditar(grupo) : undefined}
-                ahora={ahora}
-              />
-            ))
+            canceladosAgrupados.map((grupo) => {
+              const grupoIdActual = grupo[0]?.grupoId?.trim() || grupo[0]?.id || ''
+              return (
+                <AdminEventoCard
+                  key={grupo.map((evento) => evento.id).join('-')}
+                  eventos={grupo}
+                  canchas={canchas}
+                  procesando={procesando || Boolean(cancelandoGrupoId)}
+                  cancelando={cancelandoGrupoId === grupoIdActual}
+                  onCancel={cancelar}
+                  onEditar={onEditar ? (g) => setEventoAEditar(g) : undefined}
+                  ahora={ahora}
+                />
+              )
+            })
           )
         )}
       </div>

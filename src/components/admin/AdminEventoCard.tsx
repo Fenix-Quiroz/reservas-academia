@@ -7,6 +7,7 @@ export interface AdminEventoCardProps {
   eventos: readonly BloqueoEvento[]
   canchas: readonly Campo[]
   procesando: boolean
+  cancelando?: boolean
   onCancel: (grupoId: string) => void | Promise<unknown>
   onEditar?: (grupo: readonly BloqueoEvento[]) => void
   ahora?: Date
@@ -21,7 +22,7 @@ function fechaVisible(fecha: string): string {
   })
 }
 
-export default function AdminEventoCard({ eventos, canchas, procesando, onCancel, onEditar, ahora = new Date() }: AdminEventoCardProps) {
+export default function AdminEventoCard({ eventos, canchas, procesando, cancelando = false, onCancel, onEditar, ahora = new Date() }: AdminEventoCardProps) {
   const evento = eventos[0]
   if (!evento) return null
 
@@ -124,7 +125,7 @@ export default function AdminEventoCard({ eventos, canchas, procesando, onCancel
               <button
                 className="admin-evento-agenda-editar"
                 type="button"
-                disabled={procesando}
+                disabled={procesando || cancelando}
                 onClick={() => onEditar(eventos)}
               >
                 <Pencil size={15} aria-hidden="true" />
@@ -135,10 +136,10 @@ export default function AdminEventoCard({ eventos, canchas, procesando, onCancel
               <button
                 className="admin-evento-agenda-cancelar"
                 type="button"
-                disabled={procesando}
+                disabled={procesando || cancelando}
                 onClick={() => void onCancel(evento.grupoId ?? evento.id)}
               >
-                {procesando ? 'Cancelando…' : 'Cancelar evento'}
+                {cancelando ? 'Cancelando…' : 'Cancelar evento'}
               </button>
             )}
           </div>
