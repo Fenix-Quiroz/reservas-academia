@@ -78,6 +78,10 @@ assert.equal(reservaDeOcho.find((h) => h.inicio === 7.5)!.libre, false, '7:30 se
 assert.equal(reservaDeOcho.find((h) => h.inicio === 8.5)!.libre, false, '8:30 se solapa con 8:00-9:30')
 assert.equal(reservaDeOcho.find((h) => h.inicio === 9.5)!.libre, true, '9:30 queda libre al terminar la reserva')
 assert.ok(entrenamientoBloquea(4, 0, 21, 1) === false, 'el domingo no tiene entrenamiento de vóley')
+assert.ok(entrenamientoBloquea(4, 6, 9, 1), 'el sábado el vóley está bloqueado a las 9am')
+assert.ok(entrenamientoBloquea(4, 6, 11.5, 0.5), 'el sábado el vóley está bloqueado hasta las 12pm')
+assert.ok(!entrenamientoBloquea(4, 6, 12, 1), 'el sábado el vóley está libre a las 12pm')
+assert.ok(!entrenamientoBloquea(4, 6, 21, 1), 'el sábado en la noche el vóley está libre')
 assert.ok(horarios([], 1, '2026-10-19', 1, ahora).every((h) => h.inicio > 12), 'hoy no muestra horas pasadas')
 assert.equal(masCercana(lista, 19)!.inicio, 21, 'sugiere la libre más cercana')
 assert.deepEqual(

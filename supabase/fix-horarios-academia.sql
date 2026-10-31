@@ -39,7 +39,7 @@ values
   (2, 5, 960, 1225, 'Entrenamiento de academia', true),
   (3, 5, 1050, 1225, 'Entrenamiento de academia', true),
   (4, 5, 1080, 1165, 'Entrenamiento de academia', true),
-  (4, 6, 1260, 1435, 'Entrenamiento de academia', true)
+  (4, 6, 540, 720, 'Entrenamiento de academia', true)
 on conflict (cancha_id, dia_semana, inicio_minuto, fin_minuto) do update
 set motivo = excluded.motivo,
     activo = excluded.activo,

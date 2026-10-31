@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import type { Campo, ComprobanteAdmin, EstadoReserva, Reserva } from '../../types.js'
 import { fechaISO } from '../../reservas.js'
 import AdminReservaCard from './AdminReservaCard'
+import AdminModalComprobante from './AdminModalComprobante'
 
 type IdEscenario = 'proxima' | 'en-curso' | 'terminada-pendiente' | 'terminada-confirmada' | 'sin-adelanto'
 
@@ -56,6 +57,8 @@ const escenarios: readonly Escenario[] = [
     comprobante: 'sin-adelanto',
   },
 ]
+
+const COMPROBANTE_DEMO_SVG = `data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="380" height="520" viewBox="0 0 380 520" fill="none"><rect width="380" height="520" rx="20" fill="%23742284"/><circle cx="190" cy="80" r="32" fill="%2300d6aa"/><path d="M180 80l7 7 15-15" stroke="%23fff" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/><text x="190" y="140" fill="%23fff" font-size="20" font-family="sans-serif" font-weight="bold" text-anchor="middle">¡Yapeaste!</text><text x="190" y="180" fill="%2300d6aa" font-size="34" font-family="sans-serif" font-weight="900" text-anchor="middle">S/ 60.00</text><text x="190" y="215" fill="%23e2b2f0" font-size="14" font-family="sans-serif" text-anchor="middle">Polideportivo El Jaguar</text><rect x="30" y="250" width="320" height="1" fill="%23a854ba"/><text x="40" y="290" fill="%23e2b2f0" font-size="13" font-family="sans-serif">Número de celular</text><text x="340" y="290" fill="%23fff" font-size="14" font-family="sans-serif" font-weight="bold" text-anchor="end">999 999 999</text><text x="40" y="330" fill="%23e2b2f0" font-size="13" font-family="sans-serif">Destino</text><text x="340" y="330" fill="%23fff" font-size="14" font-family="sans-serif" font-weight="bold" text-anchor="end">Canchas Jaguar</text><text x="40" y="370" fill="%23e2b2f0" font-size="13" font-family="sans-serif">Número de operación</text><text x="340" y="370" fill="%23fff" font-size="14" font-family="sans-serif" font-weight="bold" text-anchor="end">08472910</text><text x="40" y="410" fill="%23e2b2f0" font-size="13" font-family="sans-serif">Fecha y hora</text><text x="340" y="410" fill="%23fff" font-size="14" font-family="sans-serif" font-weight="bold" text-anchor="end">Hoy · 14:32</text><rect x="30" y="440" width="320" height="48" rx="10" fill="%238a2e9c"/><text x="190" y="470" fill="%2300d6aa" font-size="13" font-family="sans-serif" font-weight="bold" text-anchor="middle">Pago de adelanto verificado</text></svg>`
 
 function relojBase(): Date {
   const fecha = new Date()
@@ -125,6 +128,7 @@ export default function AdminSimuladorReservas({ cancha }: AdminSimuladorReserva
   const [pagoConfirmado, setPagoConfirmado] = useState(false)
   const [porCancelar, setPorCancelar] = useState<string | null>(null)
   const [mensaje, setMensaje] = useState('')
+  const [modalComprobanteVisible, setModalComprobanteVisible] = useState(false)
   const [base] = useState(relojBase)
 
   const escenario = escenarios.find((item) => item.id === escenarioId) ?? escenarios[0]
@@ -243,7 +247,7 @@ export default function AdminSimuladorReservas({ cancha }: AdminSimuladorReserva
           onStatus={cambiarEstado}
           actualizandoEstado={null}
           procesandoComprobante={null}
-          onViewComprobante={() => setMensaje('Simulación: aquí se abriría el comprobante.')}
+          onViewComprobante={() => setModalComprobanteVisible(true)}
           onDownloadComprobante={() => setMensaje('Simulación: aquí se descargaría el comprobante.')}
           onConfirmarComprobante={() => {
             setPagoConfirmado(true)
@@ -251,6 +255,18 @@ export default function AdminSimuladorReservas({ cancha }: AdminSimuladorReserva
           }}
         />
       </div>
+      {modalComprobanteVisible && simulacion.comprobante && (
+        <AdminModalComprobante
+          comprobante={simulacion.comprobante}
+          reserva={simulacion.reserva}
+          cancha={cancha}
+          url={COMPROBANTE_DEMO_SVG}
+          cargando={false}
+          error={null}
+          onClose={() => setModalComprobanteVisible(false)}
+          onDownload={() => setMensaje('Simulación: comprobante descargado.')}
+        />
+      )}
     </section>
   )
 }

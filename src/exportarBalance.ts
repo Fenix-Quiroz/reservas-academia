@@ -228,11 +228,11 @@ function aplicarEstilosEventosEspeciales(
   secciones: readonly SeccionEventosEspeciales[],
   ultimaFila: number,
 ): void {
-  aplicarEstiloRango(XLSX, hoja, `A1:G${Math.max(1, ultimaFila)}`, {
+  aplicarEstiloRango(XLSX, hoja, `A1:I${Math.max(1, ultimaFila)}`, {
     font: { name: 'Arial', sz: 10, color: rgb(colores.negro) },
     alignment: { vertical: 'center' },
   })
-  aplicarEstiloRango(XLSX, hoja, 'A1:G1', {
+  aplicarEstiloRango(XLSX, hoja, 'A1:I1', {
     fill: { patternType: 'solid', fgColor: rgb(colores.negro) },
     font: { name: 'Arial', sz: 16, bold: true, color: rgb(colores.crema) },
     alignment: { horizontal: 'left', vertical: 'center' },
@@ -246,25 +246,30 @@ function aplicarEstilosEventosEspeciales(
     font: { name: 'Arial', sz: 10, bold: true, color: rgb(colores.gris) },
   })
   for (const seccion of secciones) {
-    aplicarEstiloRango(XLSX, hoja, `A${seccion.titulo}:G${seccion.titulo}`, {
+    aplicarEstiloRango(XLSX, hoja, `A${seccion.titulo}:I${seccion.titulo}`, {
       fill: { patternType: 'solid', fgColor: rgb(colores.dorado) },
       font: { name: 'Arial', sz: 11, bold: true, color: rgb(colores.negro) },
     })
-    aplicarEstiloRango(XLSX, hoja, `A${seccion.cabecera}:G${seccion.cabecera}`, {
+    aplicarEstiloRango(XLSX, hoja, `A${seccion.cabecera}:I${seccion.cabecera}`, {
       fill: { patternType: 'solid', fgColor: rgb(colores.negroSuave) },
       font: { name: 'Arial', sz: 10, bold: true, color: rgb(colores.crema) },
       alignment: { horizontal: 'center', vertical: 'center', wrapText: true },
     })
     const ultimaFilaSeccion = seccion.inicio + Math.max(1, seccion.filas) - 1
-    aplicarEstiloRango(XLSX, hoja, `A${seccion.inicio}:G${ultimaFilaSeccion}`, {
+    aplicarEstiloRango(XLSX, hoja, `A${seccion.inicio}:I${ultimaFilaSeccion}`, {
       fill: { patternType: 'solid', fgColor: rgb('FFFFFF') },
       font: { name: 'Arial', sz: 10, color: rgb(colores.negro) },
       border: { bottom: { style: 'thin', color: rgb(colores.grisClaro) } },
     })
     for (let fila = seccion.inicio; fila <= ultimaFilaSeccion; fila += 1) {
-      if (fila % 2 === 1) aplicarEstiloFilaAlterna(XLSX, hoja, fila, 'G')
+      if (fila % 2 === 1) aplicarEstiloFilaAlterna(XLSX, hoja, fila, 'I')
     }
-    aplicarEstiloRango(XLSX, hoja, `G${seccion.inicio}:G${ultimaFilaSeccion}`, {
+    // Centrar columna de horas (Columna E)
+    aplicarEstiloRango(XLSX, hoja, `E${seccion.inicio}:E${ultimaFilaSeccion}`, {
+      alignment: { horizontal: 'center', vertical: 'center' },
+    })
+    // Alinear a la derecha columna de precio cobrado (Columna I)
+    aplicarEstiloRango(XLSX, hoja, `I${seccion.inicio}:I${ultimaFilaSeccion}`, {
       alignment: { horizontal: 'right', vertical: 'center' },
     })
   }
@@ -299,18 +304,30 @@ function crearHojaEventosEspeciales(XLSX: ModuloXlsx, balance: BalanceMensual): 
       filasPrecio.push(filaExcel)
     }
     if (eventos.length === 0) {
-      filas.push(['Sin eventos especiales'])
+      filas.push(['Sin eventos especiales registrados'])
     }
     secciones.push({ titulo: tituloFila, cabecera: cabeceraFila, inicio: inicioFila, filas: Math.max(1, eventos.length) })
     filas.push([])
   }
 
+  const cabecerasDetalle = ['Fecha', 'Día', 'Campos bloqueados', 'Horario', 'Horas', 'Evento', 'Celular', 'Notas', 'Precio cobrado (S/)']
+
   const todosLosCampos = balance.eventosEspeciales.filter((evento) => evento.tipo === 'todos_los_campos')
   agregarSeccion(
-    'TODOS LOS CAMPOS DE FÚTBOL',
-    ['Fecha', 'Día', 'Campos bloqueados', 'Horario', 'Evento', 'Celular', 'Precio cobrado (S/)'],
+    'TODOS LOS CAMPOS DE FÚTBOL (CAMPOS 1, 2 Y 3)',
+    cabecerasDetalle,
     todosLosCampos,
-    (evento) => [new Date(`${evento.fecha}T12:00:00`), evento.dia, evento.campo, evento.horario, evento.evento, evento.celular, evento.precio],
+    (evento) => [
+      new Date(`${evento.fecha}T12:00:00`),
+      evento.dia,
+      evento.campo,
+      evento.horario,
+      evento.horas,
+      evento.evento,
+      evento.celular,
+      evento.notas,
+      evento.precio,
+    ],
   )
 
   const camposIndividuales = new Map<number, typeof balance.eventosEspeciales>()
@@ -325,18 +342,31 @@ function crearHojaEventosEspeciales(XLSX: ModuloXlsx, balance: BalanceMensual): 
     const nombreCampo = eventos[0]?.campo ?? `Campo ${canchaId}`
     agregarSeccion(
       `${nombreCampo.toUpperCase()} — EVENTOS INDIVIDUALES`,
-      ['Fecha', 'Día', 'Horario', 'Evento', 'Celular', 'Notas', 'Precio cobrado (S/)'],
+      ['Fecha', 'Día', 'Campo', 'Horario', 'Horas', 'Evento', 'Celular', 'Notas', 'Precio cobrado (S/)'],
       eventos,
-      (evento) => [new Date(`${evento.fecha}T12:00:00`), evento.dia, evento.horario, evento.evento, evento.celular, evento.notas, evento.precio],
+      (evento) => [
+        new Date(`${evento.fecha}T12:00:00`),
+        evento.dia,
+        evento.campo,
+        evento.horario,
+        evento.horas,
+        evento.evento,
+        evento.celular,
+        evento.notas,
+        evento.precio,
+      ],
     )
   }
 
   const hoja = XLSX.utils.aoa_to_sheet(filas)
-  ajustarColumnas(hoja, [14, 14, 28, 22, 28, 16, 20])
-  hoja['!merges'] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: 6 } }, ...secciones.map((seccion) => ({ s: { r: seccion.titulo - 1, c: 0 }, e: { r: seccion.titulo - 1, c: 6 } }))]
+  ajustarColumnas(hoja, [14, 14, 34, 22, 10, 30, 16, 28, 20])
+  hoja['!merges'] = [
+    { s: { r: 0, c: 0 }, e: { r: 0, c: 8 } },
+    ...secciones.map((seccion) => ({ s: { r: seccion.titulo - 1, c: 0 }, e: { r: seccion.titulo - 1, c: 8 } })),
+  ]
   hoja['!freeze'] = { xSplit: 0, ySplit: 4 }
   aplicarFormato(hoja, filasFecha.map((fila) => `A${fila}`), 'dd/mm/yyyy')
-  aplicarFormato(hoja, filasPrecio.map((fila) => `G${fila}`), '0.00')
+  aplicarFormato(hoja, filasPrecio.map((fila) => `I${fila}`), '0.00')
   aplicarFormato(hoja, ['B3'], '0.00')
   aplicarEstilosEventosEspeciales(XLSX, hoja, secciones, filas.length)
   return hoja

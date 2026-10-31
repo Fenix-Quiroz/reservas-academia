@@ -5,6 +5,7 @@ import {
   MAX_COMPROBANTE_BYTES,
   NUMERO_YAPE,
   extensionComprobante,
+  optimizarComprobante,
   validarComprobante,
 } from './pagos'
 import { deReserva } from './supabaseData'
@@ -43,6 +44,9 @@ for (const [type, expected] of Object.entries({
   assert.equal(extensionComprobante({ type, size: 1 } as ArchivoPrueba), expected)
 }
 
+assert.equal(typeof optimizarComprobante, 'function')
+const archivoDemo = { type: 'image/png', size: 1000, name: 'yape.png' } as unknown as File
+assert.equal(await optimizarComprobante(archivoDemo), archivoDemo)
 const edgeFunctionUrl = new URL('../supabase/functions/registrar-adelanto-yape/index.ts', import.meta.url)
 assert.equal(fs.existsSync(edgeFunctionUrl), true, 'Debe existir la Edge Function de adelanto Yape')
 const edgeFunction = fs.readFileSync(edgeFunctionUrl, 'utf8')

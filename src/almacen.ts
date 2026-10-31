@@ -1,7 +1,7 @@
 // Fallback de la demo. Con Supabase activo, las reservas y clientes vienen de la base remota.
 import demo from './data/reservas-demo.json' with { type: 'json' }
-import type { BloqueoEvento, Cliente, EstadoReserva, Reserva, ReservaNueva } from './types.js'
-import { eventoChocaConReserva, eventoBloquea, horarioEntrenamientoQueBloqueaEvento, validarBloqueoEvento, validarEventoEspecial, type BloqueoEventoNuevo, type EventoEspecialNuevo, type ResultadoCancelacionEvento, type ResultadoEvento, type ResultadoEventoEspecial } from './eventos.js'
+import type { BloqueoEvento, CambiosReservaAdmin, Cliente, EstadoReserva, Reserva, ReservaNueva, ResultadoEditarReserva } from './types.js'
+import { eventoChocaConReserva, eventoBloquea, horarioEntrenamientoQueBloqueaEvento, validarBloqueoEvento, validarEventoEspecial, type BloqueoEventoNuevo, type EventoEspecialNuevo, type EventoEspecialActualizado, type ResultadoCancelacionEvento, type ResultadoEvento, type ResultadoEventoEspecial } from './eventos.js'
 import type { NumeroBloqueado, NumeroConfiable, ResultadoControlCliente } from './controlClientes.js'
 import { INASISTENCIAS_PARA_BLOQUEAR } from './controlClientes.js'
 import { normalizarReserva, puedeCambiarEstado } from './estadoReserva.js'
@@ -12,6 +12,7 @@ import type {
   ResultadoCancelacion,
   ResultadoCliente,
   ResultadoEstado,
+  ResultadoPagoAdmin,
   ResultadoReserva,
 } from './supabaseData.js'
 import {
@@ -20,6 +21,7 @@ import {
   cancelarReservaPublicaRemota,
   cancelarReservaAdminRemota,
   actualizarEstadoReservaRemota,
+  editarReservaAdminRemota,
 } from './supabaseData.js'
 
 type ReservaDemo = Omit<Reserva, 'id' | 'fecha' | 'estado'> & { dia: number }
@@ -274,12 +276,85 @@ export function cancelarBloqueoEventoLocal(id: string): ResultadoCancelacionEven
 
 export function cancelarEventoEspecialLocal(grupoId: string): ResultadoCancelacionEvento {
   const eventos = leerBloqueosEventos()
-  const activos = eventos.filter((evento) => evento.grupoId === grupoId && evento.estado === 'activo')
+  const activos = eventos.filter((evento) => (evento.grupoId === grupoId || evento.id === grupoId) && evento.estado === 'activo')
   if (!activos.length) return { error: 'no-existe' }
   guardar(CLAVE_BLOQUEOS_EVENTOS, eventos.map((evento) => (
-    evento.grupoId === grupoId ? { ...evento, estado: 'cancelado' as const } : evento
+    (evento.grupoId === grupoId || evento.id === grupoId) ? { ...evento, estado: 'cancelado' as const } : evento
   )))
   return {}
+}
+
+export function actualizarEventoEspecialLocal(
+  actualizado: EventoEspecialActualizado,
+  reservas: readonly Reserva[] = [],
+): ResultadoEventoEspecial {
+  const eventosGuardados = leerBloqueosEventos()
+  const existentes = eventosGuardados.filter(
+    (e) => (e.grupoId?.trim() || e.id) === actualizado.grupoId && e.estado === 'activo'
+  )
+  if (existentes.length === 0) return { error: 'no-existe' }
+
+  const canchaIds = existentes.map((e) => e.canchaId)
+
+  for (const canchaId of canchaIds) {
+    const entrenamiento = horarioEntrenamientoQueBloqueaEvento({
+      canchaId,
+      fecha: actualizado.fecha,
+      inicio: actualizado.inicio,
+      fin: actualizado.fin,
+    })
+    if (entrenamiento) {
+      return { error: 'entrenamiento-ocupado', entrenamiento }
+    }
+  }
+
+  for (const canchaId of canchaIds) {
+    const eventoSimulado = {
+      id: 'temp',
+      canchaId,
+      fecha: actualizado.fecha,
+      inicio: actualizado.inicio,
+      fin: actualizado.fin,
+      nombre: actualizado.nombre,
+      celular: actualizado.celular,
+      notas: actualizado.notas,
+      estado: 'activo' as const,
+    }
+    for (const reserva of reservas) {
+      if (eventoChocaConReserva(eventoSimulado, reserva)) {
+        return {
+          error: 'ocupado',
+          detalleReserva: {
+            canchaId: reserva.canchaId,
+            inicio: reserva.inicio,
+            cliente: reserva.alias,
+          },
+        }
+      }
+    }
+  }
+
+  const nuevosEventos = eventosGuardados.map((e) => {
+    if ((e.grupoId?.trim() || e.id) === actualizado.grupoId && e.estado === 'activo') {
+      return {
+        ...e,
+        fecha: actualizado.fecha,
+        inicio: actualizado.inicio,
+        fin: actualizado.fin,
+        nombre: actualizado.nombre,
+        celular: actualizado.celular,
+        notas: actualizado.notas,
+        precioCobrado: actualizado.precioCobrado,
+      }
+    }
+    return e
+  })
+
+  guardar(CLAVE_BLOQUEOS_EVENTOS, nuevosEventos)
+  const eventosActualizados = nuevosEventos.filter(
+    (e) => (e.grupoId?.trim() || e.id) === actualizado.grupoId && e.estado === 'activo'
+  )
+  return { eventos: eventosActualizados }
 }
 
 function leerTokensGuardados(): TokensReserva {
@@ -482,6 +557,45 @@ export function actualizarEstadoReserva(id: string, estado: EstadoReserva): Resu
 }
 
 // "Tabla" de clientes: los de la demo + los creados en este navegador
+export function editarReservaAdmin(
+  id: string,
+  cambios: CambiosReservaAdmin,
+): ResultadoEditarReserva | Promise<ResultadoEditarReserva> {
+  if (supabaseFaltaEnProduccion) return { error: 'conexion' }
+  if (supabaseConfigurado) return editarReservaAdminRemota(id, cambios)
+
+  const guardadas = leer<ReservaGuardada[]>('reservas', []).map(normalizarReserva)
+  const reserva = guardadas.find((r) => r.id === id)
+  if (!reserva) return { error: 'no-existe' }
+
+  const choca = guardadas.some((r) =>
+    r.id !== id &&
+    r.estado !== 'cancelado' &&
+    chocan(r, {
+      canchaId: cambios.canchaId,
+      fecha: cambios.fecha,
+      inicio: cambios.inicio,
+      horas: cambios.horas,
+    })
+  )
+  if (choca) return { error: 'ocupado' }
+
+  const reservaActualizada: Reserva = {
+    ...reserva,
+    canchaId: cambios.canchaId,
+    fecha: cambios.fecha,
+    inicio: cambios.inicio,
+    horas: cambios.horas,
+    montoTotal: typeof cambios.montoTotal === 'number' ? cambios.montoTotal : reserva.montoTotal,
+    alias: cambios.alias?.trim() || reserva.alias,
+    celular: cambios.celular?.trim() || reserva.celular,
+  }
+
+  const actualizadas = guardadas.map((r) => (r.id === id ? reservaActualizada : r))
+  guardar('reservas', actualizadas)
+  return { reserva: reservaActualizada }
+}
+
 const clientes = (): Cliente[] => {
   const demoClientes = (demo as Array<Pick<Reserva, 'alias' | 'celular'>>).map(({ alias, celular }) => ({ alias, celular }))
   return [...demoClientes, ...leer<Cliente[]>('clientes', [])]
@@ -539,3 +653,10 @@ export function actualizarCliente(
 export const leerYo = (): Cliente | null => leer<Cliente | null>('yo', null)
 export const guardarYo = (cliente: Cliente | null): void => guardar('yo', cliente)
 export const olvidarYo = (): void => guardar('yo', null)
+
+export function confirmarPagoAdminLocal(pagoId: string): ResultadoPagoAdmin {
+  const guardadas = leer<ReservaGuardada[]>('reservas', []).map(normalizarReserva)
+  const actualizadas = guardadas.map((r) => r.id === pagoId ? { ...r, pagoEstado: 'confirmado' as const } : r)
+  guardar('reservas', actualizadas)
+  return {}
+}

@@ -1,5 +1,5 @@
-import { useEffect, useRef, useState } from 'react'
-import type { Campo, Reserva } from '../../types.js'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import type { BloqueoEvento, Campo, Reserva } from '../../types.js'
 import { crearBloqueoAccion } from '../../accionUnica'
 import {
   filtrarAlertasCanceladas,
@@ -13,6 +13,7 @@ import {
 export interface AdminAlarmaTurnoProps {
   reservas: readonly Reserva[]
   canchas: readonly Campo[]
+  eventos?: readonly BloqueoEvento[]
 }
 
 function horaVisible(fecha: Date): string {
@@ -39,7 +40,7 @@ function emitirTono(contexto: AudioContext): void {
   oscilador.stop(inicio + patronAlarma.duracion)
 }
 
-export default function AdminAlarmaTurno({ reservas, canchas }: AdminAlarmaTurnoProps) {
+export default function AdminAlarmaTurno({ reservas, canchas, eventos = [] }: AdminAlarmaTurnoProps) {
   const [alertas, setAlertas] = useState<Reserva[]>([])
   const [sonidoActivado, setSonidoActivado] = useState(false)
   const [mostrarPopupActivar, setMostrarPopupActivar] = useState(true)
@@ -49,13 +50,27 @@ export default function AdminAlarmaTurno({ reservas, canchas }: AdminAlarmaTurno
   const bloqueoSonido = useRef(crearBloqueoAccion())
   const bloqueoPrueba = useRef(crearBloqueoAccion())
 
+  const turnosCombinados = useMemo<Reserva[]>(() => {
+    const listaEventos: Reserva[] = (eventos ?? []).map((evento) => ({
+      id: `evento-${evento.id}`,
+      canchaId: evento.canchaId,
+      fecha: evento.fecha,
+      inicio: evento.inicio,
+      horas: evento.fin - evento.inicio,
+      alias: `Evento: ${evento.nombre}`,
+      celular: evento.celular,
+      estado: evento.estado === 'activo' ? 'activo' : 'cancelado',
+    }))
+    return [...reservas, ...listaEventos]
+  }, [reservas, eventos])
+
   useEffect(() => {
     const ahora = Date.now()
 
-    setAlertas((actuales) => filtrarAlertasCanceladas(actuales, reservas))
+    setAlertas((actuales) => filtrarAlertasCanceladas(actuales, turnosCombinados))
 
     // Las reservas que ya terminaron antes de abrir el panel no generan una alarma atrasada.
-    for (const reserva of reservas) {
+    for (const reserva of turnosCombinados) {
       if (reserva.estado !== 'cancelado' && finDeReserva(reserva).getTime() <= ahora) {
         emitidas.current.add(reserva.id)
       }
@@ -63,7 +78,7 @@ export default function AdminAlarmaTurno({ reservas, canchas }: AdminAlarmaTurno
 
     const revisarTurnos = () => {
       const instante = Date.now()
-      const terminadas = reservasTerminadasParaAlerta(reservas, emitidas.current, instante)
+      const terminadas = reservasTerminadasParaAlerta(turnosCombinados, emitidas.current, instante)
 
       if (terminadas.length === 0) return
 
@@ -76,7 +91,7 @@ export default function AdminAlarmaTurno({ reservas, canchas }: AdminAlarmaTurno
 
     const temporizador = window.setInterval(revisarTurnos, 1000)
     return () => window.clearInterval(temporizador)
-  }, [reservas])
+  }, [turnosCombinados])
 
   useEffect(() => {
     if (!sonidoActivado || alertas.length === 0) return undefined

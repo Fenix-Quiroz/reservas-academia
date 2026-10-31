@@ -30,6 +30,7 @@ const admin = [
   'src/components/admin/AdminAlarmaTurno.tsx',
   'src/components/admin/AdminControlClientes.tsx',
   'src/components/admin/AdminEventos.tsx',
+  'src/components/admin/AdminModalComprobante.tsx',
 ]
 
 for (const file of [...cliente, ...admin]) {

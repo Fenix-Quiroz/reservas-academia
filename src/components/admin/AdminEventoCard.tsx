@@ -1,12 +1,15 @@
-import { CalendarDays, CircleDollarSign, Clock3, FileText, LockKeyhole, MapPin, Phone } from 'lucide-react'
+import { Ban, CalendarDays, CheckCircle2, CircleDollarSign, Clock3, FileText, LockKeyhole, MapPin, Pencil, Phone } from 'lucide-react'
 import type { BloqueoEvento, Campo } from '../../types.js'
 import { horaVisible } from '../../utils/fechasReserva.js'
+import { eventoYaTermino } from '../../eventos.js'
 
 export interface AdminEventoCardProps {
   eventos: readonly BloqueoEvento[]
   canchas: readonly Campo[]
   procesando: boolean
   onCancel: (grupoId: string) => void | Promise<unknown>
+  onEditar?: (grupo: readonly BloqueoEvento[]) => void
+  ahora?: Date
 }
 
 function fechaVisible(fecha: string): string {
@@ -18,10 +21,12 @@ function fechaVisible(fecha: string): string {
   })
 }
 
-export default function AdminEventoCard({ eventos, canchas, procesando, onCancel }: AdminEventoCardProps) {
+export default function AdminEventoCard({ eventos, canchas, procesando, onCancel, onEditar, ahora = new Date() }: AdminEventoCardProps) {
   const evento = eventos[0]
   if (!evento) return null
 
+  const esCancelado = evento.estado === 'cancelado'
+  const concluido = !esCancelado && eventoYaTermino(evento, ahora)
   const tituloId = `evento-agenda-${evento.id}`
   const nombresCampos = eventos.map((eventoCampo) => (
     canchas.find((cancha) => cancha.id === eventoCampo.canchaId)?.nombre ?? `Campo ${eventoCampo.canchaId}`
@@ -31,7 +36,10 @@ export default function AdminEventoCard({ eventos, canchas, procesando, onCancel
     : `${nombresCampos.slice(0, -1).join(', ')} y ${nombresCampos[nombresCampos.length - 1]}`
 
   return (
-    <article className="admin-evento-agenda" aria-labelledby={tituloId}>
+    <article
+      className={`admin-evento-agenda${esCancelado ? ' admin-evento-cancelado' : concluido ? ' admin-evento-concluido' : ''}`}
+      aria-labelledby={tituloId}
+    >
       <div className="admin-evento-agenda-principal">
         <div className="admin-evento-agenda-cabecera">
           <div className="admin-evento-agenda-icono" aria-hidden="true">
@@ -85,19 +93,56 @@ export default function AdminEventoCard({ eventos, canchas, procesando, onCancel
       </div>
 
       <aside className="admin-evento-agenda-aside">
-        <span className="admin-evento-agenda-bloqueo">
-          <LockKeyhole size={16} aria-hidden="true" />
-          Bloqueo activo
-        </span>
-        <p className="admin-evento-agenda-ayuda">Este horario está bloqueado para reservas públicas.</p>
-        <button
-          className="admin-evento-agenda-cancelar"
-          type="button"
-          disabled={procesando}
-          onClick={() => void onCancel(evento.grupoId ?? evento.id)}
-        >
-          {procesando ? 'Cancelando…' : 'Cancelar evento'}
-        </button>
+        {esCancelado ? (
+          <>
+            <span className="admin-evento-agenda-cancelado-badge">
+              <Ban size={16} aria-hidden="true" />
+              Evento cancelado
+            </span>
+            <p className="admin-evento-agenda-ayuda">Este evento fue cancelado. El horario está libre para reservas públicas.</p>
+          </>
+        ) : concluido ? (
+          <>
+            <span className="admin-evento-agenda-concluido-badge">
+              <CheckCircle2 size={16} aria-hidden="true" />
+              Evento concluido
+            </span>
+            <p className="admin-evento-agenda-ayuda">Este evento ya finalizó y está registrado en el balance mensual.</p>
+          </>
+        ) : (
+          <>
+            <span className="admin-evento-agenda-bloqueo">
+              <LockKeyhole size={16} aria-hidden="true" />
+              Bloqueo activo
+            </span>
+            <p className="admin-evento-agenda-ayuda">Este horario está bloqueado para reservas públicas.</p>
+          </>
+        )}
+        {!esCancelado && (
+          <div className="admin-evento-agenda-botones">
+            {onEditar && (
+              <button
+                className="admin-evento-agenda-editar"
+                type="button"
+                disabled={procesando}
+                onClick={() => onEditar(eventos)}
+              >
+                <Pencil size={15} aria-hidden="true" />
+                <span>Editar evento</span>
+              </button>
+            )}
+            {!concluido && (
+              <button
+                className="admin-evento-agenda-cancelar"
+                type="button"
+                disabled={procesando}
+                onClick={() => void onCancel(evento.grupoId ?? evento.id)}
+              >
+                {procesando ? 'Cancelando…' : 'Cancelar evento'}
+              </button>
+            )}
+          </div>
+        )}
       </aside>
     </article>
   )

@@ -1,4 +1,6 @@
 import { rangoHablado } from './reservas.js'
+import { eventoYaTermino } from './eventos.js'
+export { eventoYaTermino } from './eventos.js'
 import type { BloqueoEvento, Campo, Reserva, TipoEventoEspecial } from './types.js'
 
 export interface BalancePorCampo {
@@ -43,6 +45,7 @@ export interface BalanceEventoEspecial {
   campo: string
   tipo: TipoEventoEspecial
   horario: string
+  horas: number
   evento: string
   celular: string
   notas: string
@@ -69,11 +72,6 @@ function diaVisible(fecha: string): string {
   return new Date(`${fecha}T12:00:00`).toLocaleDateString('es-PE', { weekday: 'long' })
 }
 
-function eventoYaTermino(evento: Pick<BloqueoEvento, 'fecha' | 'fin'>, ahora: Date): boolean {
-  const mediodiaLima = new Date(`${evento.fecha}T12:00:00-05:00`)
-  mediodiaLima.setUTCHours(mediodiaLima.getUTCHours() + evento.fin - 12)
-  return mediodiaLima <= ahora
-}
 
 export function mesActual(ahora: Date = new Date()): string {
   const mes = String(ahora.getMonth() + 1).padStart(2, '0')
@@ -118,41 +116,6 @@ export function construirBalanceMensual(
     }
   })
 
-  const porCampo = canchas
-    .map((cancha) => {
-      const filas = detalle.filter((fila) => fila.campo === cancha.nombre)
-      return {
-        campoId: cancha.id,
-        campo: cancha.nombre,
-        deporte: cancha.deporte,
-        reservas: filas.length,
-        horas: filas.reduce((total, fila) => total + fila.horas, 0),
-        ingresos: redondear(filas.reduce((total, fila) => total + fila.monto, 0)),
-      }
-    })
-    .filter((fila) => fila.horas > 0 || fila.ingresos > 0)
-
-  const porDiaMap = new Map<string, BalancePorDia>()
-  for (const fila of detalle) {
-    const clave = `${fila.fecha}:${fila.campoId}`
-    const actual = porDiaMap.get(clave)
-    if (actual) {
-      actual.reservas += 1
-      actual.horas += fila.horas
-      actual.ingresos = redondear(actual.ingresos + fila.monto)
-    } else {
-      porDiaMap.set(clave, {
-        fecha: fila.fecha,
-        dia: fila.dia,
-        campoId: fila.campoId,
-        campo: fila.campo,
-        reservas: 1,
-        horas: fila.horas,
-        ingresos: fila.monto,
-      })
-    }
-  }
-
   const gruposEventos = new Map<string, BloqueoEvento[]>()
   for (const evento of eventos) {
     if (evento.estado !== 'activo' || !evento.fecha.startsWith(`${mes}-`) || !eventoYaTermino(evento, ahora)) continue
@@ -177,6 +140,7 @@ export function construirBalanceMensual(
         campo,
         tipo,
         horario: rangoHablado(principal.inicio, principal.fin - principal.inicio),
+        horas: principal.fin - principal.inicio,
         evento: principal.nombre,
         celular: principal.celular,
         notas: principal.notas,
@@ -187,6 +151,73 @@ export function construirBalanceMensual(
     })
     .filter((evento): evento is BalanceEventoEspecial => evento !== null)
     .sort((a, b) => a.fecha.localeCompare(b.fecha) || a.horario.localeCompare(b.horario) || a.id.localeCompare(b.id))
+
+  const porDiaMap = new Map<string, BalancePorDia>()
+  for (const fila of detalle) {
+    const clave = `${fila.fecha}:${fila.campoId}`
+    const actual = porDiaMap.get(clave)
+    if (actual) {
+      actual.reservas += 1
+      actual.horas = Math.round((actual.horas + fila.horas) * 10) / 10
+      actual.ingresos = redondear(actual.ingresos + fila.monto)
+    } else {
+      porDiaMap.set(clave, {
+        fecha: fila.fecha,
+        dia: fila.dia,
+        campoId: fila.campoId,
+        campo: fila.campo,
+        reservas: 1,
+        horas: fila.horas,
+        ingresos: fila.monto,
+      })
+    }
+  }
+
+  for (const ev of eventosEspeciales) {
+    const canchasAfectadas = ev.canchaIds.length || 1
+    const precioPorCancha = redondear(ev.precio / canchasAfectadas)
+    for (const canchaId of ev.canchaIds) {
+      const cancha = canchas.find((c) => c.id === canchaId)
+      const nombreCancha = cancha?.nombre ?? `Campo ${canchaId}`
+      const clave = `${ev.fecha}:${canchaId}`
+      const actual = porDiaMap.get(clave)
+      if (actual) {
+        actual.reservas += 1
+        actual.horas = Math.round((actual.horas + ev.horas) * 10) / 10
+        actual.ingresos = redondear(actual.ingresos + precioPorCancha)
+      } else {
+        porDiaMap.set(clave, {
+          fecha: ev.fecha,
+          dia: ev.dia,
+          campoId: canchaId,
+          campo: nombreCancha,
+          reservas: 1,
+          horas: ev.horas,
+          ingresos: precioPorCancha,
+        })
+      }
+    }
+  }
+
+  const porCampo = canchas
+    .map((cancha) => {
+      const filas = detalle.filter((fila) => fila.campoId === cancha.id)
+      const eventosCancha = eventosEspeciales.filter((ev) => ev.canchaIds.includes(cancha.id))
+      const horasEventos = eventosCancha.reduce((total, ev) => total + ev.horas, 0)
+      const ingresosEventos = redondear(
+        eventosCancha.reduce((total, ev) => total + (ev.precio / (ev.canchaIds.length || 1)), 0),
+      )
+
+      return {
+        campoId: cancha.id,
+        campo: cancha.nombre,
+        deporte: cancha.deporte,
+        reservas: filas.length + eventosCancha.length,
+        horas: Math.round((filas.reduce((total, fila) => total + fila.horas, 0) + horasEventos) * 10) / 10,
+        ingresos: redondear(filas.reduce((total, fila) => total + fila.monto, 0) + ingresosEventos),
+      }
+    })
+    .filter((fila) => fila.horas > 0 || fila.ingresos > 0)
 
   return {
     mes,

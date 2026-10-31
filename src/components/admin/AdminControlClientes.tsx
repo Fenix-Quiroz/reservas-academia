@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import type { FormEvent } from 'react'
+import { UserCheck, UserX } from 'lucide-react'
 import type {
   NumeroBloqueado,
   NumeroConfiable,
@@ -129,8 +130,9 @@ export default function AdminControlClientes({
                 onChange={(evento) => setMotivo(evento.target.value)}
               />
             </label>
-            <button className="admin-boton admin-control-primario" type="submit" disabled={procesando}>
-              Bloquear número
+            <button className="admin-boton admin-control-primario admin-control-guardar" type="submit" disabled={procesando}>
+              <UserX size={20} strokeWidth={2.5} aria-hidden="true" />
+              <span>{procesando ? 'Guardando…' : 'Bloquear número'}</span>
             </button>
           </form>
           <div className="admin-control-lista" aria-live="polite">
@@ -183,8 +185,9 @@ export default function AdminControlClientes({
                 onChange={(evento) => setAliasConfiable(evento.target.value)}
               />
             </label>
-            <button className="admin-boton admin-control-primario" type="submit" disabled={procesando}>
-              Agregar confiable
+            <button className="admin-boton admin-control-primario admin-control-guardar" type="submit" disabled={procesando}>
+              <UserCheck size={20} strokeWidth={2.5} aria-hidden="true" />
+              <span>{procesando ? 'Guardando…' : 'Agregar confiable'}</span>
             </button>
           </form>
           <div className="admin-control-lista" aria-live="polite">

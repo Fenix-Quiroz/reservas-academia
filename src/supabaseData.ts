@@ -1,6 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
-import type { BloqueoEvento, Cliente, ComprobanteAdmin, EstadoPago, EstadoReserva, Reserva, ReservaNueva } from './types.js'
-import { validarBloqueoEvento, validarEventoEspecial, type BloqueoEventoNuevo, type DetalleEntrenamiento, type ErrorEventoResultado, type EventoEspecialNuevo, type ResultadoCancelacionEvento, type ResultadoEvento, type ResultadoEventoEspecial } from './eventos.js'
+import type { BloqueoEvento, CambiosReservaAdmin, Cliente, ComprobanteAdmin, EstadoPago, EstadoReserva, Reserva, ReservaNueva, ResultadoEditarReserva } from './types.js'
+import { validarBloqueoEvento, validarEventoEspecial, type BloqueoEventoNuevo, type DetalleEntrenamiento, type ErrorEventoResultado, type EventoEspecialNuevo, type EventoEspecialActualizado, type ResultadoCancelacionEvento, type ResultadoEvento, type ResultadoEventoEspecial } from './eventos.js'
 import type {
   NumeroBloqueado,
   NumeroConfiable,
@@ -169,6 +169,17 @@ export function errorDeSupabaseEvento(error?: ErrorSupabase): ErrorEventoResulta
       : undefined
     return detalle ? { error: 'entrenamiento-ocupado', entrenamiento: detalle } : { error: 'entrenamiento-ocupado' }
   }
+  const ocupadoReserva = mensaje.match(/evento_ocupado_reserva:(\d+):([0-9.]+):(.+)/)
+  if (ocupadoReserva) {
+    return {
+      error: 'ocupado',
+      detalleReserva: {
+        canchaId: Number(ocupadoReserva[1]),
+        inicio: Number(ocupadoReserva[2]),
+        cliente: ocupadoReserva[3].trim(),
+      },
+    }
+  }
   if (error?.code === '23P01' || mensaje.includes('evento_ocupado')) return { error: 'ocupado' }
   if (error?.code === '22023' && mensaje.includes('evento_invalido')) return { error: 'datos-invalidos' }
   if (mensaje.includes('no_existe')) return { error: 'no-existe' }
@@ -248,13 +259,67 @@ export function nombreDescargaComprobante(storagePath: string): string {
   return `comprobante-pago.${extension}`
 }
 
+const cacheUrlsFirmadas = new Map<string, { url: string; expiraEn: number }>()
+const promesasUrlsFirmadas = new Map<string, Promise<string>>()
+
+export function obtenerUrlComprobanteCacheada(storagePath: string): string | null {
+  const entrada = cacheUrlsFirmadas.get(storagePath)
+  if (entrada && entrada.expiraEn > Date.now() + 60_000) {
+    return entrada.url
+  }
+  return null
+}
+
 export async function crearUrlComprobanteAdminRemota(storagePath: string, descargar = false): Promise<string> {
+  if (!descargar) {
+    const cacheada = obtenerUrlComprobanteCacheada(storagePath)
+    if (cacheada) return cacheada
+
+    const promesaEnCurso = promesasUrlsFirmadas.get(storagePath)
+    if (promesaEnCurso) return promesaEnCurso
+  }
+
+  const duracionSegundos = 900
   const opciones = descargar ? { download: nombreDescargaComprobante(storagePath) } : undefined
-  const { data, error } = await clienteSupabase().storage
-    .from('comprobantes-pago')
-    .createSignedUrl(storagePath, 300, opciones)
-  if (error || !data?.signedUrl) throw error ?? new Error('url-comprobante-no-creada')
-  return data.signedUrl
+
+  const ejecutarFirma = async (): Promise<string> => {
+    const { data, error } = await clienteSupabase().storage
+      .from('comprobantes-pago')
+      .createSignedUrl(storagePath, duracionSegundos, opciones)
+    if (error || !data?.signedUrl) throw error ?? new Error('url-comprobante-no-creada')
+
+    if (!descargar) {
+      cacheUrlsFirmadas.set(storagePath, {
+        url: data.signedUrl,
+        expiraEn: Date.now() + (duracionSegundos - 60) * 1000,
+      })
+    }
+    return data.signedUrl
+  }
+
+  if (descargar) {
+    return ejecutarFirma()
+  }
+
+  const promesa = ejecutarFirma().finally(() => {
+    promesasUrlsFirmadas.delete(storagePath)
+  })
+  promesasUrlsFirmadas.set(storagePath, promesa)
+  return promesa
+}
+
+export async function precalentarComprobanteAdminRemoto(storagePath: string): Promise<string | null> {
+  try {
+    const url = await crearUrlComprobanteAdminRemota(storagePath, false)
+    if (typeof window !== 'undefined' && url) {
+      const img = new Image()
+      img.decoding = 'async'
+      img.src = url
+    }
+    return url
+  } catch {
+    return null
+  }
 }
 
 export async function confirmarPagoAdminRemoto(pagoId: string): Promise<ResultadoPagoAdmin> {
@@ -522,6 +587,27 @@ export async function crearEventoEspecialRemoto(nuevo: EventoEspecialNuevo): Pro
   return eventos.length > 0 ? { eventos } : { error: 'conexion' }
 }
 
+export async function actualizarEventoEspecialRemoto(actualizado: EventoEspecialActualizado): Promise<ResultadoEventoEspecial> {
+  const { data, error } = await clienteSupabase().rpc('actualizar_evento_especial_admin', {
+    p_evento_especial_id: actualizado.grupoId,
+    p_fecha: actualizado.fecha,
+    p_inicio: actualizado.inicio,
+    p_fin: actualizado.fin,
+    p_nombre: actualizado.nombre.trim(),
+    p_celular: actualizado.celular.trim(),
+    p_notas: actualizado.notas.trim(),
+    p_precio_cobrado: actualizado.precioCobrado,
+  })
+  if (error) return errorDeSupabaseEvento(error)
+  const filas = (Array.isArray(data) ? data : data ? [data] : []) as FilaBloqueoEvento[]
+  const precioCobrado = Math.round(actualizado.precioCobrado * 100) / 100
+  const eventos = filas.map((fila) => ({
+    ...deBloqueoEvento(fila),
+    precioCobrado,
+  }))
+  return eventos.length > 0 ? { eventos } : { error: 'conexion' }
+}
+
 export async function cancelarBloqueoEventoRemoto(id: string): Promise<ResultadoCancelacionEvento> {
   const { data, error } = await clienteSupabase().rpc('cancelar_bloqueo_evento_admin', { p_id: id })
   if (error) return { error: errorDeSupabaseEvento(error).error }
@@ -569,6 +655,60 @@ export async function actualizarEstadoReservaRemota(id: string, estado: EstadoRe
   return actualizada ? {} : { error: 'estado-invalido' }
 }
 
+export async function editarReservaAdminRemota(
+  id: string,
+  cambios: CambiosReservaAdmin,
+): Promise<ResultadoEditarReserva> {
+  const cliente = clienteSupabase()
+  const { data: existente, error: lecturaError } = await cliente
+    .from('reservas')
+    .select('id, cancha_id, fecha, inicio, horas, alias, celular, estado, monto_total, pago_estado')
+    .eq('id', id)
+    .maybeSingle()
+
+  if (lecturaError) return { error: 'conexion' }
+  if (!existente) return { error: 'no-existe' }
+
+  const reserva = deReserva(existente as FilaReserva)
+  if (reserva.estado === 'cancelado' || reserva.estado === 'finalizado') {
+    return { error: 'datos-invalidos' }
+  }
+
+  const payload: Record<string, unknown> = {
+    cancha_id: cambios.canchaId,
+    fecha: cambios.fecha,
+    inicio: cambios.inicio,
+    horas: cambios.horas,
+  }
+
+  if (typeof cambios.montoTotal === 'number' && Number.isFinite(cambios.montoTotal)) {
+    payload.monto_total = cambios.montoTotal
+  }
+  if (cambios.alias?.trim()) {
+    payload.alias = cambios.alias.trim()
+  }
+  if (cambios.celular?.trim()) {
+    payload.celular = cambios.celular.trim()
+  }
+
+  const { data: actualizada, error } = await cliente
+    .from('reservas')
+    .update(payload)
+    .eq('id', id)
+    .select('id, cancha_id, fecha, inicio, horas, alias, celular, estado, monto_total, pago_estado')
+    .maybeSingle()
+
+  if (error) {
+    if (error.code === '23P01' || error.message?.includes('reservas_disponibilidad_excl') || error.message?.includes('exclude')) {
+      return { error: 'ocupado' }
+    }
+    return { error: 'conexion' }
+  }
+
+  if (!actualizada) return { error: 'no-existe' }
+  return { reserva: deReserva(actualizada as FilaReserva) }
+}
+
 export function suscribirseAReservas(alCambiar: () => void): () => void {
   if (!supabase) return () => {}
 
@@ -586,6 +726,7 @@ export function suscribirseAReservas(alCambiar: () => void): () => void {
     .on('postgres_changes', { event: '*', schema: 'public', table: 'reservas' }, notificarCambio)
     .on('postgres_changes', { event: '*', schema: 'public', table: 'pagos_reserva' }, notificarCambio)
     .on('postgres_changes', { event: '*', schema: 'public', table: 'pago_comprobantes' }, notificarCambio)
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'bloqueos_eventos' }, notificarCambio)
     .subscribe()
 
   return () => {

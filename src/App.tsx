@@ -12,9 +12,17 @@ import {
   leerYo, guardarYo, olvidarYo, leerBloqueosEventos, leerNumerosBloqueados, leerNumerosConfiables,
 } from './almacen'
 import { supabaseFaltaEnProduccion, supabaseConfigurado } from './supabase'
-import { leerHorariosRemotos, leerMisReservasRemotas, precalentarRegistrarAdelantoYapeRemoto, registrarAdelantoYapeRemoto, verificarNumeroConfiableRemoto } from './supabaseData'
+import {
+  cancelarReservaPublicaRemota,
+  leerHorariosRemotos,
+  leerMisReservasRemotas,
+  precalentarRegistrarAdelantoYapeRemoto,
+  registrarAdelantoYapeRemoto,
+  suscribirseAReservas,
+  verificarNumeroConfiableRemoto,
+} from './supabaseData'
 import type { ErrorReserva, ResultadoCancelacion, ResultadoCliente, ResultadoPago } from './supabaseData'
-import { validarComprobante } from './pagos'
+import { optimizarComprobante, validarComprobante } from './pagos'
 import type { BloqueoEvento, Campo, Cliente, Reserva } from './types.js'
 import { borrarBorradorReserva, guardarBorradorReserva, leerBorradorReserva } from './borradorReserva'
 import type { EtapaHorario, TurnoHorario } from './borradorReserva'
@@ -63,6 +71,8 @@ export default function App() {
   const ultimaCargaMias = useRef('')
   const ultimaSincronizacionMias = useRef(0)
   const sincronizarMiasRef = useRef<(() => void) | null>(null)
+  const reservaPendienteRef = useRef<{ reserva: Reserva; token?: string } | null>(null)
+  const retrocediendoRef = useRef(false)
   const tokens = leerTokensReservas(yo?.celular)
   const claveTokens = tokens.join('|')
   const mias = supabaseConfigurado
@@ -74,6 +84,7 @@ export default function App() {
   useEffect(() => {
     if (paso === 1 || paso === 4) {
       borrarBorradorReserva()
+                reservaPendienteRef.current = null
       return
     }
     if ((paso !== 2 && paso !== 3) || !cancha) return
@@ -102,6 +113,14 @@ export default function App() {
     return () => {
       window.removeEventListener('storage', alCambiar)
     }
+  }, [])
+
+  useEffect(() => {
+    if (!supabaseConfigurado) return undefined
+    return suscribirseAReservas(() => {
+      sincronizarMiasRef.current?.()
+      setIntentoCarga((n) => n + 1)
+    })
   }, [])
 
   useEffect(() => {
@@ -206,6 +225,7 @@ export default function App() {
 
   function reiniciar(): void {
     borrarBorradorReserva()
+    reservaPendienteRef.current = null
     setPaso(1)
     setCancha(null)
     setDia(0)
@@ -248,6 +268,9 @@ export default function App() {
       if ('token' in r && r.token) {
         guardarTokenReserva(r.reserva.id, r.token, cliente.celular)
       }
+      if ('reserva' in r && r.reserva.pagoEstado === 'pendiente') {
+        reservaPendienteRef.current = { reserva: r.reserva, token: r.token }
+      }
       if (!supabaseConfigurado) setReservas(leerReservas())
       if ('error' in r && r.error === 'ocupado') {
         let actuales = horariosDisponibles
@@ -288,7 +311,8 @@ export default function App() {
     if (errorArchivo) return { error: 'archivo-invalido' }
     if (supabaseConfigurado) {
       if (!token) return { error: 'reserva-no-autorizada' }
-      return registrarAdelantoYapeRemoto(reserva.id, token, comprobante, idempotencia)
+      const archivoListo = await optimizarComprobante(comprobante)
+      return registrarAdelantoYapeRemoto(reserva.id, token, archivoListo, idempotencia)
     }
     return {}
   }
@@ -326,6 +350,32 @@ export default function App() {
     })
   }
 
+  async function retroceder(): Promise<void> {
+    if (retrocediendoRef.current) return
+    retrocediendoRef.current = true
+    try {
+      if (paso === 3 && reservaPendienteRef.current) {
+        const pendiente = reservaPendienteRef.current
+                  reservaPendienteRef.current = null
+        try {
+          if (supabaseConfigurado && pendiente.token) {
+            await cancelarReservaPublicaRemota(pendiente.reserva.id, pendiente.token)
+          } else {
+            await Promise.resolve(cancelarReserva(pendiente.reserva.id, pendiente.reserva.celular))
+          }
+          eliminarTokenReserva(pendiente.reserva.id)
+          if (!supabaseConfigurado) setReservas(leerReservas())
+        } catch {
+          // En caso de fallo de red al cancelar, el TTL de 30m de Supabase actúa como salvaguarda
+        }
+        setIntentoCarga((n) => n + 1)
+      }
+      setPaso((p) => Math.max(1, p - 1))
+    } finally {
+      retrocediendoRef.current = false
+    }
+  }
+
   if (supabaseFaltaEnProduccion) {
     return (
       <div className="app">
@@ -344,7 +394,7 @@ export default function App() {
         paso={paso}
         yo={yo}
         cantidadReservas={mias.filter((r) => activa(r)).length}
-        onBack={() => (verMias ? setVerMias(false) : setPaso(paso - 1))}
+        onBack={() => (verMias ? setVerMias(false) : void retroceder())}
         onViewBookings={() => setVerMias(true)}
       />
 
@@ -385,7 +435,7 @@ export default function App() {
       ) : (
         <main className={paso === 1 ? 'main-campos' : paso === 2 ? (inicio === null ? 'main-horario' : 'main-horario tiene-hora-seleccionada') : paso === 3 ? 'main-datos' : paso === 4 ? 'main-completada' : undefined} aria-busy={cargandoHorarios || cargandoMias}>
           {paso > 1 && paso < 4 && (
-            <button className="navegacion-paso solo-movil" onClick={() => setPaso(paso - 1)}>
+            <button className="navegacion-paso solo-movil" onClick={() => void retroceder()}>
               ← Atrás
             </button>
           )}
@@ -455,10 +505,11 @@ export default function App() {
               yo={yo}
               onRememberClient={recordarCliente}
               onForgetClient={olvidarCliente}
-              onBack={() => setPaso(2)}
+              onBack={() => void retroceder()}
               onViewBookings={() => setVerMias(true)}
               onReserved={(r) => {
                 borrarBorradorReserva()
+                reservaPendienteRef.current = null
                 setHecha(r)
                 setPaso(4)
               }}

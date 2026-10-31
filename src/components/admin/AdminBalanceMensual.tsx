@@ -1,26 +1,47 @@
 import { useMemo, useRef, useState } from 'react'
+import { Download, FileText } from 'lucide-react'
 import type { BloqueoEvento, Campo, Reserva } from '../../types.js'
 import reservasDemoJson from '../../data/reservasBalanceDemo.json'
+import eventosDemoJson from '../../data/eventosBalanceDemo.json'
 import { construirBalanceMensual, mesActual } from '../../balanceMensual.js'
 import { descargarBalanceMensual } from '../../exportarBalance.js'
+import { descargarBalanceTexto } from '../../exportarBalanceTexto.js'
 import { crearBloqueoAccion } from '../../accionUnica'
 
 export interface AdminBalanceMensualProps {
   reservas: readonly Reserva[]
   canchas: readonly Campo[]
   eventos: readonly BloqueoEvento[]
+  esModoDemo?: boolean
 }
 
 const reservasBalanceDemo = reservasDemoJson as readonly Reserva[]
+const eventosBalanceDemo = eventosDemoJson as readonly BloqueoEvento[]
 
-export default function AdminBalanceMensual({ reservas, canchas, eventos }: AdminBalanceMensualProps) {
+export default function AdminBalanceMensual({ reservas, canchas, eventos, esModoDemo: modoDemoProp }: AdminBalanceMensualProps) {
   const [mes, setMes] = useState(mesActual)
   const [descargando, setDescargando] = useState(false)
+  const [descargandoTexto, setDescargandoTexto] = useState(false)
   const [errorDescarga, setErrorDescarga] = useState('')
   const bloqueoDescarga = useRef(crearBloqueoAccion())
-  const esModoDemo = import.meta.env.DEV || import.meta.env.VITE_BALANCE_DEMO === 'true'
+  const esModoDemo = modoDemoProp ?? (import.meta.env.VITE_BALANCE_DEMO === 'true' || (import.meta.env.DEV && !reservas.some((r) => !r.id.startsWith('demo-'))))
   const reservasParaBalance = esModoDemo ? reservasBalanceDemo : reservas
-  const balance = useMemo(() => construirBalanceMensual(mes, reservasParaBalance, canchas, eventos), [mes, reservasParaBalance, canchas, eventos])
+  const eventosParaBalance = esModoDemo ? eventosBalanceDemo : eventos
+  const balance = useMemo(() => construirBalanceMensual(mes, reservasParaBalance, canchas, eventosParaBalance), [mes, reservasParaBalance, canchas, eventosParaBalance])
+
+  function descargarTexto(): void {
+    if (!bloqueoDescarga.current.adquirir()) return
+    setErrorDescarga('')
+    setDescargandoTexto(true)
+    try {
+      descargarBalanceTexto(balance, canchas)
+    } catch {
+      setErrorDescarga('No pudimos descargar el reporte de texto. Inténtalo de nuevo.')
+    } finally {
+      setDescargandoTexto(false)
+      bloqueoDescarga.current.liberar()
+    }
+  }
 
   async function descargar(): Promise<void> {
     if (!bloqueoDescarga.current.adquirir()) return
@@ -57,12 +78,22 @@ export default function AdminBalanceMensual({ reservas, canchas, eventos }: Admi
             onChange={(evento) => setMes(evento.target.value || mesActual())}
           />
           <button
-            className="admin-boton admin-balance-descargar"
+            className="admin-boton admin-control-primario admin-balance-descargar"
             type="button"
             onClick={() => void descargar()}
-            disabled={descargando}
+            disabled={descargando || descargandoTexto}
           >
-            {descargando ? 'Preparando balance…' : 'Descargar balance mensual'}
+            <Download size={20} strokeWidth={2.5} aria-hidden="true" />
+            <span>{descargando ? 'Preparando balance…' : 'Descargar Excel'}</span>
+          </button>
+          <button
+            className="admin-boton admin-balance-descargar-txt"
+            type="button"
+            onClick={() => void descargarTexto()}
+            disabled={descargando || descargandoTexto}
+          >
+            <FileText size={20} strokeWidth={2.5} aria-hidden="true" />
+            <span>{descargandoTexto ? 'Preparando texto…' : 'Descargar texto (.txt)'}</span>
           </button>
         </div>
       </div>

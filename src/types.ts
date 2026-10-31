@@ -65,6 +65,19 @@ export interface BloqueoEvento {
 
 export type ReservaNueva = Omit<Reserva, 'id' | 'estado'>
 
+export interface CambiosReservaAdmin {
+  canchaId: number
+  fecha: string
+  inicio: number
+  horas: number
+  montoTotal?: number
+  alias?: string
+  celular?: string
+}
+
+export type ErrorEdicionReserva = 'no-existe' | 'ocupado' | 'datos-invalidos' | 'conexion'
+export type ResultadoEditarReserva = { reserva: Reserva } | { error: ErrorEdicionReserva }
+
 export type VistaAdmin = 'proximas' | 'en-curso' | 'por-revisar' | 'historial' | 'finalizadas' | 'no-asistieron' | 'canceladas' | 'todas'
 export type FiltroFecha = 'todas' | string
 export type FiltroCancha = 'todas' | number | string

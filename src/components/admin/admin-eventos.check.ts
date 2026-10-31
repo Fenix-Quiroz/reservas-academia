@@ -24,6 +24,13 @@ assert.match(adminEventoCard, /eventos: readonly BloqueoEvento\[\]/)
 assert.match(adminEventoCard, /const textoCampos/)
 assert.match(adminEventoCard, /onCancel: \(grupoId: string\)/)
 assert.match(adminEventoCard, /evento\.grupoId \?\? evento\.id/)
+assert.match(adminEventoCard, /Evento concluido/)
+assert.match(adminEventoCard, /admin-evento-agenda-concluido-badge/)
+assert.match(adminEventos, /Eventos activos/)
+assert.match(adminEventos, /Eventos finalizados/)
+assert.match(adminEventos, /Cancelados/)
+assert.match(adminEventoCard, /Evento cancelado/)
+assert.match(adminEventoCard, /admin-evento-agenda-cancelado-badge/)
 
 const eventoBase: BloqueoEvento = {
   id: 'campo-1',

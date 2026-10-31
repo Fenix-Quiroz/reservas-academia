@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { BarChart3, CalendarDays, Home, Star, Users } from 'lucide-react'
 
-type SeccionAdmin = 'admin-inicio' | 'admin-agenda' | 'admin-reservas-especiales' | 'admin-clientes' | 'admin-balance'
+type SeccionAdmin = 'admin-inicio' | 'admin-agenda' | 'admin-reservas-especiales' | 'admin-balance' | 'admin-clientes'
 
 interface ItemNavegacion {
   id: SeccionAdmin
@@ -13,8 +13,8 @@ const ITEMS_NAVEGACION: readonly ItemNavegacion[] = [
   { id: 'admin-inicio', etiqueta: 'Inicio', Icono: Home },
   { id: 'admin-agenda', etiqueta: 'Agenda', Icono: CalendarDays },
   { id: 'admin-reservas-especiales', etiqueta: 'Reservas especiales', Icono: Star },
-  { id: 'admin-clientes', etiqueta: 'Clientes', Icono: Users },
   { id: 'admin-balance', etiqueta: 'Balance mensual', Icono: BarChart3 },
+  { id: 'admin-clientes', etiqueta: 'Clientes', Icono: Users },
 ]
 
 const POSICION_ACTIVA = 180
@@ -63,6 +63,9 @@ export default function AdminNavegacion() {
 
   return (
     <nav className="admin-navegacion" aria-label="Secciones del panel">
+      <div className="admin-navegacion-cabecera">
+        <span className="admin-navegacion-titulo">Menú</span>
+      </div>
       <div className="admin-navegacion-contenido">
         {ITEMS_NAVEGACION.map(({ id, etiqueta, Icono }) => (
           <a
@@ -72,7 +75,7 @@ export default function AdminNavegacion() {
             aria-current={activa === id ? 'page' : undefined}
             onClick={(evento) => navegar(evento, id)}
           >
-            <Icono size={22} strokeWidth={2.4} aria-hidden="true" />
+            <Icono size={20} strokeWidth={2.4} aria-hidden="true" />
             <span>{etiqueta}</span>
           </a>
         ))}

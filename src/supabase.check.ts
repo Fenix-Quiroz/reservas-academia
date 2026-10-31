@@ -87,6 +87,9 @@ const paymentStatusFix = fs.readFileSync(paymentStatusFixUrl, 'utf8')
 const paymentAdminFixUrl = new URL('../supabase/fix-pagos-admin.sql', import.meta.url)
 assert.equal(fs.existsSync(paymentAdminFixUrl), true, 'Debe existir la migración de comprobantes para administración')
 const paymentAdminFix = fs.readFileSync(paymentAdminFixUrl, 'utf8')
+const eventosCampoVoleyFixUrl = new URL('../supabase/fix-eventos-campo-voley.sql', import.meta.url)
+assert.equal(fs.existsSync(eventosCampoVoleyFixUrl), true, 'Debe existir la migración de eventos para Campo 4 Vóley')
+const eventosCampoVoleyFix = fs.readFileSync(eventosCampoVoleyFixUrl, 'utf8')
 const dateRangeSql = [schema, permissions, horariosAcademiaFix, horariosMediaHoraFix, priceFix, pgcryptoFix, serverRateLimitFix]
 const supabaseConfig = fs.readFileSync(new URL('./supabase.ts', import.meta.url), 'utf8')
 const app = fs.readFileSync(new URL('./App.tsx', import.meta.url), 'utf8')
@@ -94,7 +97,7 @@ const adminApp = fs.readFileSync(new URL('./AdminApp.tsx', import.meta.url), 'ut
 const almacen = fs.readFileSync(new URL('./almacen.ts', import.meta.url), 'utf8')
 const supabaseData = fs.readFileSync(new URL('./supabaseData.ts', import.meta.url), 'utf8')
 const readme = fs.readFileSync(new URL('../README.md', import.meta.url), 'utf8')
-const desbloquearNumeroRemoto = supabaseData.match(/export async function desbloquearNumeroRemoto\([\s\S]*?\n}\n/)?.[0] ?? ''
+const desbloquearNumeroRemoto = supabaseData.match(/export async function desbloquearNumeroRemoto\([\s\S]*?\r?\n}\r?\n/)?.[0] ?? ''
 const crearReservaSql = schema.match(/create or replace function public\.crear_reserva_publica\([\s\S]*?\$function\$/)?.[0] ?? ''
 const crearReservaPermissionsSql = permissions.match(/create or replace function public\.crear_reserva_publica\([\s\S]*?\$function\$/)?.[0] ?? ''
 assert.match(schema, /clientes_celular_key/)
@@ -162,6 +165,9 @@ assert.match(eventosEspecialesGruposFix, /evento_especial_id uuid/)
 assert.match(eventosEspecialesGruposFix, /create or replace function public\.obtener_bloqueos_eventos_admin\(/)
 assert.match(eventosEspecialesGruposFix, /create or replace function public\.crear_evento_especial_admin\(/)
 assert.match(eventosEspecialesGruposFix, /create or replace function public\.cancelar_evento_especial_admin\(/)
+for (const sql of [schema, permissions, eventosCampoVoleyFix]) {
+  assert.match(sql, /cancha_id not between 1 and 4/)
+}
 assert.match(schema, /generate_series\(14, floor\(\(25 - p_horas\) \* 2\)::integer\)/)
 assert.match(schema, /p_inicio not between 7 and 24/)
 assert.match(schema, /p_horas numeric\(2,1\)/)

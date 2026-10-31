@@ -1,7 +1,7 @@
 import { activa, fechaISO, rangoHablado } from '../../reservas'
 import type { Campo, ComprobanteAdmin, EstadoReserva, Reserva } from '../../types.js'
 import { finDeReserva } from '../../utils/alarmaTurno.js'
-import { Ban, Check, Download, Eye, X } from 'lucide-react'
+import { Ban, Check, Download, Eye, Pencil, Play, X } from 'lucide-react'
 
 type EtiquetaEstado = 'Finalizada' | 'Demo' | 'Activa' | 'En curso' | 'Iniciada' | 'Cancelada' | 'No asistió' | 'Por revisar'
 
@@ -20,11 +20,13 @@ export interface AdminReservaCardProps {
   actualizandoEstado: string | null
   procesandoComprobante: string | null
   onViewComprobante: (comprobante: ComprobanteAdmin) => void
+  onPreloadComprobante?: (comprobante: ComprobanteAdmin) => void
   onDownloadComprobante: (comprobante: ComprobanteAdmin) => void
   onConfirmarComprobante: (pagoId: string) => void
+  onEdit?: (reserva: Reserva) => void
 }
 
-function fechaVisible(fecha: string): string {
+export function fechaVisible(fecha: string): string {
   return new Date(`${fecha}T12:00:00`).toLocaleDateString('es-PE', {
     weekday: 'long',
     day: 'numeric',
@@ -55,7 +57,7 @@ function reservaEnCurso(reserva: Reserva, ahora: Date): boolean {
   return reserva.estado === 'activo' && reservaYaComenzo(reserva, ahora) && activa(reserva, ahora)
 }
 
-function puedeConfirmarComprobante(reserva: Reserva, ahora: Date): boolean {
+export function puedeConfirmarComprobante(reserva: Reserva, ahora: Date = new Date()): boolean {
   if (!['activo', 'iniciado', 'finalizado'].includes(reserva.estado)) return false
   const limiteConfirmacion = finDeReserva(reserva)
   limiteConfirmacion.setHours(limiteConfirmacion.getHours() + 2)
@@ -77,8 +79,10 @@ export default function AdminReservaCard({
   actualizandoEstado,
   procesandoComprobante,
   onViewComprobante,
+  onPreloadComprobante,
   onDownloadComprobante,
   onConfirmarComprobante,
+  onEdit,
 }: AdminReservaCardProps) {
   const esDemo = reserva.id.startsWith('demo-')
   const sinAdelanto = !esDemo && reserva.pagoEstado === 'no_requerido'
@@ -117,6 +121,8 @@ export default function AdminReservaCard({
                 className="admin-comprobante-accion"
                 disabled={comprobanteProcesando}
                 onClick={() => onViewComprobante(comprobante)}
+                onPointerEnter={() => onPreloadComprobante?.(comprobante)}
+                onFocus={() => onPreloadComprobante?.(comprobante)}
               >
                 <Eye size={15} strokeWidth={2.2} aria-hidden="true" />
                 <span>{procesandoComprobante === `ver:${comprobante.pagoId}` ? 'Abriendo…' : 'Ver'}</span>
@@ -166,8 +172,13 @@ export default function AdminReservaCard({
               <button className="chip" disabled={Boolean(cancelando || actualizandoEstado)} onClick={onCancelRequest}>No</button>
             </div>
           </div>
-        ) : !esDemo && reserva.estado === 'activo' && !reservaActiva ? (
-          <div className="admin-reserva-acciones">
+        ) : !esDemo && reserva.estado === 'activo' && !reservaActiva ? (<div className="admin-reserva-acciones">
+            {onEdit && (
+              <button type="button" className="admin-editar" disabled={procesando} onClick={() => onEdit(reserva)}>
+                <Pencil size={15} strokeWidth={2.2} aria-hidden="true" />
+                <span>Editar</span>
+              </button>
+            )}
             <button className="admin-estado-accion" disabled={procesando} onClick={() => onStatus(reserva.id, 'finalizado')}>
               <Check size={15} strokeWidth={2.3} aria-hidden="true" />
               <span>{actualizandoEstado === reserva.id ? 'Guardando…' : textoFinalizacion}</span>
@@ -177,19 +188,66 @@ export default function AdminReservaCard({
               <span>{actualizandoEstado === reserva.id ? 'Guardando…' : 'Marcar no asistió'}</span>
             </button>
           </div>
-        ) : !esDemo && reserva.estado === 'activo' ? (
-          puedeCancelar && !reservaYaIniciada ? (
-            <button className="admin-cancelar" disabled={procesando} onClick={onRequestCancel}>
-              <X size={15} strokeWidth={2.3} aria-hidden="true" />
-              <span>Cancelar</span>
+        ) : !esDemo && reserva.estado === 'activo' && reservaEnCurso(reserva, ahora) ? (
+          <div className="admin-reserva-acciones">
+            {onEdit && (
+              <button type="button" className="admin-editar" disabled={procesando} onClick={() => onEdit(reserva)}>
+                <Pencil size={15} strokeWidth={2.2} aria-hidden="true" />
+                <span>Editar</span>
+              </button>
+            )}
+            <button className="admin-iniciar" disabled={procesando} onClick={() => onStatus(reserva.id, 'iniciado')}>
+              <Play size={15} strokeWidth={2.3} aria-hidden="true" />
+              <span>{actualizandoEstado === reserva.id ? 'Iniciando…' : 'Iniciar turno'}</span>
             </button>
-          ) : null
+            <button className="admin-estado-accion" disabled={procesando} onClick={() => onStatus(reserva.id, 'finalizado')}>
+              <Check size={15} strokeWidth={2.3} aria-hidden="true" />
+              <span>{actualizandoEstado === reserva.id ? 'Guardando…' : textoFinalizacion}</span>
+            </button>
+            <button className="admin-no-asistio" disabled={procesando} onClick={() => onStatus(reserva.id, 'no_asistio')}>
+              <Ban size={15} strokeWidth={2.3} aria-hidden="true" />
+              <span>{actualizandoEstado === reserva.id ? 'Guardando…' : 'Marcar no asistió'}</span>
+            </button>
+            {puedeCancelar ? (
+              <button className="admin-cancelar" disabled={procesando} onClick={onRequestCancel}>
+                <X size={15} strokeWidth={2.3} aria-hidden="true" />
+                <span>Cancelar</span>
+              </button>
+            ) : null}
+          </div>
+        ) : !esDemo && reserva.estado === 'activo' ? (
+          <div className="admin-reserva-acciones">
+            {onEdit && (
+              <button type="button" className="admin-editar" disabled={procesando} onClick={() => onEdit(reserva)}>
+                <Pencil size={15} strokeWidth={2.2} aria-hidden="true" />
+                <span>Editar</span>
+              </button>
+            )}
+            {puedeCancelar ? (
+              <button className="admin-cancelar" disabled={procesando} onClick={onRequestCancel}>
+                <X size={15} strokeWidth={2.3} aria-hidden="true" />
+                <span>Cancelar</span>
+              </button>
+            ) : null}
+          </div>
         ) : !esDemo && reserva.estado === 'iniciado' ? (
           <div className="admin-reserva-acciones">
+            {onEdit && (
+              <button type="button" className="admin-editar" disabled={procesando} onClick={() => onEdit(reserva)}>
+                <Pencil size={15} strokeWidth={2.2} aria-hidden="true" />
+                <span>Editar</span>
+              </button>
+            )}
             <button className="admin-estado-accion" disabled={procesando} onClick={() => onStatus(reserva.id, 'finalizado')}>
               <Check size={15} strokeWidth={2.3} aria-hidden="true" />
               <span>{actualizandoEstado === reserva.id ? 'Finalizando…' : 'Finalizar reserva'}</span>
             </button>
+            {puedeCancelar ? (
+              <button className="admin-cancelar" disabled={procesando} onClick={onRequestCancel}>
+                <X size={15} strokeWidth={2.3} aria-hidden="true" />
+                <span>Cancelar</span>
+              </button>
+            ) : null}
           </div>
         ) : esDemo ? (
           <small>Solo ejemplo</small>

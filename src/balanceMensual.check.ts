@@ -162,9 +162,9 @@ assert.equal(libro.Sheets['Detalle diario']['B2'].s?.font?.color?.rgb, '0B0B0A')
 assert.notEqual(libro.Sheets['Detalle diario']['A5'].s?.fill?.fgColor?.rgb, '0B0B0A')
 assert.equal(libro.Sheets['Detalle diario']['A5'].s?.font?.color?.rgb, '0B0B0A')
 assert.equal(libro.Sheets['Eventos especiales']['A1'].v, 'EVENTOS ESPECIALES')
-assert.equal(libro.Sheets['Eventos especiales']['A5'].v, 'TODOS LOS CAMPOS DE FÚTBOL')
+assert.equal(libro.Sheets['Eventos especiales']['A5'].v, 'TODOS LOS CAMPOS DE FÚTBOL (CAMPOS 1, 2 Y 3)')
 assert.equal(libro.Sheets['Eventos especiales']['A6'].v, 'Fecha')
-assert.equal(libro.Sheets['Eventos especiales']['A7'].v, 'Sin eventos especiales')
+assert.equal(libro.Sheets['Eventos especiales']['A7'].v, 'Sin eventos especiales registrados')
 
 const eventos: BloqueoEvento[] = [
   {
@@ -214,16 +214,21 @@ const balanceEventos = construirBalanceMensual('2026-10', reservas, canchas, eve
 assert.equal(balanceEventos.eventosEspeciales.length, 2)
 assert.equal(balanceEventos.ingresosEventosEspeciales, 570)
 assert.equal(balanceEventos.ingresosTotales, 900)
+assert.deepEqual(balanceEventos.porCampo, [
+  { campoId: 1, campo: 'Campo 1', deporte: 'Fútbol 5', reservas: 2, horas: 17, ingresos: 345 },
+  { campoId: 2, campo: 'Campo 2', deporte: 'Fútbol 5', reservas: 5, horas: 23.5, ingresos: 555 },
+])
 assert.deepEqual(balanceEventos.eventosEspeciales.map(({ id, tipo, campo, precio }) => ({ id, tipo, campo, precio })), [
   { id: 'grupo-todos', tipo: 'todos_los_campos', campo: 'Todos los campos de fútbol', precio: 450 },
   { id: 'grupo-individual', tipo: 'individual', campo: 'Campo 2', precio: 120 },
 ])
 const libroEventos = await crearLibroBalance(balanceEventos)
 assert.equal(libroEventos.Sheets['Eventos especiales']['C7'].v, 'Todos los campos de fútbol')
-assert.equal(libroEventos.Sheets['Eventos especiales']['G7'].v, 450)
+assert.equal(libroEventos.Sheets['Eventos especiales']['I7'].v, 450)
 assert.equal(libroEventos.Sheets['Eventos especiales']['A9'].v, 'CAMPO 2 — EVENTOS INDIVIDUALES')
-assert.equal(libroEventos.Sheets['Eventos especiales']['C11'].v, 'de 8 a 1 de la tarde')
-assert.equal(libroEventos.Sheets['Eventos especiales']['G11'].v, 120)
+assert.equal(libroEventos.Sheets['Eventos especiales']['C11'].v, 'Campo 2')
+assert.equal(libroEventos.Sheets['Eventos especiales']['D11'].v, 'de 8 a 1 de la tarde')
+assert.equal(libroEventos.Sheets['Eventos especiales']['I11'].v, 120)
 assert.equal(libroEventos.Sheets['Eventos especiales']['A12'].v, '')
 const XLSX = (await import('xlsx-js-style') as unknown as { default: typeof import('xlsx-js-style') }).default
 const archivoEnMemoria = XLSX.write(libro, { type: 'buffer', bookType: 'xlsx', cellStyles: true })

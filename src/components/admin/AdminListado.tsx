@@ -17,8 +17,10 @@ export interface AdminListadoProps {
   actualizandoEstado: string | null
   procesandoComprobante: string | null
   onViewComprobante: (comprobante: ComprobanteAdmin) => void
+  onPreloadComprobante?: (comprobante: ComprobanteAdmin) => void
   onDownloadComprobante: (comprobante: ComprobanteAdmin) => void
   onConfirmarComprobante: (pagoId: string) => void
+  onEdit?: (reserva: Reserva) => void
 }
 
 export default function AdminListado({
@@ -36,8 +38,10 @@ export default function AdminListado({
   actualizandoEstado,
   procesandoComprobante,
   onViewComprobante,
+  onPreloadComprobante,
   onDownloadComprobante,
   onConfirmarComprobante,
+  onEdit,
 }: AdminListadoProps) {
   if (cargandoInicial) return <div className="admin-cargando" role="status">Cargando reservas…</div>
 
@@ -72,8 +76,10 @@ export default function AdminListado({
               actualizandoEstado={actualizandoEstado}
               procesandoComprobante={procesandoComprobante}
               onViewComprobante={onViewComprobante}
+              onPreloadComprobante={onPreloadComprobante}
               onDownloadComprobante={onDownloadComprobante}
               onConfirmarComprobante={onConfirmarComprobante}
+              onEdit={onEdit}
             />
           )
         })}

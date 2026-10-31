@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import canchas from './data/canchas.json'
-import type { BloqueoEvento, ComprobanteAdmin, EstadoReserva, FiltrosAdmin, Reserva } from './types.js'
+import type { BloqueoEvento, CambiosReservaAdmin, ComprobanteAdmin, EstadoReserva, FiltrosAdmin, Reserva, ResultadoEditarReserva } from './types.js'
 import type { NumeroBloqueado, NumeroConfiable, ResultadoControlCliente } from './controlClientes.js'
 import type { UsuarioAdmin } from './adminAuth.js'
 import {
@@ -10,14 +10,17 @@ import {
   cancelarReservaAdmin,
   cargarReservas,
   cancelarEventoEspecialLocal,
+  actualizarEventoEspecialLocal,
   crearEventoEspecialLocal,
   leerBloqueosEventos,
   desbloquearNumero,
+  editarReservaAdmin,
   leerNumerosBloqueados,
   leerNumerosConfiables,
   leerReservas,
   limpiarDatosLocales,
   quitarNumeroConfiable,
+  confirmarPagoAdminLocal,
 } from './almacen'
 import { supabase, supabaseFaltaEnProduccion, supabaseConfigurado } from './supabase'
 import {
@@ -27,6 +30,9 @@ import {
   confirmarPagoAdminRemoto,
   crearUrlComprobanteAdminRemota,
   nombreDescargaComprobante,
+  obtenerUrlComprobanteCacheada,
+  precalentarComprobanteAdminRemoto,
+  actualizarEventoEspecialRemoto,
   crearEventoEspecialRemoto,
   desbloquearNumeroRemoto,
   leerComprobantesAdminRemotos,
@@ -50,6 +56,8 @@ import AdminControlClientes from './components/admin/AdminControlClientes'
 import AdminEventos from './components/admin/AdminEventos'
 import AdminSimuladorReservas from './components/admin/AdminSimuladorReservas'
 import AdminNavegacion from './components/admin/AdminNavegacion'
+import AdminModalComprobante from './components/admin/AdminModalComprobante'
+import AdminModalEditarReserva from './components/admin/AdminModalEditarReserva'
 import { crearBloqueoAccion } from './accionUnica'
 
 type EstadoConexion = 'sincronizando' | 'demo' | 'error' | 'sincronizado'
@@ -82,6 +90,12 @@ export default function AdminApp() {
   const [cancelando, setCancelando] = useState<string | null>(null)
   const [actualizandoEstado, setActualizandoEstado] = useState<string | null>(null)
   const [procesandoComprobante, setProcesandoComprobante] = useState<string | null>(null)
+  const [modalComprobante, setModalComprobante] = useState<{
+    comprobante: ComprobanteAdmin
+    url: string | null
+    cargando: boolean
+    error: string | null
+  } | null>(null)
   const [numerosBloqueados, setNumerosBloqueados] = useState<NumeroBloqueado[]>([])
   const [numerosConfiables, setNumerosConfiables] = useState<NumeroConfiable[]>([])
   const [cargandoControl, setCargandoControl] = useState(false)
@@ -89,6 +103,9 @@ export default function AdminApp() {
   const [eventos, setEventos] = useState<BloqueoEvento[]>(leerBloqueosEventos)
   const [cargandoEventos, setCargandoEventos] = useState(false)
   const [procesandoEvento, setProcesandoEvento] = useState(false)
+  const [reservaAEditar, setReservaAEditar] = useState<Reserva | null>(null)
+  const [guardandoEdicion, setGuardandoEdicion] = useState(false)
+  const bloqueoEditar = useRef(crearBloqueoAccion())
   const bloqueoActualizar = useRef(crearBloqueoAccion())
   const bloqueoCancelar = useRef(crearBloqueoAccion())
   const bloqueoEstado = useRef(crearBloqueoAccion())
@@ -101,6 +118,14 @@ export default function AdminApp() {
     const temporizador = window.setTimeout(() => setMensaje(''), 4000)
     return () => window.clearTimeout(temporizador)
   }, [mensaje])
+
+  useEffect(() => {
+    if (!supabaseConfigurado || !comprobantesAdmin.length) return
+    const paraPrecalentar = comprobantesAdmin.slice(0, 10)
+    for (const item of paraPrecalentar) {
+      void precalentarComprobanteAdminRemoto(item.storagePath)
+    }
+  }, [comprobantesAdmin])
 
   useEffect(() => {
     const clienteSupabase = supabase
@@ -151,6 +176,14 @@ export default function AdminApp() {
         if (montado) {
           setReservas(actuales)
           setComprobantesAdmin(comprobantesActuales)
+      setModalComprobante((actual) => {
+        if (!actual) return null
+        const pagoId = actual.comprobante.pagoId
+        const actualizado = comprobantesActuales.find((c) => c.pagoId === pagoId)
+        return actualizado
+          ? { ...actual, comprobante: actualizado }
+          : { ...actual, comprobante: { ...actual.comprobante, estado: 'confirmado' } }
+      })
           setEventos(eventosActuales)
           setEstadoConexion(supabaseConfigurado ? 'sincronizado' : 'demo')
         }
@@ -234,6 +267,14 @@ export default function AdminApp() {
       ])
       setReservas(actuales)
       setComprobantesAdmin(comprobantesActuales)
+      setModalComprobante((actual) => {
+        if (!actual) return null
+        const pagoId = actual.comprobante.pagoId
+        const actualizado = comprobantesActuales.find((c) => c.pagoId === pagoId)
+        return actualizado
+          ? { ...actual, comprobante: actualizado }
+          : { ...actual, comprobante: { ...actual.comprobante, estado: 'confirmado' } }
+      })
       await cargarEventos()
       await cargarControlClientes()
     } catch {
@@ -283,6 +324,33 @@ export default function AdminApp() {
     }
   }
 
+  async function guardarEdicion(cambios: CambiosReservaAdmin): Promise<ResultadoEditarReserva> {
+    if (!reservaAEditar) return { error: 'no-existe' }
+    if (!bloqueoEditar.current.adquirir()) return { error: 'conexion' }
+    setGuardandoEdicion(true)
+    try {
+      const resultado = await editarReservaAdmin(reservaAEditar.id, cambios)
+      if ('error' in resultado) {
+        return resultado
+      }
+      try {
+        const actuales = await cargarReservas()
+        setReservas(actuales)
+      } catch {
+        // En caso de fallo transitorio en recarga, realtime sincronizará
+      }
+      setReservaAEditar(null)
+      setMensaje('Reserva reprogramada correctamente.')
+      setError('')
+      return resultado
+    } catch {
+      return { error: 'conexion' }
+    } finally {
+      setGuardandoEdicion(false)
+      bloqueoEditar.current.liberar()
+    }
+  }
+
   async function cambiarEstado(id: string, estado: EstadoReserva): Promise<void> {
     if (!bloqueoEstado.current.adquirir()) return
     setActualizandoEstado(id)
@@ -324,36 +392,48 @@ export default function AdminApp() {
     return 'No pudimos procesar el comprobante. Revisa la conexión.'
   }
 
-  async function abrirComprobante(comprobante: ComprobanteAdmin, descargar: boolean): Promise<void> {
-    const accion = `${descargar ? 'descargar' : 'ver'}:${comprobante.pagoId}`
+  async function verComprobante(comprobante: ComprobanteAdmin): Promise<void> {
+    const accion = `ver:${comprobante.pagoId}`
     if (!bloqueoComprobante.current.adquirir()) return
     setProcesandoComprobante(accion)
-    const ventana = descargar ? null : window.open('', '_blank')
-    if (ventana) ventana.opener = null
+    setModalComprobante({
+      comprobante,
+      url: null,
+      cargando: true,
+      error: null,
+    })
     try {
-      const url = await crearUrlComprobanteAdminRemota(comprobante.storagePath, descargar)
-      if (descargar) {
-        const enlace = document.createElement('a')
-        enlace.href = url
-        enlace.download = nombreDescargaComprobante(comprobante.storagePath)
-        enlace.rel = 'noreferrer'
-        document.body.appendChild(enlace)
-        enlace.click()
-        enlace.remove()
-      } else if (ventana) {
-        ventana.location.href = url
-      } else {
-        const enlace = document.createElement('a')
-        enlace.href = url
-        enlace.target = '_blank'
-        enlace.rel = 'noopener noreferrer'
-        document.body.appendChild(enlace)
-        enlace.click()
-        enlace.remove()
-      }
+      const url = await crearUrlComprobanteAdminRemota(comprobante.storagePath, false)
+      setModalComprobante((actual) => {
+        if (!actual || actual.comprobante.pagoId !== comprobante.pagoId) return actual
+        return { ...actual, url, cargando: false }
+      })
     } catch {
-      ventana?.close()
-      setError('No pudimos abrir el comprobante. Revisa la conexión.')
+      setModalComprobante((actual) => {
+        if (!actual || actual.comprobante.pagoId !== comprobante.pagoId) return actual
+        return { ...actual, cargando: false, error: 'No pudimos cargar la imagen del comprobante. Revisa la conexión.' }
+      })
+    } finally {
+      setProcesandoComprobante(null)
+      bloqueoComprobante.current.liberar()
+    }
+  }
+
+  async function descargarComprobante(comprobante: ComprobanteAdmin): Promise<void> {
+    const accion = `descargar:${comprobante.pagoId}`
+    if (!bloqueoComprobante.current.adquirir()) return
+    setProcesandoComprobante(accion)
+    try {
+      const url = await crearUrlComprobanteAdminRemota(comprobante.storagePath, true)
+      const enlace = document.createElement('a')
+      enlace.href = url
+      enlace.download = nombreDescargaComprobante(comprobante.storagePath)
+      enlace.rel = 'noreferrer'
+      document.body.appendChild(enlace)
+      enlace.click()
+      enlace.remove()
+    } catch {
+      setError('No pudimos descargar el comprobante. Revisa la conexión.')
       setMensaje('')
     } finally {
       setProcesandoComprobante(null)
@@ -367,7 +447,7 @@ export default function AdminApp() {
     try {
       const resultado = supabaseConfigurado
         ? await confirmarPagoAdminRemoto(pagoId)
-        : { error: 'conexion' as const }
+        : confirmarPagoAdminLocal(pagoId)
       if ('error' in resultado) {
         setError(mensajeErrorComprobanteAdmin(resultado.error))
         setMensaje('')
@@ -375,10 +455,22 @@ export default function AdminApp() {
       }
       const [actuales, comprobantesActuales] = await Promise.all([
         cargarReservas(),
-        leerComprobantesAdminRemotos(),
+        supabaseConfigurado ? leerComprobantesAdminRemotos() : Promise.resolve([]),
       ])
       setReservas(actuales)
-      setComprobantesAdmin(comprobantesActuales)
+      setComprobantesAdmin((prev) =>
+        supabaseConfigurado
+          ? comprobantesActuales
+          : prev.map((c) => (c.pagoId === pagoId ? { ...c, estado: 'confirmado' } : c)),
+      )
+      setModalComprobante((actual) => {
+        if (!actual) return null
+        const idActual = actual.comprobante.pagoId
+        const actualizado = comprobantesActuales.find((c) => c.pagoId === idActual)
+        return actualizado
+          ? { ...actual, comprobante: actualizado }
+          : { ...actual, comprobante: { ...actual.comprobante, estado: 'confirmado' } }
+      })
       setMensaje('Comprobante confirmado. La reserva sigue activa.')
       setError('')
     } catch {
@@ -480,7 +572,12 @@ export default function AdminApp() {
 
   return (
     <main id="admin-inicio" className="admin-app" aria-busy={cargando}>
-      <AdminCabecera
+      <aside className="admin-sidebar">
+        <AdminNavegacion />
+      </aside>
+
+      <div className="admin-cuerpo">
+        <AdminCabecera
         supabaseConfigurado={supabaseConfigurado}
         porLimpiar={porLimpiar}
         limpiandoDatosPrueba={limpiandoDatosPrueba}
@@ -508,12 +605,10 @@ export default function AdminApp() {
               : ''}</span>
       </div>
 
-      <AdminNavegacion />
-
       {mensaje && <p className="exito" role="status">{mensaje}</p>}
       {error && <p className="error" role="alert">{error}</p>}
 
-      <AdminAlarmaTurno reservas={reservas} canchas={canchas} />
+      <AdminAlarmaTurno reservas={reservas} canchas={canchas} eventos={eventos} />
 
       <section id="admin-agenda" className="admin-listado">
         <div className="admin-listado-cabecera">
@@ -549,9 +644,11 @@ export default function AdminApp() {
           onStatus={cambiarEstado}
           actualizandoEstado={actualizandoEstado}
           procesandoComprobante={procesandoComprobante}
-          onViewComprobante={(comprobante) => void abrirComprobante(comprobante, false)}
-          onDownloadComprobante={(comprobante) => void abrirComprobante(comprobante, true)}
+          onViewComprobante={(comprobante) => void verComprobante(comprobante)}
+          onPreloadComprobante={(comprobante) => void precalentarComprobanteAdminRemoto(comprobante.storagePath)}
+          onDownloadComprobante={(comprobante) => void descargarComprobante(comprobante)}
           onConfirmarComprobante={(pagoId) => void confirmarComprobante(pagoId)}
+          onEdit={(r) => setReservaAEditar(r)}
         />
       </section>
 
@@ -559,6 +656,7 @@ export default function AdminApp() {
         <AdminEventos
           eventos={eventos}
           canchas={canchas}
+          reservas={reservas}
           cargando={cargandoEventos}
           procesando={procesandoEvento}
           onCrear={(nuevo) => ejecutarEvento(() => supabaseConfigurado
@@ -567,6 +665,15 @@ export default function AdminApp() {
           onCancelar={(grupoId) => ejecutarEvento(() => supabaseConfigurado
             ? cancelarEventoEspecialRemoto(grupoId)
             : cancelarEventoEspecialLocal(grupoId))}
+          onEditar={(actualizado) => ejecutarEvento(async () => {
+            const res = await (supabaseConfigurado
+              ? actualizarEventoEspecialRemoto(actualizado)
+              : Promise.resolve(actualizarEventoEspecialLocal(actualizado, reservas)))
+            if (!('error' in res)) {
+              await cargarEventos()
+            }
+            return res
+          })}
         />
       </div>
 
@@ -596,6 +703,31 @@ export default function AdminApp() {
             : quitarNumeroConfiable(celular))}
         />
       </div>
+      </div>
+      {reservaAEditar && (
+        <AdminModalEditarReserva
+          reserva={reservaAEditar}
+          canchas={canchas}
+          reservas={reservas}
+          eventos={eventos}
+          procesando={guardandoEdicion}
+          onClose={() => setReservaAEditar(null)}
+          onGuardar={guardarEdicion}
+        />
+      )}
+      {modalComprobante && (
+        <AdminModalComprobante
+          comprobante={modalComprobante.comprobante}
+          reserva={reservas.find((r) => r.id === modalComprobante.comprobante.reservaId)}
+          cancha={canchas.find((c) => c.id === reservas.find((r) => r.id === modalComprobante.comprobante.reservaId)?.canchaId)}
+          url={modalComprobante.url}
+          cargando={modalComprobante.cargando}
+          error={modalComprobante.error}
+          onClose={() => setModalComprobante(null)}
+          onDownload={(comprobante) => void descargarComprobante(comprobante)}
+          onReintentar={() => void verComprobante(modalComprobante.comprobante)}
+        />
+      )}
     </main>
   )
 }

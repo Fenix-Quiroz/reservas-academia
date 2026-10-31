@@ -19,5 +19,5 @@
   { "canchaId": 2, "diaSemana": 5, "inicioMinuto": 960, "finMinuto": 1225 },
   { "canchaId": 3, "diaSemana": 5, "inicioMinuto": 1050, "finMinuto": 1225 },
   { "canchaId": 4, "diaSemana": 5, "inicioMinuto": 1080, "finMinuto": 1165 },
-  { "canchaId": 4, "diaSemana": 6, "inicioMinuto": 1260, "finMinuto": 1435 }
+  { "canchaId": 4, "diaSemana": 6, "inicioMinuto": 540, "finMinuto": 720 }
 ]

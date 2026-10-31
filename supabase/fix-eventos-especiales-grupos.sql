@@ -127,9 +127,9 @@ begin
   v_cancha_ids := array(select ids.cancha_id from unnest(coalesce(p_cancha_ids, '{}'::integer[])) as ids(cancha_id) order by ids.cancha_id);
 
   if p_cancha_ids is null
-     or cardinality(v_cancha_ids) not between 1 and 3
+     or cardinality(v_cancha_ids) not between 1 and 4
      or exists (select 1 from unnest(p_cancha_ids) as ids(cancha_id)
-               where ids.cancha_id is null or ids.cancha_id not between 1 and 3)
+               where ids.cancha_id is null or ids.cancha_id not between 1 and 4)
      or cardinality(p_cancha_ids) <> cardinality(array(select distinct ids.cancha_id from unnest(p_cancha_ids) as ids(cancha_id)))
      or p_tipo is null
      or p_tipo not in ('individual', 'todos_los_campos')

@@ -3,7 +3,7 @@ import type { RefObject } from 'react'
 import { createPortal } from 'react-dom'
 import { capital, nombreDia } from '../../utils/fechasReserva'
 import { rangoHablado, type HorarioDisponible } from '../../reservas'
-import { validarComprobante, type ErrorComprobante } from '../../pagos'
+import { validarComprobante, optimizarComprobante, type ErrorComprobante } from '../../pagos'
 import type { Campo, Cliente, Reserva } from '../../types.js'
 import PagoAdelanto from './PagoAdelanto'
 import {
@@ -168,7 +168,12 @@ export default function DatosReserva({
     const errorArchivo = validarComprobante(archivo)
     setErrorComprobante(errorArchivo ? mensajeErrorComprobante(errorArchivo) : '')
     setError('')
-    if (!errorArchivo) void actions.prewarmPayment()
+    if (!errorArchivo) {
+      void actions.prewarmPayment()
+      void optimizarComprobante(archivo).then((optimizado) => {
+        if (optimizado !== archivo) setComprobante(optimizado)
+      })
+    }
   }
 
   async function reservar(
@@ -181,7 +186,7 @@ export default function DatosReserva({
     if (!bloqueoAdquirido && !bloqueoAccion.current.adquirir()) return false
     const liberaBloqueo = !bloqueoAdquirido
     try {
-      const archivoParaSubir = comprobante
+      let archivoParaSubir = comprobante
       const sinAdelanto = !reservaPendientePago && numeroConfiable === true
       if (!sinAdelanto) {
         const errorArchivo = validarComprobante(archivoParaSubir)
@@ -190,6 +195,7 @@ export default function DatosReserva({
           return false
         }
         if (!archivoParaSubir) return false
+        archivoParaSubir = await optimizarComprobante(archivoParaSubir)
       }
       if (!yaProcesando) setProcesando('reserva')
       let reservaConToken = reservaPendientePago

@@ -56,4 +56,14 @@ assert.equal(filtrarReservas([
   { id: 'd', canchaId: 1, fecha: '2026-10-18', inicio: 12, horas: 1, alias: 'David', nombre: 'David', celular: '944444444', estado: 'activo' },
 ], { vista: 'todas', buscar: 'david' }, canchas, ahora)[0].id, 'd')
 
+import fs from 'node:fs'
+const cardSource = fs.readFileSync(new URL('./components/admin/AdminReservaCard.tsx', import.meta.url), 'utf8')
+const alarmaSource = fs.readFileSync(new URL('./components/admin/AdminAlarmaTurno.tsx', import.meta.url), 'utf8')
+const adminAppSource = fs.readFileSync(new URL('./AdminApp.tsx', import.meta.url), 'utf8')
+
+assert.match(cardSource, /Iniciar turno/)
+assert.match(cardSource, /admin-iniciar/)
+assert.match(alarmaSource, /eventos\?: readonly BloqueoEvento\[\]/)
+assert.match(adminAppSource, /<AdminAlarmaTurno reservas=\{reservas\} canchas=\{canchas\} eventos=\{eventos\} \/>/)
+
 console.log('✔ admin.check.ts OK')
