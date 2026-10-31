@@ -15,6 +15,7 @@ export interface AdminSelectorHorarioProps {
   opcionesHasta: readonly AdminSelectorHorarioOpcion[]
   onChangeInicio: (value: string) => void
   onChangeFin: (value: string) => void
+  disabled?: boolean
 }
 
 export function mantenerDuracionMinima(inicio: number, fin: number, minima = 2): number {
@@ -42,6 +43,7 @@ export default function AdminSelectorHorario({
   opcionesHasta,
   onChangeInicio,
   onChangeFin,
+  disabled = false,
 }: AdminSelectorHorarioProps) {
   const [abierto, setAbierto] = useState(false)
   const [paso, setPaso] = useState<1 | 2>(1)
@@ -233,21 +235,27 @@ export default function AdminSelectorHorario({
   ) : null
 
   return (
-    <div className="admin-selector-horario" ref={contenedorRef}>
+    <div className={`admin-selector-horario${disabled ? ' disabled' : ''}`} ref={contenedorRef}>
       <span className="admin-selector-horario-label">Horario</span>
       <button
-        className={`admin-selector-horario-trigger${abierto ? ' abierto' : ''}`}
+        className={`admin-selector-horario-trigger${abierto ? ' abierto' : ''}${disabled ? ' disabled' : ''}`}
         type="button"
+        disabled={disabled}
         aria-label="Horario"
         aria-haspopup="dialog"
         aria-expanded={abierto}
-        onClick={() => (abierto ? cerrar() : abrir())}
+        onClick={() => {
+          if (!disabled) {
+            if (abierto) cerrar()
+            else abrir()
+          }
+        }}
       >
         <span className="admin-selector-horario-trigger-contenido">
           <Clock3 size={18} strokeWidth={2.5} aria-hidden="true" />
           <strong>{horaVisible(inicioNumero)} – {horaVisible(finNumero)}</strong>
         </span>
-        <ChevronDown size={18} strokeWidth={2.5} aria-hidden="true" />
+        {!disabled && <ChevronDown size={18} strokeWidth={2.5} aria-hidden="true" />}
       </button>
 
       {modalElemento && (typeof document !== 'undefined' ? createPortal(modalElemento, document.body) : modalElemento)}

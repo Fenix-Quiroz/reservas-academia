@@ -180,6 +180,7 @@ export function errorDeSupabaseEvento(error?: ErrorSupabase): ErrorEventoResulta
       },
     }
   }
+  if (mensaje.includes('hora_pasada') || mensaje.includes('hora-pasada')) return { error: 'hora-pasada' }
   if (error?.code === '23P01' || mensaje.includes('evento_ocupado')) return { error: 'ocupado' }
   if (error?.code === '22023' && mensaje.includes('evento_invalido')) return { error: 'datos-invalidos' }
   if (mensaje.includes('no_existe')) return { error: 'no-existe' }

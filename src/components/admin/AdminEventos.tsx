@@ -7,6 +7,8 @@ import {
   horarioEntrenamientoQueBloqueaEvento,
   buscarConflictosEvento,
   eventoYaTermino,
+  eventoEnElPasado,
+  calcularHoraMinimaEvento,
   type EventoEspecialNuevo,
   type EventoEspecialActualizado,
   type ResultadoCancelacionEvento,
@@ -58,6 +60,7 @@ function mensajeError(
     return 'Ese rango ya está ocupado por una reserva u otro evento.'
   }
   if (resultado.error === 'datos-invalidos') return 'Revisa los datos del evento. Si ingresaste un celular, debe tener 9 dígitos y empezar con 9.'
+  if (resultado.error === 'hora-pasada') return 'No es posible registrar un evento especial en un horario que ya pasó.'
   if (resultado.error === 'no-existe') return 'Ese evento ya no existe o ya fue cancelado.'
   return 'No pudimos guardar el evento. Revisa la conexión e inténtalo de nuevo.'
 }
@@ -90,10 +93,14 @@ export default function AdminEventos({
   onCancelar,
   onEditar,
 }: AdminEventosProps) {
+  const ahora = useMemo(() => new Date(), [])
+  const hoyIso = useMemo(() => fechaISO(ahora), [ahora])
+  const horaMinimaInicial = useMemo(() => calcularHoraMinimaEvento(hoyIso, ahora), [hoyIso, ahora])
+
   const [canchaId, setCanchaId] = useState<SeleccionCancha>(canchas[0]?.id ?? 1)
-  const [fecha, setFecha] = useState(fechaISO(new Date()))
-  const [inicio, setInicio] = useState('7')
-  const [fin, setFin] = useState('9')
+  const [fecha, setFecha] = useState(hoyIso)
+  const [inicio, setInicio] = useState(String(horaMinimaInicial))
+  const [fin, setFin] = useState(String(Math.min(25, horaMinimaInicial + 2)))
   const [nombre, setNombre] = useState('')
   const [celular, setCelular] = useState('')
   const [notas, setNotas] = useState('')
@@ -118,6 +125,7 @@ export default function AdminEventos({
     return () => window.clearTimeout(temporizador)
   }, [error])
 
+  const horaMinimaInicio = useMemo(() => calcularHoraMinimaEvento(fecha, ahora), [fecha, ahora])
   const inicioNumero = Number(inicio)
   const finalesDisponibles = useMemo(
     () => opcionesHora(inicioNumero + 2, 25, 0.5),
@@ -127,8 +135,20 @@ export default function AdminEventos({
     { value: 'futbol', label: 'Todos los campos de fútbol' },
     ...canchas.map((cancha) => ({ value: String(cancha.id), label: cancha.nombre })),
   ]
-  const opcionesDesde = opcionesHora(7, 23, 0.5).map((hora) => ({ value: String(hora), label: horaVisible(hora) }))
+  const opcionesDesde = useMemo(
+    () => opcionesHora(horaMinimaInicio, 23, 0.5).map((hora) => ({ value: String(hora), label: horaVisible(hora) })),
+    [horaMinimaInicio],
+  )
   const opcionesHasta = finalesDisponibles.map((hora) => ({ value: String(hora), label: horaVisible(hora) }))
+
+  function cambiarFecha(nuevaFecha: string): void {
+    setFecha(nuevaFecha)
+    const minHora = calcularHoraMinimaEvento(nuevaFecha, ahora)
+    if (Number(inicio) < minHora) {
+      setInicio(String(minHora))
+      if (Number(fin) < minHora + 2) setFin(String(Math.min(25, minHora + 2)))
+    }
+  }
 
   function cambiarInicio(valor: string): void {
     const nuevoInicio = Number(valor)
@@ -144,7 +164,6 @@ export default function AdminEventos({
     grupos.sort((a, b) => (b[0]?.fecha ?? '').localeCompare(a[0]?.fecha ?? '') || (a[0]?.inicio ?? 0) - (b[0]?.inicio ?? 0) || (a[0]?.canchaId ?? 0) - (b[0]?.canchaId ?? 0))
     return grupos
   }, [cancelados])
-  const ahora = useMemo(() => new Date(), [])
   const { proximosAgrupados, concluidosAgrupados } = useMemo(() => {
     const prox: BloqueoEvento[][] = []
     const conc: BloqueoEvento[][] = []
@@ -234,6 +253,10 @@ export default function AdminEventos({
         setError('La duración mínima de un evento es de 1 hora.')
         return
       }
+      if (eventoEnElPasado({ fecha, inicio: inicioNumero, fin: Number(fin) }, new Date())) {
+        setError('No es posible registrar un evento especial en un horario que ya pasó.')
+        return
+      }
       if (!validarEventoEspecial(nuevo)) {
         setError('Revisa los datos del evento.')
         return
@@ -320,7 +343,13 @@ export default function AdminEventos({
 
         <label>
           <span>Fecha</span>
-          <input type="date" value={fecha} required onChange={(evento) => setFecha(evento.target.value)} />
+          <input
+            type="date"
+            min={hoyIso}
+            value={fecha}
+            required
+            onChange={(evento) => cambiarFecha(evento.target.value)}
+          />
         </label>
 
         <AdminSelectorHorario

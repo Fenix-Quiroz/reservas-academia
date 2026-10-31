@@ -1,6 +1,16 @@
 import assert from 'node:assert/strict'
-import { eventoBloquea, eventoChocaConEntrenamiento, esRangoEventoValido, validarEventoEspecial, buscarConflictosEvento, eventoYaTermino } from './eventos'
+import {
+  eventoBloquea,
+  eventoChocaConEntrenamiento,
+  esRangoEventoValido,
+  validarEventoEspecial,
+  buscarConflictosEvento,
+  eventoYaTermino,
+  eventoEnElPasado,
+  calcularHoraMinimaEvento,
+} from './eventos'
 import { horarios } from './reservas'
+import { construirBalanceMensual } from './balanceMensual'
 import { actualizarEventoEspecialLocal, cancelarEventoEspecialLocal, crearBloqueoEventoLocal, crearEventoEspecialLocal, crearReserva, leerBloqueosEventos, limpiarDatosLocales } from './almacen'
 import type { BloqueoEvento, Campo, Reserva } from './types'
 
@@ -331,5 +341,95 @@ const eventoMismoDia = { fecha: '2026-10-31', fin: 12 }
 assert.equal(eventoYaTermino(eventoMismoDia, new Date('2026-10-31T11:59:00-05:00')), false)
 assert.equal(eventoYaTermino(eventoMismoDia, new Date('2026-10-31T12:00:00-05:00')), true)
 assert.equal(eventoYaTermino(eventoMismoDia, new Date('2026-10-31T13:00:00-05:00')), true)
+
+// 6. Verificación de evento en el pasado (evitar creación y edición de eventos ya vencidos)
+const ahora1645 = new Date('2026-10-31T16:45:00-05:00') // 4:45 p. m.
+const eventoPasadoMismoDia = { fecha: '2026-10-31', inicio: 7, fin: 14 } // 7am a 2pm (caso del usuario)
+assert.equal(eventoEnElPasado(eventoPasadoMismoDia, ahora1645), true, '7am a 2pm a las 4:45pm debe ser detectado como pasado')
+
+const resCrearPasado = crearEventoEspecialLocal({
+  canchaIds: [1],
+  fecha: '2026-10-31',
+  inicio: 7,
+  fin: 14,
+  nombre: 'Torneo Pasado',
+  celular: '987654321',
+  notas: '',
+  tipo: 'individual',
+  precioCobrado: 100,
+}, [], ahora1645)
+assert.deepEqual(resCrearPasado, { error: 'hora-pasada' }, 'crearEventoEspecialLocal debe rechazar eventos del pasado')
+
+// Evento en curso (inicio hace 15 min): permitido
+const eventoEnCurso = { fecha: '2026-10-31', inicio: 16.5, fin: 18.5 }
+assert.equal(eventoEnElPasado(eventoEnCurso, ahora1645), false, 'Evento que inició a las 4:30pm a las 4:45pm debe ser permitido')
+
+// Evento futuro: permitido
+const eventoFuturoMismoDia = { fecha: '2026-10-31', inicio: 18, fin: 20 }
+assert.equal(eventoEnElPasado(eventoFuturoMismoDia, ahora1645), false, 'Evento de 6pm a 8pm debe ser permitido')
+
+// Cálculo de hora mínima
+assert.equal(calcularHoraMinimaEvento('2026-10-31', ahora1645), 16, 'A las 4:45pm debe permitir como mínimo desde las 16:00')
+assert.equal(calcularHoraMinimaEvento('2026-11-01', ahora1645), 7, 'Para un día futuro debe permitir desde las 7:00')
+
+// 7. Verificación de edición de evento concluido y reflejo en el balance
+limpiarDatosLocales()
+
+// Crear evento especial que ocurrirá en la mañana (7am a 9am)
+const resCrearParaConcluido = crearEventoEspecialLocal({
+  canchaIds: [1, 2],
+  fecha: '2026-10-31',
+  inicio: 7,
+  fin: 9,
+  nombre: 'Torneo Matutino Concluido',
+  celular: '987654321',
+  notas: 'Pagó adelanto de 100',
+  tipo: 'individual',
+  precioCobrado: 100,
+}, [], new Date('2026-10-31T06:00:00-05:00'))
+
+assert.ok(!('error' in resCrearParaConcluido), 'Debe crear el evento correctamente')
+const grupoConcluidoId = resCrearParaConcluido.eventos[0].grupoId || resCrearParaConcluido.eventos[0].id
+
+// A las 10:00am, el evento de 7am a 9am ya terminó (eventoYaTermino === true)
+const ahoraDespuesDelEvento = new Date('2026-10-31T10:00:00-05:00')
+assert.equal(eventoYaTermino(resCrearParaConcluido.eventos[0], ahoraDespuesDelEvento), true, 'El evento ya debe considerarse concluido')
+
+// Verificar balance inicial con precio 100
+const balanceAntes = construirBalanceMensual('2026-10', [], canchasTest, leerBloqueosEventos(), ahoraDespuesDelEvento)
+assert.equal(balanceAntes.ingresosEventosEspeciales, 100, 'El balance debe registrar los S/ 100 iniciales')
+assert.equal(balanceAntes.ingresosTotales, 100)
+
+// Editar el evento concluido para actualizar el precio cobrado de 100 a 160 por cambios de último momento
+const resEditarConcluido = actualizarEventoEspecialLocal({
+  grupoId: grupoConcluidoId,
+  fecha: '2026-10-31',
+  inicio: 7,
+  fin: 9,
+  nombre: 'Torneo Matutino Concluido',
+  celular: '987654321',
+  notas: 'Completó pago total de S/ 160 al finalizar',
+  precioCobrado: 160,
+}, [], ahoraDespuesDelEvento)
+
+assert.ok(!('error' in resEditarConcluido), 'Debe permitir editar un evento especial concluido sin error de hora pasada')
+assert.equal(resEditarConcluido.eventos[0].precioCobrado, 160, 'El precio cobrado debe actualizarse a 160')
+assert.equal(resEditarConcluido.eventos[0].notas, 'Completó pago total de S/ 160 al finalizar')
+
+// Comprobar que el almacén local guardó el nuevo precio
+const eventosDespues = leerBloqueosEventos()
+const eventoGuardado = eventosDespues.find((e) => (e.grupoId || e.id) === grupoConcluidoId)
+assert.equal(eventoGuardado?.precioCobrado, 160)
+
+// Comprobar que el balance mensual refleja inmediatamente el nuevo precio
+const balanceDespues = construirBalanceMensual('2026-10', [], canchasTest, eventosDespues, ahoraDespuesDelEvento)
+assert.equal(balanceDespues.ingresosEventosEspeciales, 160, 'El balance mensual debe actualizarse inmediatamente a S/ 160')
+assert.equal(balanceDespues.ingresosTotales, 160)
+
+// Comprobar que la distribución por cancha en el balance también refleja la actualización
+assert.deepEqual(balanceDespues.porCampo.map((c) => ({ campoId: c.campoId, ingresos: c.ingresos })), [
+  { campoId: 1, ingresos: 80 },
+  { campoId: 2, ingresos: 80 },
+])
 
 console.log('✔ eventos.check.ts OK')

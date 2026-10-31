@@ -1,11 +1,14 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import type { FormEvent } from 'react'
-import { Check, Pencil, X } from 'lucide-react'
+import { Check, CheckCircle2, Pencil, X } from 'lucide-react'
 import type { BloqueoEvento, Campo, Reserva } from '../../types.js'
 import {
   buscarConflictosEvento,
   horarioEntrenamientoQueBloqueaEvento,
   validarEventoEspecial,
+  eventoEnElPasado,
+  eventoYaTermino,
+  calcularHoraMinimaEvento,
   type DetalleEntrenamiento,
   type EventoEspecialActualizado,
   type ResultadoEventoEspecial,
@@ -75,15 +78,43 @@ export default function AdminModalEditarEvento({
     ? nombresCampos[0]
     : `${nombresCampos.slice(0, -1).join(', ')} y ${nombresCampos[nombresCampos.length - 1]}`
 
+  const ahora = useMemo(() => new Date(), [])
+  const concluido = useMemo(
+    () => Boolean(principal && eventoYaTermino(principal, ahora)),
+    [principal, ahora],
+  )
+  const horaMinimaInicio = useMemo(() => {
+    if (concluido) return principal?.inicio ?? 7
+    const minHoy = calcularHoraMinimaEvento(fecha, ahora)
+    if (fecha === principal?.fecha && principal?.inicio !== undefined) {
+      return Math.min(principal.inicio, minHoy)
+    }
+    return minHoy
+  }, [concluido, fecha, ahora, principal?.fecha, principal?.inicio])
+
   const inicioNumero = Number(inicio)
   const finalesDisponibles = useMemo(
     () => opcionesHora(inicioNumero + 2, 25, 0.5),
     [inicioNumero],
   )
-  const opcionesDesde = opcionesHora(7, 23, 0.5).map((hora) => ({ value: String(hora), label: horaVisible(hora) }))
+  const opcionesDesde = useMemo(
+    () => opcionesHora(horaMinimaInicio, 23, 0.5).map((hora) => ({ value: String(hora), label: horaVisible(hora) })),
+    [horaMinimaInicio],
+  )
   const opcionesHasta = finalesDisponibles.map((hora) => ({ value: String(hora), label: horaVisible(hora) }))
 
+  function cambiarFecha(nuevaFecha: string): void {
+    if (concluido) return
+    setFecha(nuevaFecha)
+    const minHora = calcularHoraMinimaEvento(nuevaFecha, ahora)
+    if (Number(inicio) < minHora) {
+      setInicio(String(minHora))
+      if (Number(fin) < minHora + 2) setFin(String(Math.min(25, minHora + 2)))
+    }
+  }
+
   function cambiarInicio(valor: string): void {
+    if (concluido) return
     const nuevoInicio = Number(valor)
     setInicio(valor)
     if (Number(fin) < nuevoInicio + 2) setFin(String(nuevoInicio + 2))
@@ -92,6 +123,7 @@ export default function AdminModalEditarEvento({
   const finNumero = Number(fin)
 
   const conflictos = useMemo(() => {
+    if (concluido) return { reservas: [], eventos: [] }
     return buscarConflictosEvento(
       canchaIds,
       fecha,
@@ -102,7 +134,7 @@ export default function AdminModalEditarEvento({
       canchas,
       grupoId,
     )
-  }, [canchaIds, fecha, inicioNumero, finNumero, reservas, todosLosEventos, canchas, grupoId])
+  }, [concluido, canchaIds, fecha, inicioNumero, finNumero, reservas, todosLosEventos, canchas, grupoId])
 
   useEffect(() => {
     const overflowPrevio = document.body.style.overflow
@@ -127,31 +159,21 @@ export default function AdminModalEditarEvento({
     setError('')
 
     try {
-      if (conflictos.reservas.length > 0) {
-        const primera = conflictos.reservas[0]
-        setError(
-          `No se puede guardar: ese horario choca con la reserva de ${primera?.cliente} en ${primera?.canchaNombre} (${primera?.horarioTexto}).`,
-        )
-        return
-      }
-      if (conflictos.eventos.length > 0) {
-        const primero = conflictos.eventos[0]
-        setError(
-          `No se puede guardar: coincide con el evento "${primero?.nombre}" en ${primero?.canchaNombre} (${primero?.horarioTexto}).`,
-        )
-        return
-      }
-
-      const simulado = {
-        canchaIds,
-        fecha,
-        inicio: inicioNumero,
-        fin: finNumero,
-        nombre: nombre.trim(),
-        celular: celular.trim(),
-        notas: notas.trim(),
-        tipo: principal?.tipo ?? 'individual',
-        precioCobrado: Number(precioCobrado),
+      if (!concluido) {
+        if (conflictos.reservas.length > 0) {
+          const primera = conflictos.reservas[0]
+          setError(
+            `No se puede guardar: ese horario choca con la reserva de ${primera?.cliente} en ${primera?.canchaNombre} (${primera?.horarioTexto}).`,
+          )
+          return
+        }
+        if (conflictos.eventos.length > 0) {
+          const primero = conflictos.eventos[0]
+          setError(
+            `No se puede guardar: coincide con el evento "${primero?.nombre}" en ${primero?.canchaNombre} (${primero?.horarioTexto}).`,
+          )
+          return
+        }
       }
 
       if (nombre.trim().length < 2) {
@@ -166,35 +188,53 @@ export default function AdminModalEditarEvento({
         setError('El precio cobrado debe ser un número mayor o igual a 0.')
         return
       }
-      if (finNumero - inicioNumero < 1) {
+      if (!concluido && finNumero - inicioNumero < 1) {
         setError('La duración mínima de un evento es de 1 hora.')
         return
       }
-      if (!validarEventoEspecial(simulado)) {
-        setError('Revisa los datos del evento.')
+      if (!concluido && eventoEnElPasado({ fecha, inicio: inicioNumero, fin: finNumero }, ahora)) {
+        setError('No es posible guardar el evento en un horario que ya pasó.')
         return
       }
 
-      for (const id of canchaIds) {
-        const entrenamiento = horarioEntrenamientoQueBloqueaEvento({
-          canchaId: id,
+      if (!concluido) {
+        const simulado = {
+          canchaIds,
           fecha,
           inicio: inicioNumero,
           fin: finNumero,
-        })
-        if (entrenamiento) {
-          setError(
-            `No es posible reservar estas horas porque hay entrenamiento de ${horaEntrenamientoVisible(entrenamiento.inicioMinuto)} a ${horaEntrenamientoVisible(entrenamiento.finMinuto)}.`,
-          )
+          nombre: nombre.trim(),
+          celular: celular.trim(),
+          notas: notas.trim(),
+          tipo: principal?.tipo ?? 'individual',
+          precioCobrado: Number(precioCobrado),
+        }
+        if (!validarEventoEspecial(simulado)) {
+          setError('Revisa los datos del evento.')
           return
+        }
+
+        for (const id of canchaIds) {
+          const entrenamiento = horarioEntrenamientoQueBloqueaEvento({
+            canchaId: id,
+            fecha,
+            inicio: inicioNumero,
+            fin: finNumero,
+          })
+          if (entrenamiento) {
+            setError(
+              `No es posible reservar estas horas porque hay entrenamiento de ${horaEntrenamientoVisible(entrenamiento.inicioMinuto)} a ${horaEntrenamientoVisible(entrenamiento.finMinuto)}.`,
+            )
+            return
+          }
         }
       }
 
       const actualizado: EventoEspecialActualizado = {
         grupoId,
-        fecha,
-        inicio: inicioNumero,
-        fin: finNumero,
+        fecha: concluido ? (principal?.fecha ?? fecha) : fecha,
+        inicio: concluido ? (principal?.inicio ?? inicioNumero) : inicioNumero,
+        fin: concluido ? (principal?.fin ?? finNumero) : finNumero,
         nombre: nombre.trim(),
         celular: celular.trim(),
         notas: notas.trim(),
@@ -214,6 +254,10 @@ export default function AdminModalEditarEvento({
         }
         if (res.error === 'datos-invalidos') {
           setError('Revisa los datos del evento. Si ingresaste un celular, debe tener 9 dígitos y empezar con 9.')
+          return
+        }
+        if (res.error === 'hora-pasada') {
+          setError('No es posible guardar el evento en un horario que ya pasó.')
           return
         }
         if (res.error === 'ocupado') {
@@ -255,7 +299,7 @@ export default function AdminModalEditarEvento({
               {principal?.nombre || 'Evento especial'}
             </h3>
             <span className="admin-modal-comprobante-subtitulo">
-              {textoCampos}
+              {textoCampos}{concluido ? ' · Evento concluido' : ''}
             </span>
           </div>
           <button
@@ -276,15 +320,25 @@ export default function AdminModalEditarEvento({
             </p>
           )}
 
+          {concluido && (
+            <div className="admin-modal-editar-aviso-concluido">
+              <CheckCircle2 size={16} aria-hidden="true" />
+              <span>
+                Este evento ya finalizó. Puedes actualizar el <strong>precio cobrado</strong>, notas y datos de contacto. Cualquier cambio en el precio se reflejará de inmediato en el balance mensual.
+              </span>
+            </div>
+          )}
+
           <div className="admin-modal-editar-grid">
             <label>
-              <span>Fecha</span>
+              <span>Fecha{concluido ? ' (concluido)' : ''}</span>
               <input
                 type="date"
                 value={fecha}
-                min={fechaISO(new Date())}
+                min={concluido ? undefined : fechaISO(ahora)}
+                disabled={concluido}
                 required
-                onChange={(e) => setFecha(e.target.value)}
+                onChange={(e) => cambiarFecha(e.target.value)}
               />
             </label>
 
@@ -296,6 +350,7 @@ export default function AdminModalEditarEvento({
                 opcionesHasta={opcionesHasta}
                 onChangeInicio={cambiarInicio}
                 onChangeFin={setFin}
+                disabled={concluido}
               />
             </div>
 

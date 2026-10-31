@@ -1,7 +1,7 @@
 // Fallback de la demo. Con Supabase activo, las reservas y clientes vienen de la base remota.
 import demo from './data/reservas-demo.json' with { type: 'json' }
 import type { BloqueoEvento, CambiosReservaAdmin, Cliente, EstadoReserva, Reserva, ReservaNueva, ResultadoEditarReserva } from './types.js'
-import { eventoChocaConReserva, eventoBloquea, horarioEntrenamientoQueBloqueaEvento, validarBloqueoEvento, validarEventoEspecial, type BloqueoEventoNuevo, type EventoEspecialNuevo, type EventoEspecialActualizado, type ResultadoCancelacionEvento, type ResultadoEvento, type ResultadoEventoEspecial } from './eventos.js'
+import { eventoChocaConReserva, eventoBloquea, eventoEnElPasado, eventoYaTermino, horarioEntrenamientoQueBloqueaEvento, validarBloqueoEvento, validarEventoEspecial, type BloqueoEventoNuevo, type EventoEspecialNuevo, type EventoEspecialActualizado, type ResultadoCancelacionEvento, type ResultadoEvento, type ResultadoEventoEspecial } from './eventos.js'
 import type { NumeroBloqueado, NumeroConfiable, ResultadoControlCliente } from './controlClientes.js'
 import { INASISTENCIAS_PARA_BLOQUEAR } from './controlClientes.js'
 import { normalizarReserva, puedeCambiarEstado } from './estadoReserva.js'
@@ -232,8 +232,10 @@ export function crearBloqueoEventoLocal(
 export function crearEventoEspecialLocal(
   nuevo: EventoEspecialNuevo,
   reservas: readonly Reserva[] = leerReservas(),
+  ahora: Date = new Date(),
 ): ResultadoEventoEspecial {
   if (!validarEventoEspecial(nuevo)) return { error: 'datos-invalidos' }
+  if (eventoEnElPasado(nuevo, ahora)) return { error: 'hora-pasada' }
 
   const grupoId = crypto.randomUUID()
   const eventos: BloqueoEvento[] = nuevo.canchaIds.map((canchaId) => ({
@@ -287,6 +289,7 @@ export function cancelarEventoEspecialLocal(grupoId: string): ResultadoCancelaci
 export function actualizarEventoEspecialLocal(
   actualizado: EventoEspecialActualizado,
   reservas: readonly Reserva[] = [],
+  ahora: Date = new Date(),
 ): ResultadoEventoEspecial {
   const eventosGuardados = leerBloqueosEventos()
   const existentes = eventosGuardados.filter(
@@ -294,41 +297,48 @@ export function actualizarEventoEspecialLocal(
   )
   if (existentes.length === 0) return { error: 'no-existe' }
 
+  const principalExistente = existentes[0]
+  const yaConcluido = principalExistente ? eventoYaTermino(principalExistente, ahora) : false
+
+  if (!yaConcluido && eventoEnElPasado(actualizado, ahora)) return { error: 'hora-pasada' }
+
   const canchaIds = existentes.map((e) => e.canchaId)
 
-  for (const canchaId of canchaIds) {
-    const entrenamiento = horarioEntrenamientoQueBloqueaEvento({
-      canchaId,
-      fecha: actualizado.fecha,
-      inicio: actualizado.inicio,
-      fin: actualizado.fin,
-    })
-    if (entrenamiento) {
-      return { error: 'entrenamiento-ocupado', entrenamiento }
+  if (!yaConcluido) {
+    for (const canchaId of canchaIds) {
+      const entrenamiento = horarioEntrenamientoQueBloqueaEvento({
+        canchaId,
+        fecha: actualizado.fecha,
+        inicio: actualizado.inicio,
+        fin: actualizado.fin,
+      })
+      if (entrenamiento) {
+        return { error: 'entrenamiento-ocupado', entrenamiento }
+      }
     }
-  }
 
-  for (const canchaId of canchaIds) {
-    const eventoSimulado = {
-      id: 'temp',
-      canchaId,
-      fecha: actualizado.fecha,
-      inicio: actualizado.inicio,
-      fin: actualizado.fin,
-      nombre: actualizado.nombre,
-      celular: actualizado.celular,
-      notas: actualizado.notas,
-      estado: 'activo' as const,
-    }
-    for (const reserva of reservas) {
-      if (eventoChocaConReserva(eventoSimulado, reserva)) {
-        return {
-          error: 'ocupado',
-          detalleReserva: {
-            canchaId: reserva.canchaId,
-            inicio: reserva.inicio,
-            cliente: reserva.alias,
-          },
+    for (const canchaId of canchaIds) {
+      const eventoSimulado = {
+        id: 'temp',
+        canchaId,
+        fecha: actualizado.fecha,
+        inicio: actualizado.inicio,
+        fin: actualizado.fin,
+        nombre: actualizado.nombre,
+        celular: actualizado.celular,
+        notas: actualizado.notas,
+        estado: 'activo' as const,
+      }
+      for (const reserva of reservas) {
+        if (eventoChocaConReserva(eventoSimulado, reserva)) {
+          return {
+            error: 'ocupado',
+            detalleReserva: {
+              canchaId: reserva.canchaId,
+              inicio: reserva.inicio,
+              cliente: reserva.alias,
+            },
+          }
         }
       }
     }
@@ -338,9 +348,9 @@ export function actualizarEventoEspecialLocal(
     if ((e.grupoId?.trim() || e.id) === actualizado.grupoId && e.estado === 'activo') {
       return {
         ...e,
-        fecha: actualizado.fecha,
-        inicio: actualizado.inicio,
-        fin: actualizado.fin,
+        fecha: yaConcluido ? e.fecha : actualizado.fecha,
+        inicio: yaConcluido ? e.inicio : actualizado.inicio,
+        fin: yaConcluido ? e.fin : actualizado.fin,
         nombre: actualizado.nombre,
         celular: actualizado.celular,
         notas: actualizado.notas,

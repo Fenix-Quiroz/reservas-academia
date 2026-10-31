@@ -5,6 +5,13 @@ import { agruparEventosEspeciales } from './AdminEventos.js'
 
 const adminEventos = fs.readFileSync(new URL('./AdminEventos.tsx', import.meta.url), 'utf8')
 const adminEventoCard = fs.readFileSync(new URL('./AdminEventoCard.tsx', import.meta.url), 'utf8')
+const adminModalEditar = fs.readFileSync(new URL('./AdminModalEditarEvento.tsx', import.meta.url), 'utf8')
+const adminSelectorHorario = fs.readFileSync(new URL('./AdminSelectorHorario.tsx', import.meta.url), 'utf8')
+
+assert.match(adminModalEditar, /admin-modal-editar-aviso-concluido/)
+assert.match(adminModalEditar, /eventoYaTermino\(principal, ahora\)/)
+assert.match(adminModalEditar, /disabled=\{concluido\}/)
+assert.match(adminSelectorHorario, /disabled\?: boolean/)
 
 assert.match(adminEventos, /label: 'Todos los campos de fútbol'/)
 assert.match(adminEventos, /canchaId === 'futbol'/)
@@ -15,7 +22,7 @@ assert.match(adminEventos, /const guardandoRef = useRef\(false\)/)
 assert.match(adminEventos, /if \(guardandoRef\.current\) return/)
 assert.match(adminEventos, /guardandoRef\.current = true/)
 assert.match(adminEventos, /guardandoRef\.current = false/)
-assert.match(adminEventos, /disabled=\{procesando \|\| guardando\}/)
+assert.match(adminEventos, /disabled=\{procesando \|\| guardando/)
 assert.match(adminEventos, /precioCobrado/)
 assert.match(adminEventos, /onCrear\(nuevo\)/)
 assert.match(adminEventos, /function agruparEventosEspeciales/)

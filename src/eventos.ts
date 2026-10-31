@@ -1,8 +1,9 @@
 import type { BloqueoEvento, Campo, Reserva, TipoEventoEspecial } from './types.js'
 import { rangoVisible } from './utils/fechasReserva.js'
 import { horarioEntrenamientoQueBloquea } from './horariosEntrenamiento.js'
+import { fechaISO } from './reservas.js'
 
-export type ErrorEvento = 'ocupado' | 'entrenamiento-ocupado' | 'datos-invalidos' | 'no-existe' | 'conexion' | 'evento_ocupado_reserva'
+export type ErrorEvento = 'ocupado' | 'entrenamiento-ocupado' | 'datos-invalidos' | 'no-existe' | 'conexion' | 'evento_ocupado_reserva' | 'hora-pasada'
 export interface DetalleEntrenamiento {
   inicioMinuto: number
   finMinuto: number
@@ -89,6 +90,27 @@ export function eventoYaTermino(
   const horasAdicionales = evento.fin - 12
   mediodiaLima.setTime(mediodiaLima.getTime() + horasAdicionales * 3600 * 1000)
   return mediodiaLima.getTime() <= ahora.getTime()
+}
+
+export function eventoEnElPasado(
+  evento: Pick<BloqueoEvento, 'fecha' | 'inicio' | 'fin'>,
+  ahora: Date = new Date(),
+): boolean {
+  if (eventoYaTermino(evento, ahora)) return true
+  const mediodiaLima = new Date(`${evento.fecha}T12:00:00-05:00`)
+  const inicioMs = mediodiaLima.getTime() + (evento.inicio - 12) * 3600 * 1000
+  const unaHoraMs = 3600 * 1000
+  return inicioMs + unaHoraMs <= ahora.getTime()
+}
+
+export function calcularHoraMinimaEvento(fecha: string, ahora: Date = new Date()): number {
+  const hoyLima = fechaISO(ahora)
+  if (fecha < hoyLima) return 24
+  if (fecha > hoyLima) return 7
+  const mediodiaLima = new Date(`${hoyLima}T12:00:00-05:00`)
+  const ahoraLima = (ahora.getTime() - mediodiaLima.getTime()) / (3600 * 1000) + 12
+  const horaMinima = Math.max(7, Math.floor(ahoraLima))
+  return Math.min(23, horaMinima)
 }
 
 export function eventoBloquea(
