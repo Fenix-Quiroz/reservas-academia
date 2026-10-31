@@ -58,7 +58,7 @@ export default function AdminBalanceMensual({ reservas, canchas, eventos }: Admi
   return (
     <section className="admin-balance" aria-labelledby="titulo-balance">
       <div className="admin-balance-cabecera">
-        <div>
+        <div className="admin-balance-info">
           <p className="admin-kicker">Reportes</p>
           <h2 id="titulo-balance">Balance mensual</h2>
           <p className="admin-balance-ayuda">
