@@ -25,22 +25,28 @@ export function extensionComprobante(archivo: Pick<File, 'type'>): ExtensionComp
   throw new Error('tipo-comprobante-no-admitido')
 }
 
-
 export async function optimizarComprobante(archivo: File): Promise<File> {
   if (typeof window === 'undefined' || typeof document === 'undefined') return archivo
-  if (!archivo.type.startsWith('image/') || archivo.size <= 80 * 1024) return archivo
+  if (!archivo.type.startsWith('image/')) return archivo
+  if (archivo.type === 'image/jpeg' && archivo.size <= 80 * 1024) return archivo
 
   try {
-    let fuente: CanvasImageSource
-    let width: number
-    let height: number
+    let fuente: CanvasImageSource | null = null
+    let width = 0
+    let height = 0
 
     if (typeof createImageBitmap === 'function') {
-      const bitmap = await createImageBitmap(archivo)
-      fuente = bitmap
-      width = bitmap.width
-      height = bitmap.height
-    } else {
+      try {
+        const bitmap = await createImageBitmap(archivo)
+        fuente = bitmap
+        width = bitmap.width
+        height = bitmap.height
+      } catch {
+        fuente = null
+      }
+    }
+
+    if (!fuente) {
       const img = await new Promise<HTMLImageElement>((resolve, reject) => {
         const elementoImg = new Image()
         const objUrl = URL.createObjectURL(archivo)
@@ -75,26 +81,28 @@ export async function optimizarComprobante(archivo: File): Promise<File> {
     const ctx = canvas.getContext('2d')
     if (!ctx) return archivo
 
+    ctx.fillStyle = '#FFFFFF'
+    ctx.fillRect(0, 0, width, height)
     ctx.drawImage(fuente, 0, 0, width, height)
 
-    let blob: Blob | null = await new Promise((resolve) => {
-      canvas.toBlob(resolve, 'image/webp', 0.82)
-    })
-    let tipo = 'image/webp'
-    let extension = 'webp'
-
-    if (!blob || blob.size === 0) {
-      blob = await new Promise((resolve) => {
-        canvas.toBlob(resolve, 'image/jpeg', 0.82)
-      })
-      tipo = 'image/jpeg'
-      extension = 'jpg'
+    if ('close' in fuente && typeof (fuente as ImageBitmap).close === 'function') {
+      (fuente as ImageBitmap).close()
     }
 
-    if (!blob || blob.size >= archivo.size) {
+    const blob: Blob | null = await new Promise((resolve) => {
+      canvas.toBlob(resolve, 'image/jpeg', 0.85)
+    })
+
+    if (!blob || blob.size === 0) {
       return archivo
     }
 
+    if (blob.size >= archivo.size && archivo.type !== 'image/webp') {
+      return archivo
+    }
+
+    const tipo = blob.type || 'image/jpeg'
+    const extension = tipo === 'image/png' ? 'png' : 'jpg'
     const nombreBase = archivo.name.replace(/\.[^.]+$/, '')
     return new File([blob], `${nombreBase}.${extension}`, { type: tipo })
   } catch {
