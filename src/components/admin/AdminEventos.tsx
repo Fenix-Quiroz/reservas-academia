@@ -140,7 +140,7 @@ export default function AdminEventos({
   const cancelados = eventos.filter((evento) => evento.estado === 'cancelado')
   const canceladosAgrupados = useMemo(() => {
     const grupos = agruparEventosEspeciales(cancelados)
-    grupos.sort((a, b) => (b[0]?.fecha ?? '').localeCompare(a[0]?.fecha ?? '') || (b[0]?.inicio ?? 0) - (a[0]?.inicio ?? 0))
+    grupos.sort((a, b) => (b[0]?.fecha ?? '').localeCompare(a[0]?.fecha ?? '') || (a[0]?.inicio ?? 0) - (b[0]?.inicio ?? 0) || (a[0]?.canchaId ?? 0) - (b[0]?.canchaId ?? 0))
     return grupos
   }, [cancelados])
   const ahora = useMemo(() => new Date(), [])
@@ -155,8 +155,8 @@ export default function AdminEventos({
         prox.push(grupo)
       }
     }
-    prox.sort((a, b) => (a[0]?.fecha ?? '').localeCompare(b[0]?.fecha ?? '') || (a[0]?.inicio ?? 0) - (b[0]?.inicio ?? 0))
-    conc.sort((a, b) => (b[0]?.fecha ?? '').localeCompare(a[0]?.fecha ?? '') || (b[0]?.inicio ?? 0) - (a[0]?.inicio ?? 0))
+    conc.sort((a, b) => (b[0]?.fecha ?? '').localeCompare(a[0]?.fecha ?? '') || (a[0]?.inicio ?? 0) - (b[0]?.inicio ?? 0) || (a[0]?.canchaId ?? 0) - (b[0]?.canchaId ?? 0))
+    prox.sort((a, b) => (a[0]?.fecha ?? '').localeCompare(b[0]?.fecha ?? '') || (a[0]?.inicio ?? 0) - (b[0]?.inicio ?? 0) || (a[0]?.canchaId ?? 0) - (b[0]?.canchaId ?? 0))
     return { proximosAgrupados: prox, concluidosAgrupados: conc }
   }, [activosAgrupados, ahora])
 

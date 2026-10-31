@@ -66,4 +66,13 @@ assert.match(cardSource, /admin-iniciar/)
 assert.match(alarmaSource, /eventos\?: readonly BloqueoEvento\[\]/)
 assert.match(adminAppSource, /<AdminAlarmaTurno reservas=\{reservas\} canchas=\{canchas\} eventos=\{eventos\} \/>/)
 
+// Verificación explícita de orden cronológico por hora en el panel admin (ejemplo del usuario):
+// Reserva 7am a 9am (inicio: 7), Reserva 2pm a 3pm (inicio: 14), y Reserva intermedia 11am a 1pm (inicio: 11)
+const r7am: Reserva = { id: 'r-7am', canchaId: 1, fecha: '2026-11-04', inicio: 7, horas: 2, alias: 'Turno Mañana', celular: '911111111', estado: 'activo' }
+const r2pm: Reserva = { id: 'r-2pm', canchaId: 1, fecha: '2026-11-04', inicio: 14, horas: 1, alias: 'Turno Tarde', celular: '922222222', estado: 'activo' }
+const r11am: Reserva = { id: 'r-11am', canchaId: 1, fecha: '2026-11-04', inicio: 11, horas: 2, alias: 'Turno Intermedio', celular: '933333333', estado: 'activo' }
+
+const ordenadas = filtrarReservas([r7am, r2pm, r11am], { vista: 'todas', fecha: '2026-11-04' }, canchas, new Date('2026-11-04T05:00:00'))
+assert.deepEqual(ordenadas.map((r) => r.id), ['r-7am', 'r-11am', 'r-2pm'], 'La reserva de las 11 a. m. debe ubicarse exactamente en el medio')
+
 console.log('✔ admin.check.ts OK')

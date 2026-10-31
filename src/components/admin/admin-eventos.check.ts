@@ -55,4 +55,14 @@ const grupos = agruparEventosEspeciales([
 assert.equal(grupos.length, 2)
 assert.deepEqual(grupos[0]?.map((evento) => evento.canchaId), [1, 2, 3])
 
+// Verificación de orden cronológico en eventos especiales (ejemplo del usuario):
+// Evento 7am a 9am (inicio: 7), Evento 2pm a 3pm (inicio: 14), y Evento intermedio 11am a 1pm (inicio: 11)
+const ev7am: BloqueoEvento = { id: 'ev-7am', canchaId: 1, fecha: '2026-11-04', inicio: 7, fin: 9, nombre: 'Evento 7am', celular: '911111111', notas: '', estado: 'activo' }
+const ev2pm: BloqueoEvento = { id: 'ev-2pm', canchaId: 1, fecha: '2026-11-04', inicio: 14, fin: 15, nombre: 'Evento 2pm', celular: '922222222', notas: '', estado: 'activo' }
+const ev11am: BloqueoEvento = { id: 'ev-11am', canchaId: 1, fecha: '2026-11-04', inicio: 11, fin: 13, nombre: 'Evento 11am', celular: '933333333', notas: '', estado: 'activo' }
+
+const gruposEventos = agruparEventosEspeciales([ev7am, ev2pm, ev11am])
+gruposEventos.sort((a, b) => (a[0]?.fecha ?? '').localeCompare(b[0]?.fecha ?? '') || (a[0]?.inicio ?? 0) - (b[0]?.inicio ?? 0))
+assert.deepEqual(gruposEventos.map((g) => g[0]?.id), ['ev-7am', 'ev-11am', 'ev-2pm'], 'El evento especial de las 11 a. m. debe ubicarse exactamente en el medio')
+
 console.log('✔ admin-eventos.check.ts OK')
