@@ -24,7 +24,7 @@ export default function AdminBalanceMensual({ reservas, canchas, eventos, esModo
   const [descargandoTexto, setDescargandoTexto] = useState(false)
   const [errorDescarga, setErrorDescarga] = useState('')
   const bloqueoDescarga = useRef(crearBloqueoAccion())
-  const esModoDemo = modoDemoProp ?? (import.meta.env.VITE_BALANCE_DEMO === 'true' || (import.meta.env.DEV && !reservas.some((r) => !r.id.startsWith('demo-'))))
+  const esModoDemo = Boolean(modoDemoProp ?? (import.meta.env.VITE_BALANCE_DEMO === 'true'))
   const reservasParaBalance = esModoDemo ? reservasBalanceDemo : reservas
   const eventosParaBalance = esModoDemo ? eventosBalanceDemo : eventos
   const balance = useMemo(() => construirBalanceMensual(mes, reservasParaBalance, canchas, eventosParaBalance), [mes, reservasParaBalance, canchas, eventosParaBalance])
