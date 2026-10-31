@@ -54,7 +54,6 @@ import AdminAlarmaTurno from './components/admin/AdminAlarmaTurno'
 import AdminBalanceMensual from './components/admin/AdminBalanceMensual'
 import AdminControlClientes from './components/admin/AdminControlClientes'
 import AdminEventos from './components/admin/AdminEventos'
-import AdminSimuladorReservas from './components/admin/AdminSimuladorReservas'
 import AdminNavegacion from './components/admin/AdminNavegacion'
 import AdminModalComprobante from './components/admin/AdminModalComprobante'
 import AdminModalEditarReserva from './components/admin/AdminModalEditarReserva'
@@ -683,8 +682,6 @@ export default function AdminApp() {
           })}
         />
       </div>
-
-      <AdminSimuladorReservas cancha={canchas[0]} />
 
       <div id="admin-balance" className="admin-seccion-destino">
         <AdminBalanceMensual reservas={reservas} canchas={canchas} eventos={eventos} />
