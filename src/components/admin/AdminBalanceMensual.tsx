@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Download, FileText } from 'lucide-react'
 import type { BloqueoEvento, Campo, Reserva } from '../../types.js'
 import reservasDemoJson from '../../data/reservasBalanceDemo.json'
@@ -24,6 +24,12 @@ export default function AdminBalanceMensual({ reservas, canchas, eventos, esModo
   const [descargandoTexto, setDescargandoTexto] = useState(false)
   const [errorDescarga, setErrorDescarga] = useState('')
   const bloqueoDescarga = useRef(crearBloqueoAccion())
+
+  useEffect(() => {
+    if (!errorDescarga) return undefined
+    const temporizador = window.setTimeout(() => setErrorDescarga(''), 5000)
+    return () => window.clearTimeout(temporizador)
+  }, [errorDescarga])
   const esModoDemo = Boolean(modoDemoProp ?? (import.meta.env.VITE_BALANCE_DEMO === 'true'))
   const reservasParaBalance = esModoDemo ? reservasBalanceDemo : reservas
   const eventosParaBalance = esModoDemo ? eventosBalanceDemo : eventos

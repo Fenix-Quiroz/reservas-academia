@@ -45,6 +45,12 @@ export default function AdminAlarmaTurno({ reservas, canchas, eventos = [] }: Ad
   const [sonidoActivado, setSonidoActivado] = useState(false)
   const [mostrarPopupActivar, setMostrarPopupActivar] = useState(true)
   const [errorSonido, setErrorSonido] = useState('')
+
+  useEffect(() => {
+    if (!errorSonido) return undefined
+    const temporizador = window.setTimeout(() => setErrorSonido(''), 5000)
+    return () => window.clearTimeout(temporizador)
+  }, [errorSonido])
   const emitidas = useRef(new Set<string>())
   const contextoAudio = useRef<AudioContext | null>(null)
   const bloqueoSonido = useRef(crearBloqueoAccion())

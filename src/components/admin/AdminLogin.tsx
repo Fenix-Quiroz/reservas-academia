@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import type { FormEvent } from 'react'
 import AdminMarca from './AdminMarca'
 import { crearBloqueoAccion } from '../../accionUnica'
@@ -20,6 +20,12 @@ export default function AdminLogin({ errorInicial, onLogin }: AdminLoginProps) {
   const [error, setError] = useState(errorInicial ?? '')
   const [procesando, setProcesando] = useState(false)
   const bloqueoIngreso = useRef(crearBloqueoAccion())
+
+  useEffect(() => {
+    if (!error) return undefined
+    const temporizador = window.setTimeout(() => setError(''), 5000)
+    return () => window.clearTimeout(temporizador)
+  }, [error])
 
   async function ingresar(e: FormEvent<HTMLFormElement>): Promise<void> {
     e.preventDefault()

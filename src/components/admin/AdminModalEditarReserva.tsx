@@ -74,6 +74,12 @@ export default function AdminModalEditarReserva({
   const [montoModificadoManualmente, setMontoModificadoManualmente] = useState(false)
   const [errorEnvio, setErrorEnvio] = useState<string>('')
   const [guardando, setGuardando] = useState(false)
+
+  useEffect(() => {
+    if (!errorEnvio) return undefined
+    const temporizador = window.setTimeout(() => setErrorEnvio(''), 5000)
+    return () => window.clearTimeout(temporizador)
+  }, [errorEnvio])
   const botonCerrarRef = useRef<HTMLButtonElement | null>(null)
 
   const canchaActual = useMemo(() => canchas.find((c) => c.id === canchaId), [canchas, canchaId])

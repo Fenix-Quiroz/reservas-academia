@@ -139,8 +139,18 @@ export default function DatosReserva({
     const frame = window.requestAnimationFrame(() => {
       errorRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' })
     })
-    return () => window.cancelAnimationFrame(frame)
+    const temporizador = window.setTimeout(() => setError(''), 5000)
+    return () => {
+      window.cancelAnimationFrame(frame)
+      window.clearTimeout(temporizador)
+    }
   }, [error])
+
+  useEffect(() => {
+    if (!errorComprobante) return undefined
+    const temporizador = window.setTimeout(() => setErrorComprobante(''), 5000)
+    return () => window.clearTimeout(temporizador)
+  }, [errorComprobante])
 
   function mensajeErrorComprobante(error: ErrorComprobante): string {
     if (error === 'archivo-requerido') return 'Selecciona la captura de tu Yape para asegurar la reserva.'

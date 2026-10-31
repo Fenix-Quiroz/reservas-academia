@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import type { FormEvent } from 'react'
 import { UserCheck, UserX } from 'lucide-react'
 import type {
@@ -42,6 +42,18 @@ export default function AdminControlClientes({
   const [aliasConfiable, setAliasConfiable] = useState('')
   const [error, setError] = useState('')
   const [exito, setExito] = useState('')
+
+  useEffect(() => {
+    if (!error) return undefined
+    const temporizador = window.setTimeout(() => setError(''), 5000)
+    return () => window.clearTimeout(temporizador)
+  }, [error])
+
+  useEffect(() => {
+    if (!exito) return undefined
+    const temporizador = window.setTimeout(() => setExito(''), 4000)
+    return () => window.clearTimeout(temporizador)
+  }, [exito])
 
   async function bloquear(evento: FormEvent<HTMLFormElement>): Promise<void> {
     evento.preventDefault()

@@ -75,6 +75,18 @@ export default function MisReservas({
     return () => window.clearTimeout(temporizador)
   }, [exito])
 
+  useEffect(() => {
+    if (!error) return undefined
+    const temporizador = window.setTimeout(() => setError(''), 5000)
+    return () => window.clearTimeout(temporizador)
+  }, [error])
+
+  useEffect(() => {
+    if (!datosError) return undefined
+    const temporizador = window.setTimeout(() => setDatosError(''), 5000)
+    return () => window.clearTimeout(temporizador)
+  }, [datosError])
+
   async function editarDatos(e: FormEvent<HTMLFormElement>): Promise<void> {
     e.preventDefault()
     if (!bloqueoEdicion.current.adquirir()) return

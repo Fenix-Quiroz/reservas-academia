@@ -57,6 +57,12 @@ export default function AdminModalEditarEvento({
   const [precioCobrado, setPrecioCobrado] = useState(String(principal?.precioCobrado ?? 0))
   const [error, setError] = useState('')
   const [guardando, setGuardando] = useState(false)
+
+  useEffect(() => {
+    if (!error) return undefined
+    const temporizador = window.setTimeout(() => setError(''), 5000)
+    return () => window.clearTimeout(temporizador)
+  }, [error])
   const guardandoRef = useRef(false)
 
   const canchaIds = useMemo(() => [...new Set(eventos.map((e) => e.canchaId))], [eventos])

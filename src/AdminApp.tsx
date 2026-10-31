@@ -121,6 +121,12 @@ export default function AdminApp() {
   }, [mensaje])
 
   useEffect(() => {
+    if (!error) return undefined
+    const temporizador = window.setTimeout(() => setError(''), 5000)
+    return () => window.clearTimeout(temporizador)
+  }, [error])
+
+  useEffect(() => {
     if (!supabaseConfigurado || !comprobantesAdmin.length) return
     const paraPrecalentar = comprobantesAdmin.slice(0, 10)
     for (const item of paraPrecalentar) {

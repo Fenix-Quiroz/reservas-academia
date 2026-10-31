@@ -111,6 +111,12 @@ export default function AdminEventos({
     return () => window.clearTimeout(temporizador)
   }, [exito])
 
+  useEffect(() => {
+    if (!error) return undefined
+    const temporizador = window.setTimeout(() => setError(''), 5000)
+    return () => window.clearTimeout(temporizador)
+  }, [error])
+
   const inicioNumero = Number(inicio)
   const finalesDisponibles = useMemo(
     () => opcionesHora(inicioNumero + 2, 25, 0.5),
