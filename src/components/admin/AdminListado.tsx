@@ -23,6 +23,28 @@ export interface AdminListadoProps {
   onEdit?: (reserva: Reserva) => void
 }
 
+export function AdminReservaSkeleton() {
+  return (
+    <article className="admin-reserva admin-skeleton-card" aria-hidden="true">
+      <div className="admin-reserva-fecha">
+        <div className="admin-skeleton-bloque skeleton-w70" />
+        <div className="admin-skeleton-bloque skeleton-w50" />
+      </div>
+      <div className="admin-reserva-datos">
+        <div className="admin-skeleton-bloque skeleton-w40 skeleton-h18" />
+        <div className="admin-skeleton-bloque skeleton-w60" />
+        <div className="admin-skeleton-bloque skeleton-w50" />
+      </div>
+      <div className="admin-reserva-estado">
+        <div className="admin-reserva-acciones">
+          <div className="admin-skeleton-boton" />
+          <div className="admin-skeleton-boton" />
+        </div>
+      </div>
+    </article>
+  )
+}
+
 export default function AdminListado({
   visibles,
   cargandoInicial,
@@ -43,7 +65,18 @@ export default function AdminListado({
   onConfirmarComprobante,
   onEdit,
 }: AdminListadoProps) {
-  if (cargandoInicial) return <div className="admin-cargando" role="status">Cargando reservas…</div>
+  if (cargandoInicial) {
+    return (
+      <div className="admin-cargando-wrapper" role="status" aria-busy="true">
+        <span className="sr-only">Cargando reservas…</span>
+        <div className="admin-reservas">
+          <AdminReservaSkeleton />
+          <AdminReservaSkeleton />
+          <AdminReservaSkeleton />
+        </div>
+      </div>
+    )
+  }
 
   if (visibles.length === 0) {
     return (

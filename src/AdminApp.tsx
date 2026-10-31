@@ -58,6 +58,7 @@ import AdminSimuladorReservas from './components/admin/AdminSimuladorReservas'
 import AdminNavegacion from './components/admin/AdminNavegacion'
 import AdminModalComprobante from './components/admin/AdminModalComprobante'
 import AdminModalEditarReserva from './components/admin/AdminModalEditarReserva'
+import AdminLoadingSplash from './components/admin/AdminLoadingSplash'
 import { crearBloqueoAccion } from './accionUnica'
 
 type EstadoConexion = 'sincronizando' | 'demo' | 'error' | 'sincronizado'
@@ -551,7 +552,7 @@ export default function AdminApp() {
   }
 
   if (supabaseConfigurado && cargandoAuth) {
-    return <div className="admin-auth-state" role="status">Comprobando acceso…</div>
+    return <AdminLoadingSplash mensaje="Comprobando acceso…" />
   }
 
   if (supabaseConfigurado && !usuario) {
@@ -589,7 +590,7 @@ export default function AdminApp() {
         onLogout={cerrarSesion}
       />
 
-      <div className={`demo-aviso${estadoConexion === 'error' ? ' sin-conexion' : ''}`} role={estadoConexion === 'error' ? 'alert' : 'status'}>
+      <div className={`demo-aviso${estadoConexion === 'error' ? ' sin-conexion' : ''}${estadoConexion === 'sincronizado' ? ' sincronizado-discreto' : ''}`} role={estadoConexion === 'error' ? 'alert' : 'status'}>
         <strong>{!supabaseConfigurado
           ? 'Demo'
           : estadoConexion === 'error'

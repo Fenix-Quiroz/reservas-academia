@@ -214,6 +214,30 @@ button {
   color: var(--error);
 }
 
+.admin-app .demo-aviso {
+  background: var(--color-ink-900, #141311);
+  border: 1px solid var(--color-ink-750, #272520);
+  color: var(--color-ink-300, #a8a193);
+}
+
+.admin-app .demo-aviso strong {
+  color: var(--color-gold-400, #f59e0b);
+}
+
+.admin-app .demo-aviso.sincronizado-discreto {
+  display: none;
+}
+
+.admin-app .demo-aviso.sin-conexion {
+  border-color: #7f1d1d;
+  background: #2a1413;
+  color: #fca5a5;
+}
+
+.admin-app .demo-aviso.sin-conexion strong {
+  color: #fca5a5;
+}
+
 .admin-sidebar {
   width: 250px;
   flex-shrink: 0;
@@ -3490,6 +3514,137 @@ button:disabled {
   font-weight: 700;
 }
 
+/* Splash loader de inicio de administración */
+.admin-splash-pantalla {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  width: 100%;
+  background: #0b0b0a;
+  color: var(--color-ink-100, #f8f6f0);
+  padding: 24px;
+  box-sizing: border-box;
+}
+
+.admin-splash-caja {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 18px;
+  text-align: center;
+  max-width: 360px;
+}
+
+.admin-splash-emblema {
+  position: relative;
+  width: 90px;
+  height: 90px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.admin-splash-halo {
+  position: absolute;
+  inset: -14px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(217, 154, 11, 0.28) 0%, rgba(217, 154, 11, 0) 70%);
+  animation: admin-pulse-halo 2.2s ease-in-out infinite;
+}
+
+.admin-splash-logo {
+  width: 58px;
+  height: 58px;
+  object-fit: contain;
+  border-radius: 12px;
+  z-index: 2;
+  filter: drop-shadow(0 4px 14px rgba(0, 0, 0, 0.6));
+}
+
+.admin-splash-spinner {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  border: 2px solid rgba(217, 154, 11, 0.16);
+  border-top-color: #d99a0b;
+  border-right-color: #f59e0b;
+  animation: admin-spin 0.9s cubic-bezier(0.5, 0.1, 0.5, 0.9) infinite;
+  z-index: 3;
+}
+
+.admin-splash-texto {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.admin-splash-texto strong {
+  font-size: 1.15rem;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  color: #fff9ed;
+}
+
+.admin-splash-texto span {
+  font-size: 0.88rem;
+  color: #a8a193;
+}
+
+@keyframes admin-spin {
+  to { transform: rotate(360deg); }
+}
+
+@keyframes admin-pulse-halo {
+  0%, 100% { opacity: 0.4; transform: scale(0.96); }
+  50% { opacity: 0.9; transform: scale(1.08); }
+}
+
+/* Skeleton loader para reservas del panel */
+.admin-listado-esqueleto {
+  display: grid;
+  gap: 12px;
+}
+
+.admin-skeleton-card {
+  pointer-events: none;
+  user-select: none;
+  opacity: 0.85;
+}
+
+.admin-skeleton-bloque {
+  height: 14px;
+  border-radius: 6px;
+  background: linear-gradient(90deg, #1b1a17 25%, #2c2922 50%, #1b1a17 75%);
+  background-size: 200% 100%;
+  animation: admin-skeleton-shimmer 1.7s infinite linear;
+}
+
+.admin-skeleton-bloque.skeleton-h18 {
+  height: 18px;
+}
+
+.admin-skeleton-bloque.skeleton-w30 { width: 30%; }
+.admin-skeleton-bloque.skeleton-w40 { width: 40%; }
+.admin-skeleton-bloque.skeleton-w50 { width: 50%; }
+.admin-skeleton-bloque.skeleton-w60 { width: 60%; }
+.admin-skeleton-bloque.skeleton-w70 { width: 70%; }
+.admin-skeleton-bloque.skeleton-w80 { width: 80%; }
+
+.admin-skeleton-boton {
+  width: 78px;
+  height: 32px;
+  border-radius: 8px;
+  background: linear-gradient(90deg, #1b1a17 25%, #2c2922 50%, #1b1a17 75%);
+  background-size: 200% 100%;
+  animation: admin-skeleton-shimmer 1.7s infinite linear;
+}
+
+@keyframes admin-skeleton-shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
 .admin-control-clientes {
   display: grid;
   gap: 16px;
@@ -5555,18 +5710,18 @@ button:disabled {
   padding: 0 10px;
   border-radius: 8px;
   font-size: 0.78rem;
-  border: 1px solid var(--color-ink-600, #464033);
-  background: var(--color-ink-850, #1e1b15);
-  color: var(--color-ink-100, #f0ece4);
-  font-weight: 700;
+  border: 1px solid var(--color-gold-600);
+  background: var(--color-gold-950);
+  color: var(--color-gold-300);
+  font-weight: 800;
   cursor: pointer;
   transition: all 0.15s ease;
 }
 
 .admin-editar:hover:not(:disabled) {
-  border-color: var(--color-gold-500, #d29a14);
-  color: var(--color-gold-100, #fae9b9);
-  background: var(--color-gold-950, #2e1f06);
+  background: var(--color-gold-900);
+  border-color: var(--color-gold-400);
+  color: var(--color-gold-100);
 }
 
 .admin-editar:disabled {
