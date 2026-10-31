@@ -5,8 +5,9 @@ import { rangoHablado } from '../../reservas'
 import type { Campo, Cliente, Reserva } from '../../types.js'
 import { ALIAS_MAXIMO } from '../../validacionCliente'
 import { crearBloqueoAccion } from '../../accionUnica'
-import { NUMERO_YAPE } from '../../pagos'
 import { Phone } from 'lucide-react'
+
+export const NUMERO_CONSULTAS = '997621348'
 type ErrorAccion =
   | 'ocupado'
   | 'limite'
@@ -70,8 +71,8 @@ export default function MisReservas({
   const [cancelando, setCancelando] = useState<string | null>(null)
   const bloqueoEdicion = useRef(crearBloqueoAccion())
   const bloqueoCancelacion = useRef(crearBloqueoAccion())
-  const numeroContactoVisible = NUMERO_YAPE.match(/.{1,3}/g)?.join(' ') ?? NUMERO_YAPE
-  const numeroLimpio = NUMERO_YAPE.replace(/\D/g, '')
+  const numeroContactoVisible = NUMERO_CONSULTAS.match(/.{1,3}/g)?.join(' ') ?? NUMERO_CONSULTAS
+  const numeroLimpio = NUMERO_CONSULTAS.replace(/\D/g, '')
 
   useEffect(() => {
     if (!exito) return undefined
