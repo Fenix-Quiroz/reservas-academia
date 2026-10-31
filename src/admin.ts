@@ -27,7 +27,7 @@ const enCursoPorHora = (reserva: Reserva, ahora: Date): boolean =>
 const esEnCurso = (reserva: Reserva, ahora: Date): boolean =>
   reserva.estado === 'iniciado' || (reserva.estado === 'activo' && enCursoPorHora(reserva, ahora))
 
-const esFinalizada = (reserva: Reserva, ahora: Date): boolean =>
+const esFinalizada = (reserva: Reserva, _ahora: Date): boolean =>
   reserva.estado === 'finalizado'
 
 const esPorRevisar = (reserva: Reserva, ahora: Date): boolean =>
@@ -47,14 +47,16 @@ export function filtrarReservas(
 
   return reservas
     .filter((r) => {
+      if (vista === 'canceladas') return r.estado === 'cancelado'
+      if (r.estado === 'cancelado') return false
       if (vista === 'todas') return true
       if (vista === 'proximas') return esProxima(r, ahora)
       if (vista === 'en-curso') return esEnCurso(r, ahora)
       if (vista === 'por-revisar') return esPorRevisar(r, ahora)
-      if (vista === 'historial') return esFinalizada(r, ahora) || r.estado === 'no_asistio' || r.estado === 'cancelado'
+      if (vista === 'historial') return esFinalizada(r, ahora) || r.estado === 'no_asistio'
       if (vista === 'finalizadas') return esFinalizada(r, ahora)
       if (vista === 'no-asistieron') return r.estado === 'no_asistio'
-      return r.estado === 'cancelado'
+      return false
     })
     .filter((r) => fecha === 'todas' || r.fecha === fecha)
     .filter((r) => canchaId === 'todas' || String(r.canchaId) === String(canchaId))

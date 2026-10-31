@@ -51,7 +51,7 @@ assert.deepEqual(filtrarReservas([...reservas, reservaCancelada], { vista: 'canc
 assert.deepEqual(filtrarReservas([
   { ...reservaCancelada, id: 'no-asistio', estado: 'no_asistio' },
 ], { vista: 'no-asistieron' }, canchas, ahora).map((r) => r.id), ['no-asistio'])
-assert.equal(filtrarReservas([...reservas, reservaCancelada], { vista: 'todas' }, canchas, ahora).some((r) => r.id === 'cancelada'), true)
+assert.equal(filtrarReservas([...reservas, reservaCancelada], { vista: 'todas' }, canchas, ahora).some((r) => r.id === 'cancelada'), false)
 assert.equal(filtrarReservas([
   { id: 'd', canchaId: 1, fecha: '2026-10-18', inicio: 12, horas: 1, alias: 'David', nombre: 'David', celular: '944444444', estado: 'activo' },
 ], { vista: 'todas', buscar: 'david' }, canchas, ahora)[0].id, 'd')

@@ -113,6 +113,7 @@ const opcionesEstado: readonly AdminFiltroMenuOpcion[] = [
   { value: 'en-curso', label: 'En curso' },
   { value: 'por-revisar', label: 'Por revisar' },
   { value: 'historial', label: 'Historial' },
+  { value: 'canceladas', label: 'Canceladas' },
 ]
 
 export default function AdminFiltros({ filtros, onChange, porRevisar = 0 }: AdminFiltrosProps) {
