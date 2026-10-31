@@ -256,6 +256,11 @@ export default function AdminEventos({
       setCelular('')
       setNotas('')
       setPrecioCobrado('0')
+      const duracion = Number(fin) - inicioNumero
+      const nuevoInicio = Number(fin) <= 23 ? Number(fin) : 7
+      const nuevoFin = Math.min(25, nuevoInicio + Math.max(1, duracion))
+      setInicio(String(nuevoInicio))
+      setFin(String(nuevoFin))
       setExito(canchaId === 'futbol'
         ? 'Evento guardado en todos los campos de fútbol. Esas horas ya no aparecen disponibles para los clientes.'
         : 'Evento guardado. Esas horas ya no aparecen disponibles para los clientes.')
@@ -330,7 +335,7 @@ export default function AdminEventos({
           <span>Notas (opcional)</span>
           <textarea value={notas} maxLength={240} rows={2} placeholder="Información para el encargado" onChange={(evento) => setNotas(evento.target.value)} />
         </label>
-        {hayConflictos && (
+        {hayConflictos && !exito && (
           <div className="admin-eventos-conflicto" role="alert">
             <div className="admin-eventos-conflicto-titulo">
               <AlertTriangle size={18} strokeWidth={2.5} aria-hidden="true" />
