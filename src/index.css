@@ -11,7 +11,7 @@
   --radio: 14px;
   font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
   color: var(--texto);
-  background: var(--fondo);
+  background: var(--color-ink-950);
   line-height: 1.4;
 }
 
@@ -2478,11 +2478,14 @@ button:disabled {
   flex-direction: row;
   align-items: flex-start;
   gap: 28px;
+  width: 100%;
   max-width: 1400px;
   margin: 0 auto;
   padding: 24px 20px 48px;
   color: var(--color-ink-50);
   color-scheme: dark;
+  background: var(--color-ink-950);
+  box-sizing: border-box;
 }
 
 .admin-cuerpo {
@@ -4859,48 +4862,431 @@ button:disabled {
     display: inline-flex;
   }
 
-  .admin-cabecera,
-  .admin-balance-cabecera,
-  .admin-listado-cabecera,
-  .admin-alarma-cabecera,
-  .admin-alarma-item {
-    align-items: stretch;
+  .admin-app {
+    display: flex;
     flex-direction: column;
+    align-items: stretch;
+    width: 100%;
+    max-width: 100%;
+    min-height: 100dvh;
+    margin: 0;
+    padding: 0 0 48px;
+    gap: 16px;
+    background: var(--color-ink-950);
+    box-sizing: border-box;
+    overflow-x: hidden;
   }
 
-  .admin-app {
+  /* Barra de navegación superior fija en móvil */
+  .admin-sidebar {
+    display: block;
+    width: 100%;
+    max-width: 100%;
+    margin: 0;
+    position: sticky;
+    top: 0;
+    z-index: 95;
+    background: rgba(14, 13, 11, 0.96);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+    border-bottom: 1px solid var(--color-ink-700);
+    padding: 10px 14px;
+    box-shadow: 0 4px 18px rgba(0, 0, 0, 0.45);
+    box-sizing: border-box;
+  }
+
+  .admin-navegacion {
+    padding: 0;
+    border: none;
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
+    width: 100%;
+  }
+
+  .admin-navegacion-cabecera {
+    display: none;
+  }
+
+  .admin-navegacion-contenido {
+    display: flex;
+    flex-direction: row;
+    gap: 8px;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    padding: 2px 0;
+    width: 100%;
+  }
+
+  .admin-navegacion-contenido::-webkit-scrollbar {
+    display: none;
+  }
+
+  .admin-navegacion-enlace {
+    flex: 0 0 auto;
+    min-height: 38px;
+    padding: 6px 14px;
+    gap: 7px;
+    border-radius: 999px;
+    border: 1px solid var(--color-ink-700);
+    background: var(--color-ink-850);
+    color: var(--color-ink-200);
+    font-size: 0.85rem;
+    font-weight: 700;
+    white-space: nowrap;
+    transform: none;
+  }
+
+  .admin-navegacion-enlace:hover {
+    transform: none;
+    background: var(--color-ink-750);
+  }
+
+  .admin-navegacion-enlace[aria-current='page'] {
+    border-color: var(--color-gold-500);
+    background: var(--color-gold-500);
+    color: var(--color-ink-950);
+    font-weight: 800;
+    box-shadow: 0 2px 8px rgba(234, 179, 8, 0.35);
+  }
+
+  .admin-cuerpo {
+    width: 100%;
+    max-width: 100%;
+    padding: 0 14px;
+    display: flex;
     flex-direction: column;
     gap: 16px;
-  }
-
-  .admin-sidebar {
-    display: none;
+    min-width: 0;
+    box-sizing: border-box;
   }
 
   #admin-inicio,
   #admin-agenda,
   .admin-seccion-destino {
-    scroll-margin-top: 20px;
+    scroll-margin-top: 60px;
+  }
+
+  /* Cabecera y acciones en móvil */
+  .admin-cabecera {
+    align-items: stretch;
+    flex-direction: column;
+    gap: 14px;
+    margin-bottom: 0;
+    width: 100%;
+  }
+
+  .admin-cabecera h1 {
+    font-size: 1.55rem;
+    line-height: 1.2;
+    word-break: break-word;
+  }
+
+  .admin-acciones {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+    width: 100%;
+  }
+
+  .admin-acciones .admin-boton {
+    width: 100%;
+    min-height: 44px;
+    padding: 6px 8px;
+    font-size: 0.85rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    border-radius: 10px;
+    line-height: 1.25;
+  }
+
+  .admin-reset-confirmar {
+    grid-column: 1 / -1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    padding: 12px;
+    border: 1px solid rgba(239, 68, 68, 0.3);
+    border-radius: 10px;
+    background: #2a1413;
+    text-align: center;
+    width: 100%;
+    box-sizing: border-box;
+  }
+
+  .admin-reset-confirmar .chip {
+    min-height: 40px;
+    padding: 0 16px;
+  }
+
+  /* Alarma de turno */
+  .admin-alarma {
+    width: 100%;
+    box-sizing: border-box;
+    margin: 0;
+    padding: 14px;
+  }
+
+  .admin-alarma-cabecera {
+    align-items: stretch;
+    flex-direction: column;
+    gap: 12px;
+    width: 100%;
+  }
+
+  .admin-alarma-acciones {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+    width: 100%;
   }
 
   .admin-alarma-activar,
   .admin-alarma-prueba,
   .admin-alarma-confirmar {
     width: 100%;
+    min-height: 44px;
+    font-size: 0.88rem;
+    padding: 6px 10px;
+    text-align: center;
+    justify-content: center;
   }
 
-  .admin-alarma-acciones {
+  .admin-alarma-item {
+    align-items: stretch;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  /* Agenda y filtros */
+  .admin-listado {
+    width: 100%;
+    box-sizing: border-box;
+    padding: 14px;
+  }
+
+  .admin-listado-cabecera {
+    align-items: stretch;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .admin-listado-cabecera h2 {
+    font-size: 1.35rem;
+  }
+
+  .admin-filtros {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
     width: 100%;
   }
 
-  .admin-control-grid {
+  .admin-filtros .admin-buscar {
+    grid-column: 1 / -1;
+    width: 100%;
+  }
+
+  .admin-filtro-menu,
+  .admin-filtros label {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .admin-filtro-menu-boton,
+  .admin-filtros input {
+    width: 100%;
+    min-height: 44px;
+    font-size: 0.9rem;
+    box-sizing: border-box;
+  }
+
+  .admin-filtros-campos {
+    display: flex;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    gap: 8px;
+    padding: 8px 10px;
+    margin-bottom: 14px;
+    border-radius: 12px;
+    width: 100%;
+    box-sizing: border-box;
+  }
+
+  .admin-filtros-campos::-webkit-scrollbar {
+    display: none;
+  }
+
+  .admin-filtro-campo {
+    flex: 0 0 auto;
+    white-space: nowrap;
+  }
+
+  /* Tarjetas de reserva de agenda en móvil */
+  .admin-reserva {
     grid-template-columns: 1fr;
+    gap: 12px;
+    padding: 14px;
   }
 
-  .admin-eventos-form {
-    grid-template-columns: 1fr 1fr;
+  .admin-reserva-fecha {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--color-ink-700);
   }
 
+  .admin-reserva-fecha strong {
+    font-size: 1.05rem;
+    color: var(--color-gold-200);
+  }
+
+  .admin-reserva-fecha span {
+    font-size: 0.92rem;
+    font-weight: 700;
+    color: var(--color-ink-100);
+  }
+
+  .admin-reserva-datos {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding-left: 0;
+  }
+
+  .admin-reserva-datos::before {
+    display: none;
+  }
+
+  .admin-reserva-datos h3 {
+    font-size: 1.15rem;
+    margin: 0;
+  }
+
+  .admin-reserva-datos span {
+    font-size: 0.9rem;
+    color: var(--color-ink-200);
+  }
+
+  .admin-reserva-datos .precio {
+    color: var(--color-gold-300);
+    font-weight: 700;
+  }
+
+  .admin-reserva-comprobante {
+    grid-column: 1 / -1;
+    padding: 10px 12px;
+    border-radius: 10px;
+    background: var(--color-ink-950);
+    border: 1px solid var(--color-ink-700);
+  }
+
+  .admin-reserva-comprobante::before {
+    display: none;
+  }
+
+  .admin-comprobante-encabezado {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    margin-bottom: 8px;
+  }
+
+  .admin-comprobante-rail {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .admin-comprobante-enlaces {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+    width: 100%;
+  }
+
+  .admin-comprobante-accion {
+    width: 100%;
+    min-height: 42px;
+    justify-content: center;
+  }
+
+  .admin-confirmar-comprobante {
+    width: 100%;
+    min-height: 44px;
+    justify-content: center;
+  }
+
+  .admin-reserva-estado {
+    grid-column: 1 / -1;
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+    padding-top: 10px;
+    padding-left: 0;
+    border-top: 1px solid var(--color-ink-700);
+  }
+
+  .admin-reserva-estado::before {
+    display: none;
+  }
+
+  .admin-reserva-estados {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+
+  .admin-reserva-acciones {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    width: 100%;
+  }
+
+  .admin-reserva-acciones button,
+  .admin-reserva-acciones .admin-boton,
+  .admin-reserva-acciones .admin-iniciar,
+  .admin-reserva-acciones .admin-editar,
+  .admin-reserva-acciones .admin-cancelar {
+    width: 100%;
+    min-height: 44px;
+    font-size: 0.92rem;
+    justify-content: center;
+    border-radius: 10px;
+  }
+
+  .admin-confirmar {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+    width: 100%;
+  }
+
+  .admin-confirmar div {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+    width: 100%;
+  }
+
+  .admin-confirmar .chip {
+    width: 100%;
+    min-height: 44px;
+    justify-content: center;
+  }
+
+  /* Selector horario modal */
   .admin-selector-horario {
     grid-column: 1 / -1;
   }
@@ -4927,83 +5313,49 @@ button:disabled {
     padding-top: 10px;
   }
 
+  /* Eventos especiales en móvil */
+  .admin-eventos {
+    width: 100%;
+    box-sizing: border-box;
+    margin: 0;
+    padding: 14px;
+  }
+
+  .admin-eventos-form {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+
+  .admin-eventos-form input,
+  .admin-eventos-form select,
+  .admin-eventos-form textarea {
+    min-height: 44px;
+    font-size: 0.92rem;
+  }
+
   .admin-eventos-conflicto,
   .admin-eventos-notas,
   .admin-eventos-guardar {
     grid-column: 1 / -1;
   }
 
-  .admin-simulador-controles {
-    grid-template-columns: 1fr;
-    align-items: stretch;
-  }
-
-  .admin-simulador-controles .admin-boton {
+  .admin-eventos-pills {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 6px;
     width: 100%;
   }
 
-  .admin-simulador-reloj {
-    justify-items: start;
-  }
-
-  .admin-control-form {
-    grid-template-columns: 1fr;
-  }
-
-  .admin-control-form .admin-boton,
-  .admin-control-fila .admin-boton {
-    width: 100%;
-  }
-
-  .admin-control-fila {
-    align-items: stretch;
-    flex-direction: column;
-  }
-
-  .admin-acciones,
-  .admin-filtros {
-    justify-content: stretch;
-  }
-
-  .admin-acciones .admin-boton {
-    flex: 1;
-  }
-
-  .admin-filtros label,
-  .admin-filtro-menu,
-  .admin-filtros input,
-  .admin-filtros select {
-    width: 100%;
-  }
-
-  .admin-filtros label,
-  .admin-filtro-menu {
-    min-width: 0;
-  }
-
-  .admin-balance-controles {
-    width: 100%;
-    min-width: 0;
-    grid-template-columns: 1fr;
-  }
-
-  .admin-balance-controles input,
-  .admin-balance-descargar,
-  .admin-control-guardar {
-    width: 100%;
-  }
-
-  .admin-balance-resumen {
-    grid-template-columns: 1fr;
-  }
-
-  .admin-reserva {
-    grid-template-columns: 1fr 1fr;
+  .admin-eventos-pill {
+    justify-content: center;
+    padding: 8px 10px;
+    font-size: 0.82rem;
   }
 
   .admin-evento-agenda {
     grid-template-columns: 1fr;
-    gap: 16px;
+    gap: 14px;
+    padding: 14px;
     border-left-width: 6px;
   }
 
@@ -5021,49 +5373,170 @@ button:disabled {
   }
 
   .admin-evento-agenda-aside {
-    gap: 12px;
-    padding-top: 14px;
+    gap: 10px;
+    padding-top: 12px;
     padding-left: 0;
     border-top: 1px solid var(--color-ink-700);
     border-left: 0;
   }
 
-  .admin-evento-agenda-cancelar {
+  .admin-evento-agenda-cancelar,
+  .admin-evento-agenda-editar {
     width: 100%;
-    min-height: 48px;
+    min-height: 44px;
   }
 
-  .admin-reserva-estado {
-    grid-column: 1 / -1;
-    display: flex;
-    align-items: center;
-    flex-wrap: wrap;
-    justify-content: space-between;
-    text-align: left;
+  /* Simulador de reservas */
+  .admin-simulador-controles {
+    grid-template-columns: 1fr;
+    align-items: stretch;
   }
 
-  .admin-reserva-comprobante {
-    grid-column: 1 / -1;
-  }
-
-  .admin-reserva-comprobante,
-  .admin-reserva-estado {
-    padding-left: 0;
-  }
-
-  .admin-reserva-comprobante::before,
-  .admin-reserva-estado::before {
-    display: none;
-  }
-
-  .admin-reserva-acciones {
-    flex: 1 1 100%;
+  .admin-simulador-controles .admin-boton {
     width: 100%;
-    justify-items: stretch;
   }
 
-  .admin-reserva-acciones button {
+  .admin-simulador-reloj {
+    justify-items: start;
+  }
+
+  /* Balance mensual en móvil */
+  .admin-balance {
     width: 100%;
+    box-sizing: border-box;
+    margin: 0;
+    padding: 14px;
+  }
+
+  .admin-balance-cabecera {
+    align-items: stretch;
+    flex-direction: column;
+    gap: 14px;
+  }
+
+  .admin-balance-controles {
+    width: 100%;
+    min-width: 0;
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+
+  .admin-balance-controles input,
+  .admin-balance-descargar,
+  .admin-balance-descargar-txt {
+    width: 100%;
+    min-height: 46px;
+    font-size: 0.92rem;
+  }
+
+  .admin-balance-resumen {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+    width: 100%;
+    box-sizing: border-box;
+  }
+
+  .admin-balance-resumen span {
+    padding: 12px;
+    font-size: 0.82rem;
+  }
+
+  .admin-balance-resumen strong {
+    font-size: 1.25rem;
+  }
+
+  /* Control de clientes */
+  .admin-control-clientes {
+    width: 100%;
+    box-sizing: border-box;
+    margin: 0;
+    padding: 14px;
+  }
+
+  .admin-control-grid {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+
+  .admin-control-card {
+    padding: 14px;
+  }
+
+  .admin-control-form {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+
+  .admin-control-form input,
+  .admin-control-guardar {
+    width: 100%;
+    min-height: 44px;
+  }
+
+  .admin-control-fila {
+    align-items: stretch;
+    flex-direction: column;
+    gap: 8px;
+    padding: 10px 12px;
+  }
+
+  .admin-control-fila .admin-boton {
+    width: 100%;
+    min-height: 40px;
+    justify-content: center;
+  }
+
+  /* Modales en móvil */
+  .admin-modal-comprobante-capa {
+    align-items: flex-end;
+    padding: 0;
+  }
+
+  .admin-modal-comprobante,
+  .admin-modal-editar-reserva,
+  .admin-modal-editar-contenido {
+    width: 100%;
+    max-width: 100%;
+    max-height: calc(100dvh - 12px);
+    border-radius: 20px 20px 0 0;
+    border-bottom: 0;
+  }
+
+  .admin-modal-comprobante-cabecera {
+    padding: 14px 16px 12px;
+  }
+
+  .admin-modal-comprobante-cuerpo {
+    padding: 12px 14px;
+  }
+
+  .admin-modal-comprobante-pie {
+    padding: 12px 14px 16px;
+  }
+
+  .admin-modal-comprobante-acciones {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 8px;
+    width: 100%;
+  }
+
+  .admin-modal-comprobante-acciones button {
+    width: 100%;
+    min-height: 44px;
+  }
+
+  .admin-modal-editar-acciones {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+    width: 100%;
+  }
+
+  .admin-modal-editar-acciones button {
+    width: 100%;
+    min-height: 44px;
   }
 }
 
@@ -5101,13 +5574,20 @@ button:disabled {
     height: auto;
   }
 
-  .admin-app {
-    padding-right: 12px;
-    padding-left: 12px;
+  .admin-cuerpo {
+    padding: 0 10px;
   }
 
-  .admin-listado {
-    padding: 14px;
+  .admin-sidebar {
+    padding: 8px 10px;
+  }
+
+  .admin-listado,
+  .admin-alarma,
+  .admin-eventos,
+  .admin-balance,
+  .admin-control-clientes {
+    padding: 12px;
   }
 
   .admin-eventos-form {
