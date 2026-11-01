@@ -46,7 +46,7 @@ export default function AdminBalanceMensual({ reservas, canchas, eventos }: Admi
     setErrorDescarga('')
     setDescargando(true)
     try {
-      await descargarBalanceMensual(balance)
+      await descargarBalanceMensual(balance, canchas)
     } catch {
       setErrorDescarga('No pudimos descargar el balance. Inténtalo de nuevo.')
     } finally {

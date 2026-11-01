@@ -31,6 +31,7 @@
     "check:alarm": "tsx src/utils/alarmaTurno.check.ts",
     "check:eventos": "tsx src/eventos.check.ts",
     "check:balance-texto": "tsx src/exportarBalanceTexto.check.ts",
+    "check:excel-txt": "tsx src/verificarExcelTxt.check.ts",
     "check:typescript": "tsx src/typescript.check.ts",
     "check:accion": "tsx src/accionUnica.check.ts",
     "check:simulacion": "tsx src/simulacionReservas.test.ts && tsx src/simulacionClienteReservas.check.ts"

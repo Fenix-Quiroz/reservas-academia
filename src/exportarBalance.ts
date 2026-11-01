@@ -1,5 +1,6 @@
 import type { CellStyle, WorkBook, WorkSheet } from 'xlsx-js-style'
 import type { BalanceMensual } from './balanceMensual.js'
+import type { Campo } from './types.js'
 
 type ModuloXlsx = typeof import('xlsx-js-style')
 type ModuloXlsxRuntime = { default: ModuloXlsx }
@@ -72,106 +73,435 @@ function aplicarEstiloFilaAlterna(XLSX: ModuloXlsx, hoja: WorkSheet, fila: numbe
   })
 }
 
-interface SeccionBalanceDia {
-  titulo: number
+interface InfoSeccionCancha {
+  banner: number
   cabecera: number
   inicio: number
-  filas: number
+  fin: number
+  subtotal: number
+  vacia: boolean
 }
 
-function aplicarEstilosResumen(
+function crearHojaResumen(
   XLSX: ModuloXlsx,
-  hoja: WorkSheet,
-  filasPorCampo: number,
-  seccionesDia: readonly SeccionBalanceDia[],
-): void {
-  const ultimaFila = Math.max(
-    14,
-    ...seccionesDia.map((seccion) => Math.max(seccion.cabecera, seccion.inicio + seccion.filas - 1)),
-  )
+  balance: BalanceMensual,
+  canchas: readonly Campo[],
+): WorkSheet {
+  const filas: Array<Array<string | number | Date>> = []
+  const merges: Array<{ s: { r: number; c: number }; e: { r: number; c: number } }> = []
+  const filasFecha: number[] = []
+  const filasMoneda: Array<{ col: string; fila: number }> = []
 
-  aplicarEstiloRango(XLSX, hoja, `A1:E${ultimaFila}`, {
+  // Encabezado principal (3 filas)
+  filas.push(['POLIDEPORTIVO EL JAGUAR', '', '', '', '', '', '', '', ''])
+  merges.push({ s: { r: 0, c: 0 }, e: { r: 0, c: 8 } })
+
+  filas.push(['REPORTE Y BALANCE MENSUAL', '', '', '', '', '', '', '', ''])
+  merges.push({ s: { r: 1, c: 0 }, e: { r: 1, c: 8 } })
+
+  filas.push([`PERIODO: ${periodoVisible(balance.mes).toUpperCase()}`, '', '', '', '', '', '', '', ''])
+  merges.push({ s: { r: 2, c: 0 }, e: { r: 2, c: 8 } })
+
+  // Separador
+  filas.push([])
+
+  // 1. RESUMEN GLOBAL
+  const filaTituloResumen = filas.length + 1
+  filas.push(['1. RESUMEN GLOBAL', '', '', '', '', '', '', '', ''])
+  merges.push({ s: { r: filaTituloResumen - 1, c: 0 }, e: { r: filaTituloResumen - 1, c: 8 } })
+
+  const filaCabeceraResumen = filas.length + 1
+  filas.push(['Indicador', '', 'Valor'])
+  merges.push({ s: { r: filaCabeceraResumen - 1, c: 0 }, e: { r: filaCabeceraResumen - 1, c: 1 } })
+
+  const ingresosEventos = balance.ingresosEventosEspeciales
+  const ingresosReservas = Math.round((balance.ingresosTotales - ingresosEventos) * 100) / 100
+
+  const filaRes1 = filas.length + 1
+  filas.push(['Total de reservas finalizadas', '', `${balance.reservasFinalizadas} ${balance.reservasFinalizadas === 1 ? 'turno' : 'turnos'}`])
+  merges.push({ s: { r: filaRes1 - 1, c: 0 }, e: { r: filaRes1 - 1, c: 1 } })
+
+  const filaRes2 = filas.length + 1
+  filas.push(['Total de horas alquiladas', '', `${balance.horasAlquiladas.toFixed(1)} horas`])
+  merges.push({ s: { r: filaRes2 - 1, c: 0 }, e: { r: filaRes2 - 1, c: 1 } })
+
+  const filaRes3 = filas.length + 1
+  filas.push(['Ingresos por reservas (S/)', '', ingresosReservas])
+  merges.push({ s: { r: filaRes3 - 1, c: 0 }, e: { r: filaRes3 - 1, c: 1 } })
+  filasMoneda.push({ col: 'C', fila: filaRes3 })
+
+  const filaRes4 = filas.length + 1
+  filas.push(['Ingresos eventos especiales (S/)', '', ingresosEventos])
+  merges.push({ s: { r: filaRes4 - 1, c: 0 }, e: { r: filaRes4 - 1, c: 1 } })
+  filasMoneda.push({ col: 'C', fila: filaRes4 })
+
+  const filaResTotal = filas.length + 1
+  filas.push(['TOTAL GENERAL INGRESOS (S/)', '', balance.ingresosTotales])
+  merges.push({ s: { r: filaResTotal - 1, c: 0 }, e: { r: filaResTotal - 1, c: 1 } })
+  filasMoneda.push({ col: 'C', fila: filaResTotal })
+
+  // Separador
+  filas.push([])
+
+  // 2. EVENTOS ESPECIALES / TORNEOS
+  const filaTituloEventos = filas.length + 1
+  filas.push(['2. EVENTOS ESPECIALES / TORNEOS', '', '', '', '', '', '', '', ''])
+  merges.push({ s: { r: filaTituloEventos - 1, c: 0 }, e: { r: filaTituloEventos - 1, c: 8 } })
+
+  let filaCabeceraEventos = 0
+  let filaInicioEventos = 0
+  let filaFinEventos = 0
+  let filaTotalEventos = 0
+  const hayEventos = balance.eventosEspeciales.length > 0
+
+  if (!hayEventos) {
+    const filaVacia = filas.length + 1
+    filas.push(['• No hubo eventos especiales registrados en este periodo.', '', '', '', '', '', '', '', ''])
+    merges.push({ s: { r: filaVacia - 1, c: 0 }, e: { r: filaVacia - 1, c: 8 } })
+    filaInicioEventos = filaVacia
+    filaFinEventos = filaVacia
+  } else {
+    filaCabeceraEventos = filas.length + 1
+    filas.push(['Fecha', 'Día', 'Evento / Torneo', 'Campos bloqueados', 'Horario', 'Horas', 'Contacto', 'Notas', 'Monto cobrado (S/)'])
+    filaInicioEventos = filas.length + 1
+    for (const evento of balance.eventosEspeciales) {
+      const filaIdx = filas.length + 1
+      filas.push([
+        new Date(`${evento.fecha}T12:00:00`),
+        evento.dia,
+        evento.evento,
+        evento.campo,
+        evento.horario,
+        evento.horas,
+        evento.celular || '—',
+        evento.notas || '—',
+        evento.precio,
+      ])
+      filasFecha.push(filaIdx)
+      filasMoneda.push({ col: 'I', fila: filaIdx })
+    }
+    filaFinEventos = filas.length
+    filaTotalEventos = filas.length + 1
+    filas.push(['TOTAL EVENTOS ESPECIALES (S/)', '', '', '', '', '', '', '', balance.ingresosEventosEspeciales])
+    merges.push({ s: { r: filaTotalEventos - 1, c: 0 }, e: { r: filaTotalEventos - 1, c: 7 } })
+    filasMoneda.push({ col: 'I', fila: filaTotalEventos })
+  }
+
+  // Separador
+  filas.push([])
+
+  // 3. ACTIVIDAD DIARIA INDIVIDUAL POR CAMPO
+  const filaTituloActividad = filas.length + 1
+  filas.push(['3. ACTIVIDAD DIARIA INDIVIDUAL POR CAMPO', '', '', '', '', '', '', '', ''])
+  merges.push({ s: { r: filaTituloActividad - 1, c: 0 }, e: { r: filaTituloActividad - 1, c: 8 } })
+
+  const seccionesCancha: InfoSeccionCancha[] = []
+
+  for (const cancha of canchas) {
+    filas.push([]) // Separador antes de la cancha
+    const bannerFila = filas.length + 1
+    filas.push([`[ ${cancha.nombre.toUpperCase()} - ${cancha.deporte} ]`, '', '', '', ''])
+    merges.push({ s: { r: bannerFila - 1, c: 0 }, e: { r: bannerFila - 1, c: 4 } })
+
+    const cabeceraFila = filas.length + 1
+    filas.push(['Fecha', 'Día', 'Reservas finalizadas', 'Horas alquiladas', 'Total generado (S/)'])
+
+    const reservasCancha = balance.detalle.filter((d) => d.campoId === cancha.id)
+    const mapaDias = new Map<string, { fecha: string; dia: string; reservas: number; horas: number; total: number }>()
+    for (const r of reservasCancha) {
+      const actual = mapaDias.get(r.fecha)
+      if (actual) {
+        actual.reservas += 1
+        actual.horas = Math.round((actual.horas + r.horas) * 10) / 10
+        actual.total = Math.round((actual.total + r.monto) * 100) / 100
+      } else {
+        mapaDias.set(r.fecha, {
+          fecha: r.fecha,
+          dia: r.dia,
+          reservas: 1,
+          horas: r.horas,
+          total: r.monto,
+        })
+      }
+    }
+    const diasOrdenados = [...mapaDias.values()].sort((a, b) => a.fecha.localeCompare(b.fecha))
+    const totalReservasCancha = diasOrdenados.reduce((acc, d) => acc + d.reservas, 0)
+    const totalHorasCancha = Math.round(diasOrdenados.reduce((acc, d) => acc + d.horas, 0) * 10) / 10
+    const totalMontoCancha = Math.round(diasOrdenados.reduce((acc, d) => acc + d.total, 0) * 100) / 100
+
+    if (diasOrdenados.length === 0) {
+      const filaVaciaCancha = filas.length + 1
+      filas.push(['(Sin reservas registradas en este mes)', '', '', '', ''])
+      merges.push({ s: { r: filaVaciaCancha - 1, c: 0 }, e: { r: filaVaciaCancha - 1, c: 4 } })
+
+      const subtotalFila = filas.length + 1
+      filas.push(['SUBTOTAL', '', '0 turnos', '0.0 h', 0])
+      merges.push({ s: { r: subtotalFila - 1, c: 0 }, e: { r: subtotalFila - 1, c: 1 } })
+      filasMoneda.push({ col: 'E', fila: subtotalFila })
+
+      seccionesCancha.push({
+        banner: bannerFila,
+        cabecera: cabeceraFila,
+        inicio: filaVaciaCancha,
+        fin: filaVaciaCancha,
+        subtotal: subtotalFila,
+        vacia: true,
+      })
+    } else {
+      const inicioFila = filas.length + 1
+      for (const dia of diasOrdenados) {
+        const filaIdx = filas.length + 1
+        filas.push([
+          new Date(`${dia.fecha}T12:00:00`),
+          dia.dia,
+          `${dia.reservas} ${dia.reservas === 1 ? 'turno' : 'turnos'}`,
+          `${dia.horas.toFixed(1)} h`,
+          dia.total,
+        ])
+        filasFecha.push(filaIdx)
+        filasMoneda.push({ col: 'E', fila: filaIdx })
+      }
+      const finFila = filas.length
+      const subtotalFila = filas.length + 1
+      filas.push([
+        'SUBTOTAL',
+        '',
+        `${totalReservasCancha} ${totalReservasCancha === 1 ? 'turno' : 'turnos'}`,
+        `${totalHorasCancha.toFixed(1)} h`,
+        totalMontoCancha,
+      ])
+      merges.push({ s: { r: subtotalFila - 1, c: 0 }, e: { r: subtotalFila - 1, c: 1 } })
+      filasMoneda.push({ col: 'E', fila: subtotalFila })
+
+      seccionesCancha.push({
+        banner: bannerFila,
+        cabecera: cabeceraFila,
+        inicio: inicioFila,
+        fin: finFila,
+        subtotal: subtotalFila,
+        vacia: false,
+      })
+    }
+  }
+
+  // Separador y pie de página
+  filas.push([])
+  const ahora = new Date()
+  const fechaGeneracion = ahora.toLocaleDateString('es-PE', { day: '2-digit', month: '2-digit', year: 'numeric' })
+  const horaGeneracion = ahora.toLocaleTimeString('es-PE', { hour: '2-digit', minute: '2-digit', hour12: true })
+  const filaPie = filas.length + 1
+  filas.push([`Reporte generado el: ${fechaGeneracion} a las ${horaGeneracion}`, '', '', '', '', '', '', '', ''])
+  merges.push({ s: { r: filaPie - 1, c: 0 }, e: { r: filaPie - 1, c: 8 } })
+
+  const hoja = XLSX.utils.aoa_to_sheet(filas)
+  ajustarColumnas(hoja, [14, 14, 24, 26, 22, 10, 16, 30, 20])
+  hoja['!merges'] = merges
+
+  aplicarFormato(hoja, filasFecha.map((fila) => `A${fila}`), 'dd/mm/yyyy')
+  aplicarFormato(hoja, filasMoneda.map(({ col, fila }) => `${col}${fila}`), '0.00')
+
+  // 1. Estilo general base para todo el rango activo
+  aplicarEstiloRango(XLSX, hoja, `A1:I${filas.length}`, {
     font: { name: 'Arial', sz: 10, color: rgb(colores.negro) },
     alignment: { vertical: 'center' },
   })
-  aplicarEstiloRango(XLSX, hoja, 'A1:E1', {
+
+  // 2. Encabezado principal
+  aplicarEstiloRango(XLSX, hoja, 'A1:I1', {
     fill: { patternType: 'solid', fgColor: rgb(colores.negro) },
     font: { name: 'Arial', sz: 16, bold: true, color: rgb(colores.crema) },
-    alignment: { horizontal: 'left', vertical: 'center' },
+    alignment: { horizontal: 'center', vertical: 'center' },
   })
-  aplicarEstiloRango(XLSX, hoja, 'A2:B3', {
+  aplicarEstiloRango(XLSX, hoja, 'A2:I2', {
+    fill: { patternType: 'solid', fgColor: rgb(colores.dorado) },
+    font: { name: 'Arial', sz: 12, bold: true, color: rgb(colores.negro) },
+    alignment: { horizontal: 'center', vertical: 'center' },
+  })
+  aplicarEstiloRango(XLSX, hoja, 'A3:I3', {
     fill: { patternType: 'solid', fgColor: rgb(colores.crema) },
-    font: { name: 'Arial', sz: 12, color: rgb(colores.negro) },
-    alignment: { vertical: 'center' },
+    font: { name: 'Arial', sz: 11, bold: true, color: rgb(colores.negro) },
+    alignment: { horizontal: 'center', vertical: 'center' },
     border: { bottom: { style: 'thin', color: rgb(colores.grisClaro) } },
   })
-  aplicarEstiloRango(XLSX, hoja, 'A2:A3', {
-    font: { name: 'Arial', sz: 12, bold: true, color: rgb(colores.gris) },
-  })
-  aplicarEstiloRango(XLSX, hoja, 'A5:B5', {
+
+  // 3. Sección 1: Resumen Global
+  aplicarEstiloRango(XLSX, hoja, `A${filaTituloResumen}:I${filaTituloResumen}`, {
     fill: { patternType: 'solid', fgColor: rgb(colores.dorado) },
     font: { name: 'Arial', sz: 11, bold: true, color: rgb(colores.negro) },
+    alignment: { horizontal: 'left', vertical: 'center' },
   })
-  aplicarEstiloRango(XLSX, hoja, 'A6:B6', {
+  aplicarEstiloRango(XLSX, hoja, `A${filaCabeceraResumen}:C${filaCabeceraResumen}`, {
     fill: { patternType: 'solid', fgColor: rgb(colores.negroSuave) },
     font: { name: 'Arial', sz: 10, bold: true, color: rgb(colores.crema) },
     alignment: { horizontal: 'center', vertical: 'center' },
   })
-  aplicarEstiloRango(XLSX, hoja, 'B7:B9', {
-    fill: { patternType: 'solid', fgColor: rgb(colores.doradoClaro) },
-    font: { name: 'Arial', sz: 11, bold: true, color: rgb(colores.negro) },
-    alignment: { horizontal: 'right', vertical: 'center' },
-  })
-  aplicarEstiloRango(XLSX, hoja, 'A7:A9', {
-    fill: { patternType: 'solid', fgColor: rgb('FFFFFF') },
-    font: { name: 'Arial', sz: 10, color: rgb(colores.negro) },
-    alignment: { vertical: 'center' },
-  })
-  aplicarEstiloRango(XLSX, hoja, 'A11:E11', {
-    fill: { patternType: 'solid', fgColor: rgb(colores.dorado) },
-    font: { name: 'Arial', sz: 11, bold: true, color: rgb(colores.negro) },
-  })
-  aplicarEstiloRango(XLSX, hoja, 'A12:E12', {
-    fill: { patternType: 'solid', fgColor: rgb(colores.negroSuave) },
-    font: { name: 'Arial', sz: 10, bold: true, color: rgb(colores.crema) },
-    alignment: { horizontal: 'center', vertical: 'center', wrapText: true },
-  })
-  if (filasPorCampo > 0) {
-    aplicarEstiloRango(XLSX, hoja, `A13:E${filasPorCampo + 12}`, {
-      fill: { patternType: 'solid', fgColor: rgb('FFFFFF') },
+  for (let f = filaRes1; f <= filaRes4; f += 1) {
+    const bg = f % 2 === 1 ? 'FFFFFF' : colores.filaAlterna
+    aplicarEstiloRango(XLSX, hoja, `A${f}:B${f}`, {
+      fill: { patternType: 'solid', fgColor: rgb(bg) },
       font: { name: 'Arial', sz: 10, color: rgb(colores.negro) },
+      alignment: { horizontal: 'left', vertical: 'center' },
       border: { bottom: { style: 'thin', color: rgb(colores.grisClaro) } },
     })
-    aplicarEstiloRango(XLSX, hoja, `C13:E${filasPorCampo + 12}`, {
+    aplicarEstiloRango(XLSX, hoja, `C${f}:C${f}`, {
+      fill: { patternType: 'solid', fgColor: rgb(bg) },
+      font: { name: 'Arial', sz: 10, color: rgb(colores.negro) },
       alignment: { horizontal: 'right', vertical: 'center' },
+      border: { bottom: { style: 'thin', color: rgb(colores.grisClaro) } },
     })
   }
+  aplicarEstiloRango(XLSX, hoja, `A${filaResTotal}:B${filaResTotal}`, {
+    fill: { patternType: 'solid', fgColor: rgb(colores.doradoClaro) },
+    font: { name: 'Arial', sz: 11, bold: true, color: rgb(colores.negro) },
+    alignment: { horizontal: 'left', vertical: 'center' },
+    border: {
+      top: { style: 'thin', color: rgb(colores.dorado) },
+      bottom: { style: 'medium', color: rgb(colores.dorado) },
+    },
+  })
+  aplicarEstiloRango(XLSX, hoja, `C${filaResTotal}:C${filaResTotal}`, {
+    fill: { patternType: 'solid', fgColor: rgb(colores.doradoClaro) },
+    font: { name: 'Arial', sz: 11, bold: true, color: rgb('5A4300') },
+    alignment: { horizontal: 'right', vertical: 'center' },
+    border: {
+      top: { style: 'thin', color: rgb(colores.dorado) },
+      bottom: { style: 'medium', color: rgb(colores.dorado) },
+    },
+  })
 
-  for (const seccion of seccionesDia) {
-    aplicarEstiloRango(XLSX, hoja, `A${seccion.titulo}:E${seccion.titulo}`, {
-      fill: { patternType: 'solid', fgColor: rgb(colores.dorado) },
-      font: { name: 'Arial', sz: 11, bold: true, color: rgb(colores.negro) },
+  // 4. Sección 2: Eventos Especiales / Torneos
+  aplicarEstiloRango(XLSX, hoja, `A${filaTituloEventos}:I${filaTituloEventos}`, {
+    fill: { patternType: 'solid', fgColor: rgb(colores.dorado) },
+    font: { name: 'Arial', sz: 11, bold: true, color: rgb(colores.negro) },
+    alignment: { horizontal: 'left', vertical: 'center' },
+  })
+  if (!hayEventos) {
+    aplicarEstiloRango(XLSX, hoja, `A${filaInicioEventos}:I${filaInicioEventos}`, {
+      fill: { patternType: 'solid', fgColor: rgb('FFFFFF') },
+      font: { name: 'Arial', sz: 10, italic: true, color: rgb(colores.gris) },
+      alignment: { horizontal: 'center', vertical: 'center' },
+      border: { bottom: { style: 'thin', color: rgb(colores.grisClaro) } },
     })
-    aplicarEstiloRango(XLSX, hoja, `A${seccion.cabecera}:E${seccion.cabecera}`, {
+  } else {
+    aplicarEstiloRango(XLSX, hoja, `A${filaCabeceraEventos}:I${filaCabeceraEventos}`, {
       fill: { patternType: 'solid', fgColor: rgb(colores.negroSuave) },
       font: { name: 'Arial', sz: 10, bold: true, color: rgb(colores.crema) },
       alignment: { horizontal: 'center', vertical: 'center', wrapText: true },
     })
-    if (seccion.filas === 0) continue
-    const ultimaFilaDia = seccion.inicio + seccion.filas - 1
-    aplicarEstiloRango(XLSX, hoja, `A${seccion.inicio}:E${ultimaFilaDia}`, {
-      fill: { patternType: 'solid', fgColor: rgb('FFFFFF') },
-      font: { name: 'Arial', sz: 10, color: rgb(colores.negro) },
-      alignment: { vertical: 'center' },
-      border: { bottom: { style: 'thin', color: rgb(colores.grisClaro) } },
-    })
-    for (let fila = seccion.inicio; fila <= ultimaFilaDia; fila += 1) {
-      if (fila % 2 === 1) aplicarEstiloFilaAlterna(XLSX, hoja, fila, 'E')
+    for (let f = filaInicioEventos; f <= filaFinEventos; f += 1) {
+      const bg = f % 2 === 1 ? 'FFFFFF' : colores.filaAlterna
+      aplicarEstiloRango(XLSX, hoja, `A${f}:I${f}`, {
+        fill: { patternType: 'solid', fgColor: rgb(bg) },
+        font: { name: 'Arial', sz: 10, color: rgb(colores.negro) },
+        border: { bottom: { style: 'thin', color: rgb(colores.grisClaro) } },
+      })
+      aplicarEstiloRango(XLSX, hoja, `A${f}:B${f}`, { alignment: { horizontal: 'center', vertical: 'center' } })
+      aplicarEstiloRango(XLSX, hoja, `C${f}:E${f}`, { alignment: { horizontal: 'left', vertical: 'center' } })
+      aplicarEstiloRango(XLSX, hoja, `F${f}:G${f}`, { alignment: { horizontal: 'center', vertical: 'center' } })
+      aplicarEstiloRango(XLSX, hoja, `H${f}:H${f}`, { alignment: { horizontal: 'left', vertical: 'center', wrapText: true } })
+      aplicarEstiloRango(XLSX, hoja, `I${f}:I${f}`, {
+        font: { name: 'Arial', sz: 10, bold: true, color: rgb('5A4300') },
+        alignment: { horizontal: 'right', vertical: 'center' },
+      })
     }
-    aplicarEstiloRango(XLSX, hoja, `C${seccion.inicio}:E${ultimaFilaDia}`, {
+    aplicarEstiloRango(XLSX, hoja, `A${filaTotalEventos}:H${filaTotalEventos}`, {
+      fill: { patternType: 'solid', fgColor: rgb(colores.doradoClaro) },
+      font: { name: 'Arial', sz: 10, bold: true, color: rgb(colores.negro) },
       alignment: { horizontal: 'right', vertical: 'center' },
+      border: {
+        top: { style: 'thin', color: rgb(colores.dorado) },
+        bottom: { style: 'medium', color: rgb(colores.dorado) },
+      },
+    })
+    aplicarEstiloRango(XLSX, hoja, `I${filaTotalEventos}:I${filaTotalEventos}`, {
+      fill: { patternType: 'solid', fgColor: rgb(colores.doradoClaro) },
+      font: { name: 'Arial', sz: 11, bold: true, color: rgb('5A4300') },
+      alignment: { horizontal: 'right', vertical: 'center' },
+      border: {
+        top: { style: 'thin', color: rgb(colores.dorado) },
+        bottom: { style: 'medium', color: rgb(colores.dorado) },
+      },
     })
   }
+
+  // 5. Sección 3: Actividad Diaria Individual por Campo
+  aplicarEstiloRango(XLSX, hoja, `A${filaTituloActividad}:I${filaTituloActividad}`, {
+    fill: { patternType: 'solid', fgColor: rgb(colores.dorado) },
+    font: { name: 'Arial', sz: 11, bold: true, color: rgb(colores.negro) },
+    alignment: { horizontal: 'left', vertical: 'center' },
+  })
+
+  for (const seccion of seccionesCancha) {
+    aplicarEstiloRango(XLSX, hoja, `A${seccion.banner}:E${seccion.banner}`, {
+      fill: { patternType: 'solid', fgColor: rgb(colores.negroSuave) },
+      font: { name: 'Arial', sz: 10, bold: true, color: rgb(colores.crema) },
+      alignment: { horizontal: 'left', vertical: 'center' },
+    })
+    aplicarEstiloRango(XLSX, hoja, `A${seccion.cabecera}:E${seccion.cabecera}`, {
+      fill: { patternType: 'solid', fgColor: rgb(colores.doradoClaro) },
+      font: { name: 'Arial', sz: 10, bold: true, color: rgb(colores.negro) },
+      alignment: { horizontal: 'center', vertical: 'center', wrapText: true },
+      border: { bottom: { style: 'medium', color: rgb(colores.negroSuave) } },
+    })
+
+    if (seccion.vacia) {
+      aplicarEstiloRango(XLSX, hoja, `A${seccion.inicio}:E${seccion.inicio}`, {
+        fill: { patternType: 'solid', fgColor: rgb('FFFFFF') },
+        font: { name: 'Arial', sz: 10, italic: true, color: rgb(colores.gris) },
+        alignment: { horizontal: 'center', vertical: 'center' },
+        border: { bottom: { style: 'thin', color: rgb(colores.grisClaro) } },
+      })
+    } else {
+      for (let f = seccion.inicio; f <= seccion.fin; f += 1) {
+        const bg = f % 2 === 1 ? 'FFFFFF' : colores.filaAlterna
+        aplicarEstiloRango(XLSX, hoja, `A${f}:E${f}`, {
+          fill: { patternType: 'solid', fgColor: rgb(bg) },
+          font: { name: 'Arial', sz: 10, color: rgb(colores.negro) },
+          border: { bottom: { style: 'thin', color: rgb(colores.grisClaro) } },
+        })
+        aplicarEstiloRango(XLSX, hoja, `A${f}:B${f}`, { alignment: { horizontal: 'center', vertical: 'center' } })
+        aplicarEstiloRango(XLSX, hoja, `C${f}:D${f}`, { alignment: { horizontal: 'center', vertical: 'center' } })
+        aplicarEstiloRango(XLSX, hoja, `E${f}:E${f}`, { alignment: { horizontal: 'right', vertical: 'center' } })
+      }
+    }
+
+    aplicarEstiloRango(XLSX, hoja, `A${seccion.subtotal}:B${seccion.subtotal}`, {
+      fill: { patternType: 'solid', fgColor: rgb(colores.crema) },
+      font: { name: 'Arial', sz: 10, bold: true, color: rgb(colores.negro) },
+      alignment: { horizontal: 'left', vertical: 'center' },
+      border: {
+        top: { style: 'thin', color: rgb(colores.grisClaro) },
+        bottom: { style: 'medium', color: rgb(colores.negroSuave) },
+      },
+    })
+    aplicarEstiloRango(XLSX, hoja, `C${seccion.subtotal}:D${seccion.subtotal}`, {
+      fill: { patternType: 'solid', fgColor: rgb(colores.crema) },
+      font: { name: 'Arial', sz: 10, bold: true, color: rgb(colores.negro) },
+      alignment: { horizontal: 'center', vertical: 'center' },
+      border: {
+        top: { style: 'thin', color: rgb(colores.grisClaro) },
+        bottom: { style: 'medium', color: rgb(colores.negroSuave) },
+      },
+    })
+    aplicarEstiloRango(XLSX, hoja, `E${seccion.subtotal}:E${seccion.subtotal}`, {
+      fill: { patternType: 'solid', fgColor: rgb(colores.crema) },
+      font: { name: 'Arial', sz: 10, bold: true, color: rgb('5A4300') },
+      alignment: { horizontal: 'right', vertical: 'center' },
+      border: {
+        top: { style: 'thin', color: rgb(colores.grisClaro) },
+        bottom: { style: 'medium', color: rgb(colores.negroSuave) },
+      },
+    })
+  }
+
+  // 6. Pie de página
+  aplicarEstiloRango(XLSX, hoja, `A${filaPie}:I${filaPie}`, {
+    fill: { patternType: 'solid', fgColor: rgb(colores.negroSuave) },
+    font: { name: 'Arial', sz: 9, italic: true, color: rgb(colores.crema) },
+    alignment: { horizontal: 'center', vertical: 'center' },
+  })
+
+  return hoja
 }
 
 function aplicarEstilosDetalle(XLSX: ModuloXlsx, hoja: WorkSheet, filas: number): void {
@@ -264,11 +594,9 @@ function aplicarEstilosEventosEspeciales(
     for (let fila = seccion.inicio; fila <= ultimaFilaSeccion; fila += 1) {
       if (fila % 2 === 1) aplicarEstiloFilaAlterna(XLSX, hoja, fila, 'I')
     }
-    // Centrar columna de horas (Columna E)
     aplicarEstiloRango(XLSX, hoja, `E${seccion.inicio}:E${ultimaFilaSeccion}`, {
       alignment: { horizontal: 'center', vertical: 'center' },
     })
-    // Alinear a la derecha columna de precio cobrado (Columna I)
     aplicarEstiloRango(XLSX, hoja, `I${seccion.inicio}:I${ultimaFilaSeccion}`, {
       alignment: { horizontal: 'right', vertical: 'center' },
     })
@@ -372,70 +700,46 @@ function crearHojaEventosEspeciales(XLSX: ModuloXlsx, balance: BalanceMensual): 
   return hoja
 }
 
-function crearLibroConModulo(XLSX: ModuloXlsx, balance: BalanceMensual): WorkBook {
-  const filaSeccionDia = 14 + balance.porCampo.length
-  const seccionesDia: SeccionBalanceDia[] = []
-  const filasResultadoDia: Array<Array<string | number | Date>> = [['RESULTADOS POR DÍA']]
-  const filasFechaDia: number[] = []
-  const filasIngresoDia: number[] = []
-  let siguienteFilaDia = filaSeccionDia + 1
+export function obtenerCanchas(balance: BalanceMensual, canchas?: readonly Campo[]): readonly Campo[] {
+  if (canchas && canchas.length > 0) return canchas
 
-  for (const campo of balance.porCampo) {
-    const filas = balance.porDia.filter((fila) => fila.campoId === campo.campoId)
-    const titulo = siguienteFilaDia
-    const cabecera = titulo + 1
-    const inicio = cabecera + 1
-    seccionesDia.push({ titulo, cabecera, inicio, filas: filas.length })
-    filasResultadoDia.push(
-      [campo.campo],
-      ['Fecha', 'Día', 'Reservas finalizadas', 'Horas alquiladas', 'Ingresos generados (S/)'],
-      ...filas.map((fila, indice) => {
-        const filaExcel = inicio + indice
-        filasFechaDia.push(filaExcel)
-        filasIngresoDia.push(filaExcel)
-        return [
-          new Date(`${fila.fecha}T12:00:00`),
-          fila.dia,
-          fila.reservas,
-          fila.horas,
-          fila.ingresos,
-        ]
-      }),
-      [],
-      [],
-    )
-    siguienteFilaDia = inicio + filas.length + 2
+  const mapa = new Map<number, Campo>()
+  for (const pc of balance.porCampo) {
+    mapa.set(pc.campoId, {
+      id: pc.campoId,
+      nombre: pc.campo,
+      deporte: pc.deporte,
+      jugadores: 0,
+      precioHora: 0,
+      color: '',
+      imagen: '',
+      oferta: '',
+    })
   }
+  for (const d of balance.detalle) {
+    if (!mapa.has(d.campoId)) {
+      mapa.set(d.campoId, {
+        id: d.campoId,
+        nombre: d.campo,
+        deporte: d.deporte,
+        jugadores: 0,
+        precioHora: 0,
+        color: '',
+        imagen: '',
+        oferta: '',
+      })
+    }
+  }
+  return [...mapa.values()].sort((a, b) => a.id - b.id)
+}
 
-  const resumen = XLSX.utils.aoa_to_sheet([
-    ['BALANCE MENSUAL DE RESERVAS'],
-    ['Periodo', periodoVisible(balance.mes)],
-    ['Criterio', 'Solo reservas finalizadas'],
-    [],
-    ['RESUMEN GENERAL'],
-    ['Indicador', 'Valor'],
-    ['Reservas finalizadas', balance.reservasFinalizadas],
-    ['Horas alquiladas', balance.horasAlquiladas],
-    ['Ingresos totales (S/)', balance.ingresosTotales],
-    [],
-    ['RESULTADOS POR CAMPO'],
-    ['Campo', 'Deporte', 'Reservas realizadas', 'Horas alquiladas', 'Ingresos generados (S/)'],
-    ...balance.porCampo.map((fila) => [fila.campo, fila.deporte, fila.reservas, fila.horas, fila.ingresos]),
-    [],
-    ...filasResultadoDia,
-  ])
-  ajustarColumnas(resumen, [16, 16, 22, 18, 24])
-  const merges = [{ s: { r: 0, c: 0 }, e: { r: 0, c: 4 } }]
-  seccionesDia.forEach((seccion) => {
-    merges.push({ s: { r: seccion.titulo - 1, c: 0 }, e: { r: seccion.titulo - 1, c: 4 } })
-  })
-  resumen['!merges'] = merges
-  resumen['!autofilter'] = { ref: `A12:E${Math.max(12, balance.porCampo.length + 12)}` }
-  resumen['!freeze'] = { xSplit: 0, ySplit: 12 }
-  aplicarFormato(resumen, ['B9', ...balance.porCampo.map((_fila, indice) => `E${indice + 13}`)], '0.00')
-  aplicarFormato(resumen, filasFechaDia.map((fila) => `A${fila}`), 'dd/mm/yyyy')
-  aplicarFormato(resumen, filasIngresoDia.map((fila) => `E${fila}`), '0.00')
-  aplicarEstilosResumen(XLSX, resumen, balance.porCampo.length, seccionesDia)
+export function crearLibroConModulo(
+  XLSX: ModuloXlsx,
+  balance: BalanceMensual,
+  canchas?: readonly Campo[],
+): WorkBook {
+  const canchasCompletas = obtenerCanchas(balance, canchas)
+  const resumen = crearHojaResumen(XLSX, balance, canchasCompletas)
 
   const detalle = XLSX.utils.aoa_to_sheet([
     ['DETALLE DIARIO DE RESERVAS'],
@@ -470,14 +774,20 @@ function crearLibroConModulo(XLSX: ModuloXlsx, balance: BalanceMensual): WorkBoo
   return libro
 }
 
-export async function crearLibroBalance(balance: BalanceMensual): Promise<WorkBook> {
+export async function crearLibroBalance(
+  balance: BalanceMensual,
+  canchas?: readonly Campo[],
+): Promise<WorkBook> {
   const XLSX = await cargarModuloXlsx()
-  return crearLibroConModulo(XLSX, balance)
+  return crearLibroConModulo(XLSX, balance, canchas)
 }
 
-export async function descargarBalanceMensual(balance: BalanceMensual): Promise<void> {
+export async function descargarBalanceMensual(
+  balance: BalanceMensual,
+  canchas?: readonly Campo[],
+): Promise<void> {
   const XLSX = await cargarModuloXlsx()
-  XLSX.writeFile(crearLibroConModulo(XLSX, balance), `balance-reservas-${balance.mes}.xlsx`, {
+  XLSX.writeFile(crearLibroConModulo(XLSX, balance, canchas), `balance-reservas-${balance.mes}.xlsx`, {
     cellDates: true,
     cellStyles: true,
     compression: true,
