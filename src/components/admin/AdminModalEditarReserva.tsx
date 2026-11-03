@@ -8,6 +8,7 @@ import { entrenamientoBloquea } from '../../horariosEntrenamiento.js'
 import { fechaVisible } from './AdminReservaCard.js'
 import { horaVisible, rangoVisible } from '../../utils/fechasReserva.js'
 import AdminSelect from './AdminSelect.js'
+import { ALIAS_MAXIMO } from '../../validacionCliente.js'
 
 export interface AdminModalEditarReservaProps {
   reserva: Reserva
@@ -309,7 +310,7 @@ export default function AdminModalEditarReserva({
                   value={alias}
                   disabled={guardando || procesando}
                   required
-                  maxLength={24}
+                  maxLength={ALIAS_MAXIMO}
                   onChange={(e) => setAlias(e.target.value)}
                 />
               </label>

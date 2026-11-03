@@ -8,7 +8,7 @@ create extension if not exists pgcrypto with schema extensions;
 
 create table if not exists public.clientes (
   id uuid primary key default gen_random_uuid(),
-  alias text not null check (char_length(trim(alias)) between 2 and 24),
+  alias text not null check (char_length(trim(alias)) between 2 and 60),
   celular text not null check (celular ~ '^9[0-9]{8}$'),
   created_at timestamptz not null default now()
 );
@@ -85,7 +85,7 @@ create table if not exists public.reservas (
   fecha date not null,
   inicio numeric(4,1) not null check (inicio between 7 and 24 and inicio * 2 = trunc(inicio * 2)),
   horas numeric(2,1) not null check (horas in (0.5, 1, 1.5, 2, 2.5, 3)),
-  alias text not null check (char_length(trim(alias)) between 2 and 24),
+  alias text not null check (char_length(trim(alias)) between 2 and 60),
   celular text not null check (celular ~ '^9[0-9]{8}$'),
   token_hash text,
   estado text not null default 'activo' check (estado in ('activo', 'iniciado', 'finalizado', 'cancelado', 'no_asistio')),
@@ -161,7 +161,7 @@ begin
   end if;
   alter table public.clientes
     add constraint clientes_alias_check
-    check (char_length(trim(alias)) between 2 and 24) not valid;
+    check (char_length(trim(alias)) between 2 and 60) not valid;
 
   if exists (
     select 1 from pg_constraint
@@ -172,7 +172,7 @@ begin
   end if;
   alter table public.reservas
     add constraint reservas_alias_check
-    check (char_length(trim(alias)) between 2 and 24) not valid;
+    check (char_length(trim(alias)) between 2 and 60) not valid;
 end
 $$;
 
@@ -300,7 +300,7 @@ create table if not exists public.numeros_bloqueados (
 create table if not exists public.numeros_confiables (
   celular text primary key check (celular ~ '^9[0-9]{8}$'),
   alias text not null default 'Cliente confiable'
-    check (char_length(trim(alias)) between 2 and 24),
+    check (char_length(trim(alias)) between 2 and 60),
   activo boolean not null default true,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
@@ -1281,7 +1281,7 @@ begin
     raise exception using errcode = '23P01', message = 'horario_entrenamiento_ocupado';
   end if;
 
-  if char_length(v_alias) not between 2 and 24
+  if char_length(v_alias) not between 2 and 60
      or v_alias !~ '^[[:alpha:]][[:alnum:] ''-]*$' then
     raise exception using errcode = '22023', message = 'alias_invalido';
   end if;

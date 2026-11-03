@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { ALIAS_MAXIMO } from '../../validacionCliente'
 import type { FormEvent } from 'react'
 import { UserCheck, UserX } from 'lucide-react'
 import type {
@@ -21,7 +22,7 @@ export interface AdminControlClientesProps {
 function mensajeError(resultado: ResultadoControlCliente): string {
   if (!('error' in resultado)) return ''
   if (resultado.error === 'celular-invalido') return 'El celular debe tener 9 números y empezar con 9.'
-  if (resultado.error === 'alias-invalido') return 'El nombre debe empezar con una letra y tener entre 2 y 24 caracteres.'
+  if (resultado.error === 'alias-invalido') return `El nombre debe empezar con una letra y tener entre 2 y ${ALIAS_MAXIMO} caracteres.`
   if (resultado.error === 'no-existe') return 'Ese número ya no está registrado.'
   return 'No pudimos guardar el cambio. Revisa la conexión e inténtalo de nuevo.'
 }
@@ -229,7 +230,7 @@ export default function AdminControlClientes({
               <input
                 value={aliasConfiable}
                 required
-                maxLength={24}
+                maxLength={ALIAS_MAXIMO}
                 placeholder="Cliente habitual"
                 onChange={(evento) => setAliasConfiable(evento.target.value)}
               />

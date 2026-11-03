@@ -294,7 +294,7 @@ export default function DatosReserva({
       return
     }
     if (validarAlias(alias)) {
-      setError('El nombre debe tener entre 2 y 24 caracteres, empezar con una letra y usar solo letras, números, espacios, guiones o apóstrofes.')
+      setError(`El nombre debe tener entre 2 y ${ALIAS_MAXIMO} caracteres, empezar con una letra y usar solo letras, números, espacios, guiones o apóstrofes.`)
       return
     }
     if (!celularValido) {
@@ -453,7 +453,7 @@ export default function DatosReserva({
         }}
       >
         <label>
-          <span>Nombre o apodo para la reserva</span>
+          <span>Nombre y apellido para reservas y sorteos navideños</span>
           <input
             id="alias-reserva"
             value={alias}
@@ -462,8 +462,8 @@ export default function DatosReserva({
             aria-invalid={Boolean(error)}
             aria-describedby={error ? 'datos-error' : undefined}
             onChange={(e) => setAlias(e.target.value)}
-            placeholder="Ej: Juan o LosPibes"
-            autoComplete="nickname"
+            placeholder="Ej: Juan Pérez"
+            autoComplete="name"
             minLength={2}
             maxLength={ALIAS_MAXIMO}
           />

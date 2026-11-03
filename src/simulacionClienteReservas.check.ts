@@ -39,6 +39,7 @@ import { crearBloqueoAccion } from './accionUnica.js'
 import {
   normalizarAlias,
   normalizarCelular,
+  ALIAS_MAXIMO,
   validarAlias,
   validarCelular,
 } from './validacionCliente.js'
@@ -111,7 +112,7 @@ assert.equal(validarAlias('Carlos Mendoza'), null, 'Alias estándar válido')
 assert.equal(validarAlias('Los-Galácticos'), null, 'Alias con guión válido')
 assert.equal(validarAlias("D'Alessandro"), null, 'Alias con apóstrofe válido')
 assert.equal(validarAlias('A'), 'alias-invalido', 'Alias de 1 letra es inválido (mínimo 2)')
-assert.equal(validarAlias('A'.repeat(25)), 'alias-invalido', 'Alias > 24 caracteres es inválido')
+assert.equal(validarAlias('A'.repeat(ALIAS_MAXIMO + 1)), 'alias-invalido', 'Alias > límite de caracteres es inválido')
 assert.equal(validarAlias('123Futbol'), 'alias-invalido', 'No debe empezar con número')
 assert.equal(validarAlias('Carlos<script>'), 'alias-invalido', 'Rechaza caracteres especiales')
 

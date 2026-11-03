@@ -1,5 +1,5 @@
 export const ALIAS_MINIMO = 2
-export const ALIAS_MAXIMO = 24
+export const ALIAS_MAXIMO = 60
 
 export type ErrorValidacionCliente = 'alias-invalido' | 'celular-invalido'
 

@@ -101,7 +101,7 @@ export default function MisReservas({
       const r = await onUpdateData({ alias, celular })
       if ('error' in r) {
         const mensajes: Partial<Record<ErrorAccion, string>> = {
-          'alias-invalido': 'El nombre debe tener entre 2 y 24 caracteres, empezar con una letra y usar solo letras, números, espacios, guiones o apóstrofes.',
+          'alias-invalido': `El nombre debe tener entre 2 y ${ALIAS_MAXIMO} caracteres, empezar con una letra y usar solo letras, números, espacios, guiones o apóstrofes.`,
           'celular-invalido': 'El celular debe tener 9 números y empezar con 9.',
           celular: 'Ese celular ya está registrado por otra persona.',
           conexion: 'No pudimos guardar los cambios. Revisa tu conexión e inténtalo de nuevo.',

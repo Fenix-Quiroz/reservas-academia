@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict'
 import {
+  ALIAS_MAXIMO,
   normalizarAlias,
   normalizarCelular,
   validarAlias,
@@ -17,7 +18,7 @@ assert.notEqual(validarAlias('A'), null, 'el alias debe tener al menos 2 caracte
 assert.notEqual(validarAlias('123Equipo'), null, 'el alias debe empezar con una letra')
 assert.notEqual(validarAlias('@Luis'), null, 'el alias no debe empezar con símbolos')
 assert.notEqual(validarAlias('Equipo@Jaguar'), null, 'el alias no debe contener símbolos no permitidos')
-assert.notEqual(validarAlias('A'.repeat(25)), null, 'el alias no debe superar 24 caracteres')
+assert.notEqual(validarAlias('A'.repeat(ALIAS_MAXIMO + 1)), null, 'el alias no debe superar el límite')
 
 assert.equal(validarCelular('987654321'), null)
 assert.equal(validarCelular('987 654-321'), null)
@@ -33,7 +34,7 @@ const aliasValidos = [
   'María-José',
   "D'Angelo",
   'Equipo 2',
-  `A${'1'.repeat(23)}`,
+  `A${'1'.repeat(ALIAS_MAXIMO - 1)}`,
 ]
 for (const alias of aliasValidos) assert.equal(validarAlias(alias), null, `debe aceptar: ${alias}`)
 
@@ -46,7 +47,7 @@ const entradasAliasPeligrosas = [
   '<script>alert(1)</script>',
   "'; DROP TABLE clientes; --",
   'Juan@ejemplo.com',
-  'A'.repeat(25),
+  'A'.repeat(ALIAS_MAXIMO + 1),
   '😀Juan',
 ]
 for (const entrada of entradasAliasPeligrosas) {
