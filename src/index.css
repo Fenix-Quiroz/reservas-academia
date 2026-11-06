@@ -3522,6 +3522,21 @@ button:disabled {
   color: #fecaca;
 }
 
+.admin-reserva-acciones-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+}
+
+.admin-reserva-por-cobrar {
+  font-size: 0.82rem;
+  font-weight: 800;
+  color: var(--color-gold-300);
+  letter-spacing: 0.01em;
+  text-align: right;
+}
+
 .admin-reserva-acciones {
   display: flex;
   align-items: center;
@@ -5246,6 +5261,15 @@ button:disabled {
     display: flex;
     flex-wrap: wrap;
     gap: 6px;
+  }
+
+  .admin-reserva-acciones-wrap {
+    align-items: flex-start;
+    width: 100%;
+  }
+
+  .admin-reserva-por-cobrar {
+    text-align: left;
   }
 
   .admin-reserva-acciones {

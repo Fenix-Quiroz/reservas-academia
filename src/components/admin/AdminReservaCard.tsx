@@ -1,4 +1,5 @@
 import { activa, fechaISO, rangoHablado } from '../../reservas'
+import { ADELANTO_YAPE } from '../../pagos'
 import type { Campo, ComprobanteAdmin, EstadoReserva, Reserva } from '../../types.js'
 import { finDeReserva } from '../../utils/alarmaTurno.js'
 import { Ban, Check, Download, Eye, Pencil, Play, X } from 'lucide-react'
@@ -95,6 +96,8 @@ export default function AdminReservaCard({
   const comprobanteProcesando = Boolean(comprobante && procesandoComprobante?.endsWith(`:${comprobante.pagoId}`))
   const procesando = cancelando === reserva.id || actualizandoEstado === reserva.id
   const textoFinalizacion = sinAdelanto ? 'Finalizar reserva' : 'Finalizar y confirmar pago'
+  const total = reserva.montoTotal ?? (cancha?.precioHora ?? 0) * reserva.horas
+  const saldoRestante = sinAdelanto ? total : Math.max(total - ADELANTO_YAPE, 0)
 
   return (
     <article className="admin-reserva" aria-labelledby={`reserva-${reserva.id}`}>
@@ -172,48 +175,55 @@ export default function AdminReservaCard({
               <button className="chip" disabled={Boolean(cancelando || actualizandoEstado)} onClick={onCancelRequest}>No</button>
             </div>
           </div>
-        ) : !esDemo && reserva.estado === 'activo' && !reservaActiva ? (<div className="admin-reserva-acciones">
-            {onEdit && (
-              <button type="button" className="admin-editar" disabled={procesando} onClick={() => onEdit(reserva)}>
-                <Pencil size={15} strokeWidth={2.2} aria-hidden="true" />
-                <span>Editar</span>
+        ) : !esDemo && reserva.estado === 'activo' && !reservaActiva ? (
+          <div className="admin-reserva-acciones-wrap">
+            <span className="admin-reserva-por-cobrar">Por cobrar: S/ {saldoRestante}</span>
+            <div className="admin-reserva-acciones">
+              {onEdit && (
+                <button type="button" className="admin-editar" disabled={procesando} onClick={() => onEdit(reserva)}>
+                  <Pencil size={15} strokeWidth={2.2} aria-hidden="true" />
+                  <span>Editar</span>
+                </button>
+              )}
+              <button className="admin-estado-accion" disabled={procesando} onClick={() => onStatus(reserva.id, 'finalizado')}>
+                <Check size={15} strokeWidth={2.3} aria-hidden="true" />
+                <span>{actualizandoEstado === reserva.id ? 'Guardando…' : textoFinalizacion}</span>
               </button>
-            )}
-            <button className="admin-estado-accion" disabled={procesando} onClick={() => onStatus(reserva.id, 'finalizado')}>
-              <Check size={15} strokeWidth={2.3} aria-hidden="true" />
-              <span>{actualizandoEstado === reserva.id ? 'Guardando…' : textoFinalizacion}</span>
-            </button>
-            <button className="admin-no-asistio" disabled={procesando} onClick={() => onStatus(reserva.id, 'no_asistio')}>
-              <Ban size={15} strokeWidth={2.3} aria-hidden="true" />
-              <span>{actualizandoEstado === reserva.id ? 'Guardando…' : 'Marcar no asistió'}</span>
-            </button>
+              <button className="admin-no-asistio" disabled={procesando} onClick={() => onStatus(reserva.id, 'no_asistio')}>
+                <Ban size={15} strokeWidth={2.3} aria-hidden="true" />
+                <span>{actualizandoEstado === reserva.id ? 'Guardando…' : 'Marcar no asistió'}</span>
+              </button>
+            </div>
           </div>
         ) : !esDemo && reserva.estado === 'activo' && reservaEnCurso(reserva, ahora) ? (
-          <div className="admin-reserva-acciones">
-            {onEdit && (
-              <button type="button" className="admin-editar" disabled={procesando} onClick={() => onEdit(reserva)}>
-                <Pencil size={15} strokeWidth={2.2} aria-hidden="true" />
-                <span>Editar</span>
+          <div className="admin-reserva-acciones-wrap">
+            <span className="admin-reserva-por-cobrar">Por cobrar: S/ {saldoRestante}</span>
+            <div className="admin-reserva-acciones">
+              {onEdit && (
+                <button type="button" className="admin-editar" disabled={procesando} onClick={() => onEdit(reserva)}>
+                  <Pencil size={15} strokeWidth={2.2} aria-hidden="true" />
+                  <span>Editar</span>
+                </button>
+              )}
+              <button className="admin-iniciar" disabled={procesando} onClick={() => onStatus(reserva.id, 'iniciado')}>
+                <Play size={15} strokeWidth={2.3} aria-hidden="true" />
+                <span>{actualizandoEstado === reserva.id ? 'Iniciando…' : 'Iniciar turno'}</span>
               </button>
-            )}
-            <button className="admin-iniciar" disabled={procesando} onClick={() => onStatus(reserva.id, 'iniciado')}>
-              <Play size={15} strokeWidth={2.3} aria-hidden="true" />
-              <span>{actualizandoEstado === reserva.id ? 'Iniciando…' : 'Iniciar turno'}</span>
-            </button>
-            <button className="admin-estado-accion" disabled={procesando} onClick={() => onStatus(reserva.id, 'finalizado')}>
-              <Check size={15} strokeWidth={2.3} aria-hidden="true" />
-              <span>{actualizandoEstado === reserva.id ? 'Guardando…' : textoFinalizacion}</span>
-            </button>
-            <button className="admin-no-asistio" disabled={procesando} onClick={() => onStatus(reserva.id, 'no_asistio')}>
-              <Ban size={15} strokeWidth={2.3} aria-hidden="true" />
-              <span>{actualizandoEstado === reserva.id ? 'Guardando…' : 'Marcar no asistió'}</span>
-            </button>
-            {puedeCancelar ? (
-              <button className="admin-cancelar" disabled={procesando} onClick={onRequestCancel}>
-                <X size={15} strokeWidth={2.3} aria-hidden="true" />
-                <span>Cancelar</span>
+              <button className="admin-estado-accion" disabled={procesando} onClick={() => onStatus(reserva.id, 'finalizado')}>
+                <Check size={15} strokeWidth={2.3} aria-hidden="true" />
+                <span>{actualizandoEstado === reserva.id ? 'Guardando…' : textoFinalizacion}</span>
               </button>
-            ) : null}
+              <button className="admin-no-asistio" disabled={procesando} onClick={() => onStatus(reserva.id, 'no_asistio')}>
+                <Ban size={15} strokeWidth={2.3} aria-hidden="true" />
+                <span>{actualizandoEstado === reserva.id ? 'Guardando…' : 'Marcar no asistió'}</span>
+              </button>
+              {puedeCancelar ? (
+                <button className="admin-cancelar" disabled={procesando} onClick={onRequestCancel}>
+                  <X size={15} strokeWidth={2.3} aria-hidden="true" />
+                  <span>Cancelar</span>
+                </button>
+              ) : null}
+            </div>
           </div>
         ) : !esDemo && reserva.estado === 'activo' ? (
           <div className="admin-reserva-acciones">
@@ -231,23 +241,26 @@ export default function AdminReservaCard({
             ) : null}
           </div>
         ) : !esDemo && reserva.estado === 'iniciado' ? (
-          <div className="admin-reserva-acciones">
-            {onEdit && (
-              <button type="button" className="admin-editar" disabled={procesando} onClick={() => onEdit(reserva)}>
-                <Pencil size={15} strokeWidth={2.2} aria-hidden="true" />
-                <span>Editar</span>
+          <div className="admin-reserva-acciones-wrap">
+            <span className="admin-reserva-por-cobrar">Por cobrar: S/ {saldoRestante}</span>
+            <div className="admin-reserva-acciones">
+              {onEdit && (
+                <button type="button" className="admin-editar" disabled={procesando} onClick={() => onEdit(reserva)}>
+                  <Pencil size={15} strokeWidth={2.2} aria-hidden="true" />
+                  <span>Editar</span>
+                </button>
+              )}
+              <button className="admin-estado-accion" disabled={procesando} onClick={() => onStatus(reserva.id, 'finalizado')}>
+                <Check size={15} strokeWidth={2.3} aria-hidden="true" />
+                <span>{actualizandoEstado === reserva.id ? 'Finalizando…' : 'Finalizar reserva'}</span>
               </button>
-            )}
-            <button className="admin-estado-accion" disabled={procesando} onClick={() => onStatus(reserva.id, 'finalizado')}>
-              <Check size={15} strokeWidth={2.3} aria-hidden="true" />
-              <span>{actualizandoEstado === reserva.id ? 'Finalizando…' : 'Finalizar reserva'}</span>
-            </button>
-            {puedeCancelar ? (
-              <button className="admin-cancelar" disabled={procesando} onClick={onRequestCancel}>
-                <X size={15} strokeWidth={2.3} aria-hidden="true" />
-                <span>Cancelar</span>
-              </button>
-            ) : null}
+              {puedeCancelar ? (
+                <button className="admin-cancelar" disabled={procesando} onClick={onRequestCancel}>
+                  <X size={15} strokeWidth={2.3} aria-hidden="true" />
+                  <span>Cancelar</span>
+                </button>
+              ) : null}
+            </div>
           </div>
         ) : esDemo ? (
           <small>Solo ejemplo</small>
