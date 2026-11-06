@@ -226,19 +226,22 @@ export default function AdminReservaCard({
             </div>
           </div>
         ) : !esDemo && reserva.estado === 'activo' ? (
-          <div className="admin-reserva-acciones">
-            {onEdit && (
-              <button type="button" className="admin-editar" disabled={procesando} onClick={() => onEdit(reserva)}>
-                <Pencil size={15} strokeWidth={2.2} aria-hidden="true" />
-                <span>Editar</span>
-              </button>
-            )}
-            {puedeCancelar ? (
-              <button className="admin-cancelar" disabled={procesando} onClick={onRequestCancel}>
-                <X size={15} strokeWidth={2.3} aria-hidden="true" />
-                <span>Cancelar</span>
-              </button>
-            ) : null}
+          <div className="admin-reserva-acciones-wrap">
+            <span className="admin-reserva-por-cobrar">Por cobrar: S/ {saldoRestante}</span>
+            <div className="admin-reserva-acciones">
+              {onEdit && (
+                <button type="button" className="admin-editar" disabled={procesando} onClick={() => onEdit(reserva)}>
+                  <Pencil size={15} strokeWidth={2.2} aria-hidden="true" />
+                  <span>Editar</span>
+                </button>
+              )}
+              {puedeCancelar ? (
+                <button className="admin-cancelar" disabled={procesando} onClick={onRequestCancel}>
+                  <X size={15} strokeWidth={2.3} aria-hidden="true" />
+                  <span>Cancelar</span>
+                </button>
+              ) : null}
+            </div>
           </div>
         ) : !esDemo && reserva.estado === 'iniciado' ? (
           <div className="admin-reserva-acciones-wrap">
