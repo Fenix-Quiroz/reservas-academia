@@ -53,6 +53,7 @@ import AdminListado from './components/admin/AdminListado'
 import AdminAlarmaTurno from './components/admin/AdminAlarmaTurno'
 import AdminBalanceMensual from './components/admin/AdminBalanceMensual'
 import AdminControlClientes from './components/admin/AdminControlClientes'
+import AdminSorteosVista from './components/admin/AdminSorteosVista'
 import AdminEventos from './components/admin/AdminEventos'
 import AdminNavegacion from './components/admin/AdminNavegacion'
 import AdminModalComprobante from './components/admin/AdminModalComprobante'
@@ -73,6 +74,31 @@ function usuarioAdminDesdeSesion(usuario: unknown): UsuarioAdmin | null {
 }
 
 export default function AdminApp() {
+  const [vista, setVista] = useState<'general' | 'sorteos'>(() => {
+    const camino = typeof window !== 'undefined' ? window.location.pathname.replace(/\/+$/, '') : ''
+    return camino === '/admin/sorteos' || camino === '/sorteos' ? 'sorteos' : 'general'
+  })
+
+  useEffect(() => {
+    const actualizarRuta = () => {
+      const camino = window.location.pathname.replace(/\/+$/, '')
+      setVista(camino === '/admin/sorteos' || camino === '/sorteos' ? 'sorteos' : 'general')
+    }
+    window.addEventListener('popstate', actualizarRuta)
+    return () => window.removeEventListener('popstate', actualizarRuta)
+  }, [])
+
+  function irASorteos(): void {
+    window.history.pushState(null, '', '/admin/sorteos')
+    setVista('sorteos')
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+  }
+
+  function irAPanelGeneral(): void {
+    window.history.pushState(null, '', '/admin')
+    setVista('general')
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+  }
   const [usuario, setUsuario] = useState<UsuarioAdmin | null>(null)
   const [cargandoAuth, setCargandoAuth] = useState(supabaseConfigurado)
   const [authError, setAuthError] = useState('')
@@ -576,6 +602,10 @@ export default function AdminApp() {
     )
   }
 
+  if (vista === 'sorteos') {
+    return <AdminSorteosVista onVolver={irAPanelGeneral} />
+  }
+
   return (
     <main id="admin-inicio" className="admin-app" aria-busy={cargando}>
       <aside className="admin-sidebar">
@@ -593,6 +623,7 @@ export default function AdminApp() {
         onClearConfirm={() => void limpiar()}
         onRefresh={actualizar}
         onLogout={cerrarSesion}
+        onIrASorteos={irASorteos}
       />
 
       <div className={`demo-aviso${estadoConexion === 'error' ? ' sin-conexion' : ''}${estadoConexion === 'sincronizado' ? ' sincronizado-discreto' : ''}`} role={estadoConexion === 'error' ? 'alert' : 'status'}>

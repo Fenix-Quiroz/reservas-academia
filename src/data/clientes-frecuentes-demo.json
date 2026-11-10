@@ -1,0 +1,502 @@
+[
+  {
+    "id": "cli-001",
+    "nombre": "Carlos Mendoza Quispe",
+    "celular": "987123456",
+    "reservasTotal": 45,
+    "reservasMes": 8,
+    "horasTotales": 52.0,
+    "ultimaReserva": "2026-11-04",
+    "canchaFavorita": "Campo 1 (Fútbol)"
+  },
+  {
+    "id": "cli-002",
+    "nombre": "Juan Carlos Flores Ramos",
+    "celular": "912345678",
+    "reservasTotal": 38,
+    "reservasMes": 7,
+    "horasTotales": 44.5,
+    "ultimaReserva": "2026-11-03",
+    "canchaFavorita": "Campo 2 (Fútbol)"
+  },
+  {
+    "id": "cli-003",
+    "nombre": "Marco Antonio Díaz Vega",
+    "celular": "998765432",
+    "reservasTotal": 51,
+    "reservasMes": 9,
+    "horasTotales": 63.0,
+    "ultimaReserva": "2026-11-05",
+    "canchaFavorita": "Campo 3 (Fútbol)"
+  },
+  {
+    "id": "cli-004",
+    "nombre": "Jorge Luis Huamán Torres",
+    "celular": "976543210",
+    "reservasTotal": 42,
+    "reservasMes": 7,
+    "horasTotales": 49.0,
+    "ultimaReserva": "2026-11-02",
+    "canchaFavorita": "Campo 1 (Fútbol)"
+  },
+  {
+    "id": "cli-005",
+    "nombre": "Víctor Hugo Salazar Ruiz",
+    "celular": "965432109",
+    "reservasTotal": 36,
+    "reservasMes": 7,
+    "horasTotales": 41.5,
+    "ultimaReserva": "2026-11-04",
+    "canchaFavorita": "Campo 4 (Vóley)"
+  },
+  {
+    "id": "cli-006",
+    "nombre": "Christian Benavides Gómez",
+    "celular": "954321098",
+    "reservasTotal": 48,
+    "reservasMes": 8,
+    "horasTotales": 56.0,
+    "ultimaReserva": "2026-11-01",
+    "canchaFavorita": "Campo 2 (Fútbol)"
+  },
+  {
+    "id": "cli-007",
+    "nombre": "David Alejandro Paredes Castillo",
+    "celular": "943210987",
+    "reservasTotal": 33,
+    "reservasMes": 6,
+    "horasTotales": 37.0,
+    "ultimaReserva": "2026-10-31",
+    "canchaFavorita": "Campo 1 (Fútbol)"
+  },
+  {
+    "id": "cli-008",
+    "nombre": "Ricardo Alonso Morales Sánchez",
+    "celular": "932109876",
+    "reservasTotal": 56,
+    "reservasMes": 9,
+    "horasTotales": 68.0,
+    "ultimaReserva": "2026-11-05",
+    "canchaFavorita": "Campo 3 (Fútbol)"
+  },
+  {
+    "id": "cli-009",
+    "nombre": "Luis Fernando Castro Romero",
+    "celular": "921098765",
+    "reservasTotal": 40,
+    "reservasMes": 7,
+    "horasTotales": 46.5,
+    "ultimaReserva": "2026-11-03",
+    "canchaFavorita": "Campo 2 (Fútbol)"
+  },
+  {
+    "id": "cli-010",
+    "nombre": "Diego Armando Mamani Ortiz",
+    "celular": "910987654",
+    "reservasTotal": 44,
+    "reservasMes": 7,
+    "horasTotales": 50.0,
+    "ultimaReserva": "2026-11-04",
+    "canchaFavorita": "Campo 1 (Fútbol)"
+  },
+  {
+    "id": "cli-011",
+    "nombre": "Roberto Carlos Gutiérrez Silva",
+    "celular": "989876543",
+    "reservasTotal": 39,
+    "reservasMes": 7,
+    "horasTotales": 45.0,
+    "ultimaReserva": "2026-11-02",
+    "canchaFavorita": "Campo 4 (Vóley)"
+  },
+  {
+    "id": "cli-012",
+    "nombre": "Andrés Felipe Palacios Medina",
+    "celular": "978765432",
+    "reservasTotal": 47,
+    "reservasMes": 8,
+    "horasTotales": 55.0,
+    "ultimaReserva": "2026-11-05",
+    "canchaFavorita": "Campo 1 (Fútbol)"
+  },
+  {
+    "id": "cli-013",
+    "nombre": "Rodrigo Javier Espinoza Rojas",
+    "celular": "967654321",
+    "reservasTotal": 35,
+    "reservasMes": 6,
+    "horasTotales": 40.0,
+    "ultimaReserva": "2026-11-01",
+    "canchaFavorita": "Campo 2 (Fútbol)"
+  },
+  {
+    "id": "cli-014",
+    "nombre": "Manuel Eduardo Chávez Vidal",
+    "celular": "956543210",
+    "reservasTotal": 53,
+    "reservasMes": 8,
+    "horasTotales": 62.0,
+    "ultimaReserva": "2026-11-04",
+    "canchaFavorita": "Campo 3 (Fútbol)"
+  },
+  {
+    "id": "cli-015",
+    "nombre": "Alex Daniel Vásquez Ponce",
+    "celular": "945432109",
+    "reservasTotal": 37,
+    "reservasMes": 7,
+    "horasTotales": 42.0,
+    "ultimaReserva": "2026-11-03",
+    "canchaFavorita": "Campo 1 (Fútbol)"
+  },
+  {
+    "id": "cli-016",
+    "nombre": "Miguel Ángel Herrera Lozano",
+    "celular": "934321098",
+    "reservasTotal": 41,
+    "reservasMes": 7,
+    "horasTotales": 48.0,
+    "ultimaReserva": "2026-11-04",
+    "canchaFavorita": "Campo 2 (Fútbol)"
+  },
+  {
+    "id": "cli-017",
+    "nombre": "Julio César Alarcón Campos",
+    "celular": "923210987",
+    "reservasTotal": 46,
+    "reservasMes": 8,
+    "horasTotales": 54.0,
+    "ultimaReserva": "2026-11-05",
+    "canchaFavorita": "Campo 1 (Fútbol)"
+  },
+  {
+    "id": "cli-018",
+    "nombre": "Franco Sebastián Vílchez Cárdenas",
+    "celular": "912109876",
+    "reservasTotal": 34,
+    "reservasMes": 6,
+    "horasTotales": 38.5,
+    "ultimaReserva": "2026-10-30",
+    "canchaFavorita": "Campo 4 (Vóley)"
+  },
+  {
+    "id": "cli-019",
+    "nombre": "Brayan Alexis Quintana Soto",
+    "celular": "981234567",
+    "reservasTotal": 50,
+    "reservasMes": 8,
+    "horasTotales": 59.0,
+    "ultimaReserva": "2026-11-03",
+    "canchaFavorita": "Campo 3 (Fútbol)"
+  },
+  {
+    "id": "cli-020",
+    "nombre": "Giancarlo Medina Carrión",
+    "celular": "972345678",
+    "reservasTotal": 43,
+    "reservasMes": 7,
+    "horasTotales": 50.5,
+    "ultimaReserva": "2026-11-02",
+    "canchaFavorita": "Campo 2 (Fútbol)"
+  },
+  {
+    "id": "cli-021",
+    "nombre": "Paolo Guerrero Farfán Córdova",
+    "celular": "963456789",
+    "reservasTotal": 62,
+    "reservasMes": 10,
+    "horasTotales": 75.0,
+    "ultimaReserva": "2026-11-05",
+    "canchaFavorita": "Campo 1 (Fútbol)"
+  },
+  {
+    "id": "cli-022",
+    "nombre": "Renzo Martín Delgado Bravo",
+    "celular": "954567890",
+    "reservasTotal": 36,
+    "reservasMes": 7,
+    "horasTotales": 42.0,
+    "ultimaReserva": "2026-11-04",
+    "canchaFavorita": "Campo 1 (Fútbol)"
+  },
+  {
+    "id": "cli-023",
+    "nombre": "Álvaro José Rivas Valdivia",
+    "celular": "945678901",
+    "reservasTotal": 41,
+    "reservasMes": 7,
+    "horasTotales": 47.5,
+    "ultimaReserva": "2026-11-01",
+    "canchaFavorita": "Campo 2 (Fútbol)"
+  },
+  {
+    "id": "cli-024",
+    "nombre": "Raúl Ignacio Miranda Obregón",
+    "celular": "936789012",
+    "reservasTotal": 49,
+    "reservasMes": 8,
+    "horasTotales": 58.0,
+    "ultimaReserva": "2026-11-04",
+    "canchaFavorita": "Campo 3 (Fútbol)"
+  },
+  {
+    "id": "cli-025",
+    "nombre": "César Augusto Barrientos Peña",
+    "celular": "927890123",
+    "reservasTotal": 38,
+    "reservasMes": 7,
+    "horasTotales": 43.0,
+    "ultimaReserva": "2026-11-03",
+    "canchaFavorita": "Campo 4 (Vóley)"
+  },
+  {
+    "id": "cli-026",
+    "nombre": "Gonzalo Enrique Villafuerte Paz",
+    "celular": "918901234",
+    "reservasTotal": 44,
+    "reservasMes": 7,
+    "horasTotales": 51.0,
+    "ultimaReserva": "2026-11-02",
+    "canchaFavorita": "Campo 1 (Fútbol)"
+  },
+  {
+    "id": "cli-027",
+    "nombre": "Piero Jesús Carrillo Salazar",
+    "celular": "989012345",
+    "reservasTotal": 54,
+    "reservasMes": 9,
+    "horasTotales": 64.0,
+    "ultimaReserva": "2026-11-05",
+    "canchaFavorita": "Campo 2 (Fútbol)"
+  },
+  {
+    "id": "cli-028",
+    "nombre": "Fabricio Andrés Cáceres Luna",
+    "celular": "970123456",
+    "reservasTotal": 35,
+    "reservasMes": 6,
+    "horasTotales": 39.0,
+    "ultimaReserva": "2026-10-31",
+    "canchaFavorita": "Campo 1 (Fútbol)"
+  },
+  {
+    "id": "cli-029",
+    "nombre": "Gustavo Adolfo Montenegro Tello",
+    "celular": "961234567",
+    "reservasTotal": 47,
+    "reservasMes": 8,
+    "horasTotales": 54.5,
+    "ultimaReserva": "2026-11-04",
+    "canchaFavorita": "Campo 3 (Fútbol)"
+  },
+  {
+    "id": "cli-030",
+    "nombre": "Javier Alejandro Solís Navarro",
+    "celular": "952345678",
+    "reservasTotal": 40,
+    "reservasMes": 7,
+    "horasTotales": 46.0,
+    "ultimaReserva": "2026-11-03",
+    "canchaFavorita": "Campo 2 (Fútbol)"
+  },
+  {
+    "id": "cli-031",
+    "nombre": "Fernando José Cueva Arana",
+    "celular": "943456789",
+    "reservasTotal": 52,
+    "reservasMes": 8,
+    "horasTotales": 61.0,
+    "ultimaReserva": "2026-11-05",
+    "canchaFavorita": "Campo 1 (Fútbol)"
+  },
+  {
+    "id": "cli-032",
+    "nombre": "Lucas Gabriel Hurtado Rivera",
+    "celular": "934567890",
+    "reservasTotal": 37,
+    "reservasMes": 7,
+    "horasTotales": 42.5,
+    "ultimaReserva": "2026-11-02",
+    "canchaFavorita": "Campo 4 (Vóley)"
+  },
+  {
+    "id": "cli-033",
+    "nombre": "Kevin Daniel Bustamante Gil",
+    "celular": "925678901",
+    "reservasTotal": 45,
+    "reservasMes": 8,
+    "horasTotales": 53.0,
+    "ultimaReserva": "2026-11-04",
+    "canchaFavorita": "Campo 1 (Fútbol)"
+  },
+  {
+    "id": "cli-034",
+    "nombre": "Eduardo Manuel Pinedo Cornejo",
+    "celular": "916789012",
+    "reservasTotal": 39,
+    "reservasMes": 7,
+    "horasTotales": 45.0,
+    "ultimaReserva": "2026-11-03",
+    "canchaFavorita": "Campo 2 (Fútbol)"
+  },
+  {
+    "id": "cli-035",
+    "nombre": "Guillermo Tapia Seminario",
+    "celular": "987890123",
+    "reservasTotal": 43,
+    "reservasMes": 7,
+    "horasTotales": 50.0,
+    "ultimaReserva": "2026-11-01",
+    "canchaFavorita": "Campo 3 (Fútbol)"
+  },
+  {
+    "id": "cli-036",
+    "nombre": "Leonardo Fabio Aguirre Bernales",
+    "celular": "978901234",
+    "reservasTotal": 46,
+    "reservasMes": 8,
+    "horasTotales": 53.5,
+    "ultimaReserva": "2026-11-05",
+    "canchaFavorita": "Campo 1 (Fútbol)"
+  },
+  {
+    "id": "cli-037",
+    "nombre": "Daniel Alberto Zegarra Mostajo",
+    "celular": "969012345",
+    "reservasTotal": 34,
+    "reservasMes": 6,
+    "horasTotales": 38.0,
+    "ultimaReserva": "2026-10-31",
+    "canchaFavorita": "Campo 2 (Fútbol)"
+  },
+  {
+    "id": "cli-038",
+    "nombre": "Sergio Renato Montalván Ríos",
+    "celular": "950123456",
+    "reservasTotal": 49,
+    "reservasMes": 8,
+    "horasTotales": 57.0,
+    "ultimaReserva": "2026-11-04",
+    "canchaFavorita": "Campo 1 (Fútbol)"
+  },
+  {
+    "id": "cli-039",
+    "nombre": "Bruno Alejandro Calderón León",
+    "celular": "941234567",
+    "reservasTotal": 41,
+    "reservasMes": 7,
+    "horasTotales": 47.0,
+    "ultimaReserva": "2026-11-02",
+    "canchaFavorita": "Campo 4 (Vóley)"
+  },
+  {
+    "id": "cli-040",
+    "nombre": "Mauricio Joel Estrada Robles",
+    "celular": "932345678",
+    "reservasTotal": 38,
+    "reservasMes": 7,
+    "horasTotales": 44.0,
+    "ultimaReserva": "2026-11-03",
+    "canchaFavorita": "Campo 2 (Fútbol)"
+  },
+  {
+    "id": "cli-041",
+    "nombre": "Claudio Andrés Zambrano Vela",
+    "celular": "923456789",
+    "reservasTotal": 58,
+    "reservasMes": 9,
+    "horasTotales": 69.0,
+    "ultimaReserva": "2026-11-05",
+    "canchaFavorita": "Campo 3 (Fútbol)"
+  },
+  {
+    "id": "cli-042",
+    "nombre": "Walter Hernán Guevara Suárez",
+    "celular": "914567890",
+    "reservasTotal": 42,
+    "reservasMes": 7,
+    "horasTotales": 48.5,
+    "ultimaReserva": "2026-11-04",
+    "canchaFavorita": "Campo 1 (Fútbol)"
+  },
+  {
+    "id": "cli-043",
+    "nombre": "Emilio Dante Portocarrero Cruz",
+    "celular": "985678901",
+    "reservasTotal": 36,
+    "reservasMes": 6,
+    "horasTotales": 41.0,
+    "ultimaReserva": "2026-11-01",
+    "canchaFavorita": "Campo 2 (Fútbol)"
+  },
+  {
+    "id": "cli-044",
+    "nombre": "Jaime Enrique Loyola Becerra",
+    "celular": "976789012",
+    "reservasTotal": 44,
+    "reservasMes": 7,
+    "horasTotales": 51.5,
+    "ultimaReserva": "2026-11-03",
+    "canchaFavorita": "Campo 1 (Fútbol)"
+  },
+  {
+    "id": "cli-045",
+    "nombre": "Arturo Valentín Quiroz Balbín",
+    "celular": "967890123",
+    "reservasTotal": 47,
+    "reservasMes": 8,
+    "horasTotales": 55.0,
+    "ultimaReserva": "2026-11-05",
+    "canchaFavorita": "Campo 3 (Fútbol)"
+  },
+  {
+    "id": "cli-046",
+    "nombre": "Héctor Daniel Carranza Figueroa",
+    "celular": "958901234",
+    "reservasTotal": 39,
+    "reservasMes": 7,
+    "horasTotales": 45.0,
+    "ultimaReserva": "2026-11-02",
+    "canchaFavorita": "Campo 4 (Vóley)"
+  },
+  {
+    "id": "cli-047",
+    "nombre": "Martín Nicolás Villanueva Reyes",
+    "celular": "949012345",
+    "reservasTotal": 50,
+    "reservasMes": 8,
+    "horasTotales": 58.5,
+    "ultimaReserva": "2026-11-04",
+    "canchaFavorita": "Campo 1 (Fútbol)"
+  },
+  {
+    "id": "cli-048",
+    "nombre": "Oscar David Prado Valenzuela",
+    "celular": "930123456",
+    "reservasTotal": 35,
+    "reservasMes": 6,
+    "horasTotales": 40.0,
+    "ultimaReserva": "2026-10-30",
+    "canchaFavorita": "Campo 2 (Fútbol)"
+  },
+  {
+    "id": "cli-049",
+    "nombre": "Cristian Joel Saavedra Núñez",
+    "celular": "921234567",
+    "reservasTotal": 43,
+    "reservasMes": 7,
+    "horasTotales": 50.0,
+    "ultimaReserva": "2026-11-03",
+    "canchaFavorita": "Campo 1 (Fútbol)"
+  },
+  {
+    "id": "cli-050",
+    "nombre": "Joaquín Mateo Villalobos Arce",
+    "celular": "912349876",
+    "reservasTotal": 48,
+    "reservasMes": 8,
+    "horasTotales": 56.5,
+    "ultimaReserva": "2026-11-05",
+    "canchaFavorita": "Campo 3 (Fútbol)"
+  }
+]

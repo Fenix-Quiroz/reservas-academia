@@ -12,6 +12,7 @@ export interface AdminCabeceraProps {
   onClearConfirm: () => void
   onRefresh: () => void | Promise<void>
   onLogout: () => void | Promise<void>
+  onIrASorteos?: () => void
 }
 
 export default function AdminCabecera({
@@ -24,6 +25,7 @@ export default function AdminCabecera({
   onClearConfirm,
   onRefresh,
   onLogout,
+  onIrASorteos,
 }: AdminCabeceraProps) {
   const [cerrandoSesion, setCerrandoSesion] = useState(false)
   const bloqueoLogout = useRef(crearBloqueoAccion())
@@ -64,6 +66,19 @@ export default function AdminCabecera({
         <button className="boton-secundario admin-boton" disabled={cargando} onClick={onRefresh}>
           {cargando ? 'Actualizando…' : <><span aria-hidden="true">↻</span> Actualizar</>}
         </button>
+        <a
+          className="boton-secundario admin-boton admin-boton-sorteos"
+          href="/admin/sorteos"
+          onClick={(evento) => {
+            if (onIrASorteos) {
+              evento.preventDefault()
+              onIrASorteos()
+            }
+          }}
+          title="Ir a Sorteos de clientes frecuentes"
+        >
+          <span aria-hidden="true">🎁</span> Sorteos
+        </a>
         <a className="boton-secundario admin-boton" href="/">Vista del cliente</a>
         {supabaseConfigurado && (
           <button className="boton-secundario admin-boton" disabled={cerrandoSesion} onClick={() => void cerrarSesion()}>

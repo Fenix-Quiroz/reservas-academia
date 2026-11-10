@@ -9,13 +9,15 @@ const AdminApp = lazy(() => import('./AdminApp'))
 
 export const ruta = window.location.pathname.replace(/\/+$/, '') || '/'
 
+const esRutaAdmin = ruta === '/admin' || ruta.startsWith('/admin') || ruta === '/sorteos' || ruta.startsWith('/sorteos')
+
 const rootElement = document.getElementById('root')
 if (!rootElement) throw new Error('No se encontró el elemento raíz de la aplicación.')
 
 createRoot(rootElement).render(
   <StrictMode>
     <Suspense fallback={
-      ruta === '/admin' ? (
+      ruta === '/admin' || esRutaAdmin ? (
         <AdminLoadingSplash mensaje="Cargando panel de administración…" />
       ) : (
         <div className="app" aria-busy="true">
@@ -23,7 +25,7 @@ createRoot(rootElement).render(
         </div>
       )
     }>
-      {ruta === '/admin' ? <AdminApp /> : <App />}
+      {ruta === '/admin' || esRutaAdmin ? <AdminApp /> : <App />}
     </Suspense>
   </StrictMode>,
 )
