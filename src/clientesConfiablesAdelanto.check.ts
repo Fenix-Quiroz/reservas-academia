@@ -51,7 +51,7 @@ assert.match(datosReserva, /Selecciona tu comprobante/)
 assert.match(reservaCompletada, /Reserva confirmada\. No requiere adelanto\./)
 assert.match(reservaCompletada, /Reserva asegurada\. Tu comprobante está pendiente de revisión\./)
 assert.match(misReservas, /r\.pagoEstado === 'no_requerido'[\s\S]*?Reserva confirmada/)
-assert.match(adminCard, /sinAdelanto \? 'Finalizar reserva' : 'Finalizar y confirmar pago'/)
+assert.match(adminCard, /Finalizar reserva y confirmar pago/)
 assert.match(estilos, /reserva-sin-adelanto/)
 
 console.log('OK: contrato de clientes confiables y adelanto')

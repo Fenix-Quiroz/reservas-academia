@@ -95,7 +95,7 @@ export default function AdminReservaCard({
   const reservaYaIniciada = reservaYaComenzo(reserva, ahora)
   const comprobanteProcesando = Boolean(comprobante && procesandoComprobante?.endsWith(`:${comprobante.pagoId}`))
   const procesando = cancelando === reserva.id || actualizandoEstado === reserva.id
-  const textoFinalizacion = sinAdelanto ? 'Finalizar reserva' : 'Finalizar y confirmar pago'
+  const textoFinalizacion = 'Finalizar reserva y confirmar pago'
   const total = reserva.montoTotal ?? (cancha?.precioHora ?? 0) * reserva.horas
   const saldoRestante = sinAdelanto ? total : Math.max(total - ADELANTO_YAPE, 0)
 
@@ -255,7 +255,7 @@ export default function AdminReservaCard({
               )}
               <button className="admin-estado-accion" disabled={procesando} onClick={() => onStatus(reserva.id, 'finalizado')}>
                 <Check size={15} strokeWidth={2.3} aria-hidden="true" />
-                <span>{actualizandoEstado === reserva.id ? 'Finalizando…' : 'Finalizar reserva'}</span>
+                <span>{actualizandoEstado === reserva.id ? 'Finalizando…' : textoFinalizacion}</span>
               </button>
               {puedeCancelar ? (
                 <button className="admin-cancelar" disabled={procesando} onClick={onRequestCancel}>
