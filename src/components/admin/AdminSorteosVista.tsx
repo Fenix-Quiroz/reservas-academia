@@ -26,8 +26,6 @@ export interface AdminSorteosVistaProps {
   onVolver: () => void
 }
 
-type PeriodoSorteo = 'mes-actual' | 'ultimos-2' | 'ultimos-3' | 'historico'
-
 export interface TicketSorteo {
   id: string
   clienteId: string
@@ -96,7 +94,6 @@ function reproducirSonidoVictoria(): void {
 }
 
 export default function AdminSorteosVista({ onVolver }: AdminSorteosVistaProps) {
-  const [periodo, setPeriodo] = useState<PeriodoSorteo>('mes-actual')
   const [girando, setGirando] = useState(false)
   const [ganador, setGanador] = useState<TicketSorteo | null>(null)
   const [offsetRueda, setOffsetRueda] = useState(0)
@@ -111,30 +108,13 @@ export default function AdminSorteosVista({ onVolver }: AdminSorteosVistaProps) 
   const animacionCompletadaRef = useRef(false)
   const temporizadoresTick = useRef<number[]>([])
 
-  // 1. Calcular los participantes y sus tickets según el periodo seleccionado (1 reserva = 1 ticket)
+  // 1. Calcular los participantes y sus tickets de la campaña activa (1 reserva = 1 ticket)
   const { participantes, totalTickets, ticketsIntercalados } = useMemo(() => {
-    const listado: ParticipanteSorteo[] = datosDemo.map((c) => {
-      let tickets = 0
-      switch (periodo) {
-        case 'mes-actual':
-          tickets = c.reservasMes // ~7 tickets promedio
-          break
-        case 'ultimos-2':
-          tickets = Math.round(c.reservasMes * 2) // ~14-16 tickets
-          break
-        case 'ultimos-3':
-          tickets = Math.round(c.reservasMes * 3) // ~21-24 tickets
-          break
-        case 'historico':
-          tickets = c.reservasTotal // ~33-62 tickets
-          break
-      }
-      return {
-        cliente: c,
-        tickets,
-        probabilidad: 0,
-      }
-    })
+    const listado: ParticipanteSorteo[] = datosDemo.map((c) => ({
+      cliente: c,
+      tickets: c.reservasMes,
+      probabilidad: 0,
+    }))
 
     const total = listado.reduce((acc, p) => acc + p.tickets, 0)
 
@@ -187,7 +167,7 @@ export default function AdminSorteosVista({ onVolver }: AdminSorteosVistaProps) 
       totalTickets: total,
       ticketsIntercalados: intercalados,
     }
-  }, [periodo])
+  }, [])
 
   // 2. Strip de tarjetas para el tambor horizontal
   const [stripTarjetas, setStripTarjetas] = useState<TicketSorteo[]>([])
@@ -376,7 +356,7 @@ export default function AdminSorteosVista({ onVolver }: AdminSorteosVistaProps) 
         </div>
       </header>
 
-      {/* Selector de periodo y regla del sorteo */}
+      {/* Campaña y regla del sorteo */}
       <section className="admin-sorteo-configuracion">
         <div className="admin-sorteo-regla">
           <div className="regla-icono">
@@ -385,28 +365,23 @@ export default function AdminSorteosVista({ onVolver }: AdminSorteosVistaProps) 
           <div className="regla-texto">
             <h2>Regla: 1 Reserva = 1 Ticket de Sorteo</h2>
             <p>
-              Todos los clientes que reservaron en el periodo participan automáticamente.
+              Todos los clientes que reservaron durante la campaña participan automáticamente.
               Quien tiene más reservas tiene más tickets repartidos en el tambor de forma separada.
             </p>
           </div>
         </div>
 
-        <div className="admin-sorteo-periodo-control">
-          <label htmlFor="selector-periodo-sorteo">
+        <div className="admin-sorteo-campana-box" aria-label="Campaña activa del sorteo">
+          <div className="admin-sorteo-campana-etiqueta">
             <Calendar size={15} aria-hidden="true" />
-            <span>Periodo a sortear:</span>
-          </label>
-          <select
-            id="selector-periodo-sorteo"
-            value={periodo}
-            disabled={girando}
-            onChange={(e) => setPeriodo(e.target.value as PeriodoSorteo)}
-          >
-            <option value="mes-actual">Mes Actual (Noviembre 2026)</option>
-            <option value="ultimos-2">Últimos 2 Meses (Octubre + Noviembre)</option>
-            <option value="ultimos-3">Últimos 3 Meses (Septiembre - Noviembre)</option>
-            <option value="historico">Todo el Histórico Acumulado</option>
-          </select>
+            <span>Campaña activa:</span>
+          </div>
+          <strong className="admin-sorteo-campana-nombre">
+            Gran Sorteo Navideño
+          </strong>
+          <span className="admin-sorteo-campana-fecha">
+            Válido hasta el 22 de Diciembre
+          </span>
         </div>
       </section>
 
@@ -556,7 +531,7 @@ export default function AdminSorteosVista({ onVolver }: AdminSorteosVistaProps) 
                   <strong>#{ganador.numeroGlobal} (Oportunidad {ganador.ticketIndex} de {ganador.totalTickets})</strong>
                 </div>
                 <div className="detalle-pill">
-                  <span>Reservas en el periodo:</span>
+                  <span>Reservas en la campaña:</span>
                   <strong>{ganador.totalTickets} reservas</strong>
                 </div>
               </div>

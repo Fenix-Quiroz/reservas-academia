@@ -7716,41 +7716,41 @@ button:disabled {
   line-height: 1.45;
 }
 
-.admin-sorteo-periodo-control {
+.admin-sorteo-campana-box {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  justify-content: center;
+  gap: 3px;
   min-width: 260px;
+  padding: 10px 16px;
+  border: 2px solid var(--color-gold-500);
+  border-radius: 12px;
+  background: var(--color-ink-800);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
 }
 
-.admin-sorteo-periodo-control label {
+.admin-sorteo-campana-etiqueta {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  color: var(--color-gold-300);
+  color: var(--color-gold-400);
+  font-size: 0.78rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.admin-sorteo-campana-nombre {
+  color: var(--color-ink-50);
+  font-size: 1.05rem;
+  font-weight: 900;
+  letter-spacing: -0.01em;
+}
+
+.admin-sorteo-campana-fecha {
+  color: var(--color-gold-200);
   font-size: 0.85rem;
   font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-}
-
-.admin-sorteo-periodo-control select {
-  min-height: 46px;
-  padding: 0 14px;
-  border: 2px solid var(--color-gold-500);
-  border-radius: 10px;
-  background: var(--color-ink-800);
-  color: var(--color-ink-50);
-  font: inherit;
-  font-size: 0.95rem;
-  font-weight: 700;
-  cursor: pointer;
-  outline: none;
-  transition: border-color 0.15s ease;
-}
-
-.admin-sorteo-periodo-control select:focus {
-  border-color: var(--color-gold-300);
 }
 
 /* Barra de métricas del sorteo */
