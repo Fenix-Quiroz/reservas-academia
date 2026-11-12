@@ -1712,6 +1712,196 @@ button:disabled {
   color: var(--color-ink-50);
 }
 
+/* Ticket de Sorteo Navideño (Variante A - Golden Voucher) */
+.ticket-sorteo-voucher {
+  position: relative;
+  margin: 0 0 24px;
+  padding: 20px 24px;
+  background: linear-gradient(135deg, #ffd778 0%, #e8aa25 45%, #c88909 100%);
+  border-radius: 16px;
+  color: #1a1303;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.4);
+  border: 1px solid rgba(255, 225, 140, 0.5);
+  overflow: hidden;
+}
+
+/* Muescas semicirculares laterales (efecto troquelado de ticket) */
+.ticket-sorteo-voucher::before,
+.ticket-sorteo-voucher::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  width: 22px;
+  height: 22px;
+  background: var(--color-ink-950, #0b0b0a);
+  border-radius: 50%;
+  transform: translateY(-50%);
+  z-index: 2;
+  box-shadow: inset 0 0 4px rgba(0, 0, 0, 0.6);
+}
+
+.ticket-sorteo-voucher::before {
+  left: -11px;
+}
+
+.ticket-sorteo-voucher::after {
+  right: -11px;
+}
+
+.ticket-sorteo-cuerpo {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  position: relative;
+  z-index: 1;
+}
+
+.ticket-sorteo-cabecera-fila {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.ticket-sorteo-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: rgba(26, 19, 3, 0.88);
+  color: #ffe082;
+  font-size: 0.75rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25);
+}
+
+.ticket-sorteo-btn-ver {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 12px;
+  border-radius: 999px;
+  background: rgba(26, 19, 3, 0.92);
+  color: #ffd778;
+  border: 1px solid rgba(255, 215, 120, 0.4);
+  font-size: 0.76rem;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25);
+}
+
+.ticket-sorteo-btn-ver:hover {
+  background: #000000;
+  color: #ffffff;
+  border-color: rgba(255, 215, 120, 0.85);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.35);
+}
+
+.ticket-sorteo-btn-ver:active {
+  transform: translateY(0);
+}
+
+.ticket-sorteo-contador-fila {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.ticket-sorteo-icono-caja {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 52px;
+  height: 52px;
+  border-radius: 14px;
+  background: rgba(26, 19, 3, 0.12);
+  border: 1px solid rgba(26, 19, 3, 0.18);
+  color: #1a1303;
+  flex-shrink: 0;
+}
+
+.ticket-sorteo-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.ticket-sorteo-conteo-principal {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.ticket-sorteo-numero {
+  font-size: 2.2rem;
+  font-weight: 900;
+  line-height: 1;
+  color: #1a1303;
+  letter-spacing: -0.02em;
+}
+
+.ticket-sorteo-etiqueta {
+  font-size: 1.15rem;
+  font-weight: 800;
+  color: #1a1303;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+
+.ticket-sorteo-subconteo {
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: rgba(26, 19, 3, 0.8);
+}
+
+/* Divisor perforado (línea discontinua) */
+.ticket-sorteo-divisor {
+  width: 100%;
+  height: 0;
+  border-top: 2px dashed rgba(26, 19, 3, 0.35);
+  margin: 2px 0;
+}
+
+.ticket-sorteo-regla {
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.82rem;
+  font-weight: 700;
+  line-height: 1.35;
+  color: #241a05;
+}
+
+.ticket-sorteo-regla-icono {
+  flex-shrink: 0;
+  font-size: 0.95rem;
+}
+
+@media (max-width: 480px) {
+  .ticket-sorteo-voucher {
+    padding: 16px 18px;
+    margin-bottom: 20px;
+  }
+  .ticket-sorteo-numero {
+    font-size: 1.85rem;
+  }
+  .ticket-sorteo-etiqueta {
+    font-size: 1rem;
+  }
+  .ticket-sorteo-icono-caja {
+    width: 44px;
+    height: 44px;
+  }
+}
+
 .mis-reservas h1,
 .mis-reservas h2 {
   color: var(--color-ink-50);

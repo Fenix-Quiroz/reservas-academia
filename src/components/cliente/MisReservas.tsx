@@ -5,7 +5,9 @@ import { rangoHablado } from '../../reservas'
 import type { Campo, Cliente, Reserva } from '../../types.js'
 import { ALIAS_MAXIMO } from '../../validacionCliente'
 import { crearBloqueoAccion } from '../../accionUnica'
-import { Phone } from 'lucide-react'
+import { Phone, Ticket } from 'lucide-react'
+import datosDemo from '../../data/clientes-frecuentes-demo.json'
+import PopupPromocion from './PopupPromocion'
 
 export const NUMERO_CONSULTAS = '997621348'
 type ErrorAccion =
@@ -60,7 +62,11 @@ export default function MisReservas({
       if (aCancelada !== bCancelada) return aCancelada ? 1 : -1
       return a.fecha.localeCompare(b.fecha) || a.inicio - b.inicio
     })
+  const clienteDemo = yo ? datosDemo.find((c) => c.celular === yo.celular) : null
+  const reservasFinalizadas = reservas.filter((r) => r.estado === 'finalizado').length
+  const ticketsAcumulados = clienteDemo ? clienteDemo.reservasMes + reservasFinalizadas : reservasFinalizadas
   const [porCancelar, setPorCancelar] = useState<string | null>(null)
+  const [verSorteo, setVerSorteo] = useState(false)
   const [editando, setEditando] = useState(false)
   const [alias, setAlias] = useState(yo?.alias ?? '')
   const [celular, setCelular] = useState(yo?.celular ?? '')
@@ -140,6 +146,50 @@ export default function MisReservas({
 
   return (
     <section className="mis-reservas">
+      {/* Ticket de Gran Sorteo Navideño (Variante A - Golden Voucher) */}
+      <aside className="ticket-sorteo-voucher" aria-label="Ticket de Gran Sorteo Navideño">
+        <div className="ticket-sorteo-cuerpo">
+          <div className="ticket-sorteo-cabecera-fila">
+            <span className="ticket-sorteo-badge">
+              <span aria-hidden="true">🎟️</span> Gran Sorteo Navideño
+            </span>
+            <button
+              type="button"
+              className="ticket-sorteo-btn-ver"
+              onClick={() => setVerSorteo(true)}
+              aria-label="Ver sorteo navideño"
+            >
+              <span>Ver sorteo</span>
+              <span aria-hidden="true">↗</span>
+            </button>
+          </div>
+
+          <div className="ticket-sorteo-contador-fila">
+            <div className="ticket-sorteo-icono-caja" aria-hidden="true">
+              <Ticket size={28} strokeWidth={2.4} />
+            </div>
+            <div className="ticket-sorteo-info">
+              <div className="ticket-sorteo-conteo-principal">
+                <strong className="ticket-sorteo-numero">{ticketsAcumulados}</strong>
+                <span className="ticket-sorteo-etiqueta">
+                  {ticketsAcumulados === 1 ? 'Ticket acumulado' : 'Tickets acumulados'}
+                </span>
+              </div>
+              <span className="ticket-sorteo-subconteo">
+                {ticketsAcumulados} {ticketsAcumulados === 1 ? 'reserva completada y pagada' : 'reservas completadas y pagadas'}
+              </span>
+            </div>
+          </div>
+
+          <div className="ticket-sorteo-divisor" aria-hidden="true" />
+
+          <p className="ticket-sorteo-regla">
+            <span className="ticket-sorteo-regla-icono" aria-hidden="true">💡</span>
+            <span>Cada reserva completada y pagada al 100% te da 1 ticket.</span>
+          </p>
+        </div>
+      </aside>
+
       <h1 ref={tituloRef} tabIndex={-1}>Mis reservas</h1>
       <p className="subtitulo">Puedes cancelar tu reserva en cualquier momento.</p>
       {exito && <p className="exito" role="status">{exito}</p>}
@@ -321,6 +371,7 @@ export default function MisReservas({
           <span>Escribir por WhatsApp</span>
         </a>
       </div>
+      <PopupPromocion abierto={verSorteo} onCerrar={() => setVerSorteo(false)} />
     </section>
   )
 }
