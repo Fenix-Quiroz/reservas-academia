@@ -17,7 +17,7 @@ const campo = {
   precioHora: 60,
   color: '#a97818',
   imagen: '/campos/campo-1-futbol-5.webp',
-  oferta: 'Alquila este campo y recibe 1 agua de 625 ml',
+  oferta: '',
 } satisfies Campo
 
 const corto = nombreDiaCorto(0)

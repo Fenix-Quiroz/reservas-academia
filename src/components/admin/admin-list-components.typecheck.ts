@@ -11,7 +11,7 @@ const cancha: Campo = {
   precioHora: 60,
   color: '#996400',
   imagen: '/campos/campo-1-futbol-5.webp',
-  oferta: 'Agua incluida',
+  oferta: '',
 }
 
 const reserva: Reserva = {

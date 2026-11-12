@@ -12,7 +12,7 @@ const canchas: Campo[] = [
     precioHora: 60,
     color: '#a97818',
     imagen: '/campos/campo-1-futbol-5.webp',
-    oferta: 'Agua incluida',
+    oferta: '',
   },
   {
     id: 2,
@@ -22,7 +22,7 @@ const canchas: Campo[] = [
     precioHora: 60,
     color: '#c58b1d',
     imagen: '/campos/campo-2-futbol-5.webp',
-    oferta: 'Agua incluida',
+    oferta: '',
   },
 ]
 
