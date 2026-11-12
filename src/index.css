@@ -5789,12 +5789,37 @@ button:disabled {
   overflow: hidden;
 }
 
+.promo-popup-sorteo-box {
+  background: #0b0b0a;
+  border: 2px solid var(--color-gold-400, #e4b339);
+  padding: 2px;
+  max-width: 310px;
+  border-radius: 18px;
+  box-shadow:
+    0 12px 36px rgba(0, 0, 0, 0.75),
+    0 0 30px rgba(228, 179, 57, 0.35);
+}
+
 .promo-popup-imagen {
   width: 100%;
   max-height: 200px;
   object-fit: contain;
   border-radius: 10px;
   transition: transform 0.3s ease;
+}
+
+.promo-popup-sorteo-img {
+  width: 100%;
+  max-height: 360px;
+  object-fit: cover;
+  border-radius: 16px;
+  display: block;
+}
+
+@media (max-height: 720px) {
+  .promo-popup-sorteo-img {
+    max-height: 240px;
+  }
 }
 
 .promo-popup-dialog:hover .promo-popup-imagen {

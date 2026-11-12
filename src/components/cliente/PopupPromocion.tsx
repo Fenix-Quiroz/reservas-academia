@@ -59,32 +59,29 @@ export default function PopupPromocion({ abierto, onCerrar }: PopupPromocionProp
         </button>
 
         <div className="promo-popup-badge">
-          <span aria-hidden="true">🎁</span> PROMOCIÓN EXCLUSIVA
+          <span aria-hidden="true">🦃</span> GRAN SORTEO NAVIDEÑO
         </div>
 
         <h2 id="promo-popup-titulo" className="promo-popup-titulo">
-          POR RESERVAR AQUÍ
+          ¡5 PAVOS DE 8 KG!
         </h2>
 
         <p className="promo-popup-subtitulo">
-          obtendrás
+          Por reservar desde nuestra web
         </p>
 
-        <div className="promo-popup-imagen-box">
+        <div className="promo-popup-imagen-box promo-popup-sorteo-box">
           <img
-            src="/ofertas/agua-promo.png"
-            alt="Agua Cielo 2.5 L sin gas gratis con tu reserva"
-            className="promo-popup-imagen"
+            src="/ofertas/sorteo-pavos-promo.jpg"
+            alt="Gran Sorteo de 5 Pavos de 8 Kg - Polideportivo El Jaguar"
+            className="promo-popup-imagen promo-popup-sorteo-img"
           />
-          <span className="promo-popup-badge-gratis">
-            ¡TOTALMENTE GRATIS!
-          </span>
         </div>
 
         <div className="promo-popup-condicion">
-          <span className="promo-popup-condicion-icono" aria-hidden="true">💧</span>
+          <span className="promo-popup-condicion-icono" aria-hidden="true">📅</span>
           <p className="promo-popup-condicion-texto">
-            Al cancelar la totalidad de tu reserva.
+            Sorteo: <strong>22 de Diciembre a las 9:00 PM</strong>. ¡Válido para todas las reservas en nuestra web!
           </p>
         </div>
 
@@ -95,7 +92,7 @@ export default function PopupPromocion({ abierto, onCerrar }: PopupPromocionProp
             className="promo-popup-btn-principal"
             onClick={onCerrar}
           >
-            <span>¡RESERVAR AHORA!</span>
+            <span>¡RESERVAR AHORA Y PARTICIPAR!</span>
             <span aria-hidden="true">⚽</span>
           </button>
         </div>
