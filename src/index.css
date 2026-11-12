@@ -5790,14 +5790,85 @@ button:disabled {
 }
 
 .promo-popup-sorteo-box {
-  background: #0b0b0a;
+  position: relative;
+  background: #000000;
   border: 2px solid var(--color-gold-400, #e4b339);
-  padding: 2px;
-  max-width: 310px;
+  padding: 0;
+  max-width: 370px;
+  width: 100%;
+  margin: 10px auto 16px;
   border-radius: 18px;
+  overflow: hidden;
   box-shadow:
     0 12px 36px rgba(0, 0, 0, 0.75),
     0 0 30px rgba(228, 179, 57, 0.35);
+  aspect-ratio: 848 / 1264;
+}
+
+.promo-popup-skeleton {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, #1f1b13 0%, #100f0c 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1;
+}
+
+.promo-popup-skeleton-shimmer {
+  position: absolute;
+  inset: 0;
+  transform: translateX(-100%);
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(228, 179, 57, 0.18) 50%,
+    transparent 100%
+  );
+  animation: promoSkeletonShimmer 1.4s infinite ease-in-out;
+}
+
+@keyframes promoSkeletonShimmer {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+.promo-popup-skeleton-contenido {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  opacity: 0.75;
+}
+
+.promo-popup-skeleton-icono {
+  font-size: 2.2rem;
+  animation: promoPulseIcon 1.5s infinite ease-in-out;
+}
+
+.promo-popup-skeleton-texto {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--color-gold-300, #f1c75b);
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+@keyframes promoPulseIcon {
+  0%, 100% {
+    transform: scale(1);
+    opacity: 0.6;
+  }
+  50% {
+    transform: scale(1.12);
+    opacity: 1;
+  }
 }
 
 .promo-popup-imagen {
@@ -5809,16 +5880,27 @@ button:disabled {
 }
 
 .promo-popup-sorteo-img {
-  width: 100%;
-  max-height: 360px;
-  object-fit: cover;
+  width: 100% !important;
+  height: 100% !important;
+  max-height: none !important;
+  max-width: none !important;
+  object-fit: cover !important;
   border-radius: 16px;
-  display: block;
+  display: block !important;
+  transition: opacity 0.3s ease-in-out;
+}
+
+.promo-popup-img-cargando {
+  opacity: 0;
+}
+
+.promo-popup-img-cargada {
+  opacity: 1;
 }
 
 @media (max-height: 720px) {
-  .promo-popup-sorteo-img {
-    max-height: 240px;
+  .promo-popup-sorteo-box {
+    max-width: 280px;
   }
 }
 

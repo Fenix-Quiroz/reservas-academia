@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 
 export interface PopupPromocionProps {
   abierto: boolean
@@ -7,6 +7,7 @@ export interface PopupPromocionProps {
 
 export default function PopupPromocion({ abierto, onCerrar }: PopupPromocionProps) {
   const botonAccionRef = useRef<HTMLButtonElement>(null)
+  const [imagenCargada, setImagenCargada] = useState(false)
 
   useEffect(() => {
     if (!abierto) return
@@ -58,31 +59,36 @@ export default function PopupPromocion({ abierto, onCerrar }: PopupPromocionProp
           ✕
         </button>
 
+        <h2 id="promo-popup-titulo" className="sr-only">
+          Gran Sorteo de 5 Pavos de 8 KG - Polideportivo El Jaguar
+        </h2>
+
         <div className="promo-popup-badge">
           <span aria-hidden="true">🦃</span> GRAN SORTEO NAVIDEÑO
         </div>
 
-        <h2 id="promo-popup-titulo" className="promo-popup-titulo">
-          ¡5 PAVOS DE 8 KG!
-        </h2>
-
-        <p className="promo-popup-subtitulo">
-          Por reservar desde nuestra web
-        </p>
-
-        <div className="promo-popup-imagen-box promo-popup-sorteo-box">
+        <div className="promo-popup-sorteo-box">
+          {!imagenCargada && (
+            <div className="promo-popup-skeleton" aria-hidden="true">
+              <div className="promo-popup-skeleton-shimmer" />
+              <div className="promo-popup-skeleton-contenido">
+                <span className="promo-popup-skeleton-icono">⚽</span>
+                <span className="promo-popup-skeleton-texto">Cargando sorteo...</span>
+              </div>
+            </div>
+          )}
           <img
             src="/ofertas/sorteo-pavos-promo.jpg"
-            alt="Gran Sorteo de 5 Pavos de 8 Kg - Polideportivo El Jaguar"
-            className="promo-popup-imagen promo-popup-sorteo-img"
+            alt="Gran Sorteo de 5 Pavos de 8 Kg - Válido para reservas en nuestra web - Polideportivo El Jaguar"
+            width={848}
+            height={1264}
+            loading="eager"
+            decoding="async"
+            onLoad={() => setImagenCargada(true)}
+            className={`promo-popup-sorteo-img ${
+              imagenCargada ? 'promo-popup-img-cargada' : 'promo-popup-img-cargando'
+            }`}
           />
-        </div>
-
-        <div className="promo-popup-condicion">
-          <span className="promo-popup-condicion-icono" aria-hidden="true">📅</span>
-          <p className="promo-popup-condicion-texto">
-            Sorteo: <strong>22 de Diciembre a las 9:00 PM</strong>. ¡Válido para todas las reservas en nuestra web!
-          </p>
         </div>
 
         <div className="promo-popup-acciones">

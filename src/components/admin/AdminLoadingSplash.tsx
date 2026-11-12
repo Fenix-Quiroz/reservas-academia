@@ -11,8 +11,8 @@ export default function AdminLoadingSplash({
         <div className="admin-splash-emblema">
           <div className="admin-splash-halo" aria-hidden="true" />
           <img
-            src="/logo-polideportivo-el-jaguar.png"
-            alt="Polideportivo El Jaguar"
+            src="/logo-admin-polideportivo-el-jaguar.jpg"
+            alt="Polideportivo El Jaguar Administrador"
             className="admin-splash-logo"
           />
           <div className="admin-splash-spinner" aria-hidden="true" />
