@@ -343,9 +343,6 @@ export default function DatosReserva({
           {capital(nombreDia(dia, true))}, {rangoHablado(inicio, horas)}
         </span>
         <span className="precio">S/ {cancha.precioHora * horas} · total a pagar</span>
-        <span className="resumen-oferta" role="note">
-          Reclama tu agua GRATIS de 2.5 litros al cancelar el total de tu reserva
-        </span>
       </div>
     </div>
   )
