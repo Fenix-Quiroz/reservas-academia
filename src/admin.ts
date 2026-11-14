@@ -49,7 +49,7 @@ export function filtrarReservas(
     .filter((r) => {
       if (vista === 'canceladas') return r.estado === 'cancelado'
       if (r.estado === 'cancelado') return false
-      if (vista === 'todas') return true
+      if (vista === 'todas') return r.estado === 'activo' || r.estado === 'iniciado'
       if (vista === 'proximas') return esProxima(r, ahora)
       if (vista === 'en-curso') return esEnCurso(r, ahora)
       if (vista === 'por-revisar') return esPorRevisar(r, ahora)

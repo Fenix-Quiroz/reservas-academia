@@ -33,6 +33,7 @@ assert.equal(filtrarReservas([...reservas, mediaHora], { vista: 'en-curso' }, ca
 assert.equal(filtrarReservas([...reservas, mediaHora], { vista: 'en-curso' }, canchas, new Date('2026-10-17T10:30:00')).some((r) => r.id === 'media-hora'), false)
 assert.deepEqual(filtrarReservas(reservas, { vista: 'por-revisar' }, canchas, ahora).map((r) => r.id), ['f'])
 assert.deepEqual(filtrarReservas(reservas, { vista: 'finalizadas' }, canchas, ahora).map((r) => r.id), ['c'])
+assert.equal(filtrarReservas(reservas, { vista: 'todas' }, canchas, ahora).some((r) => r.estado === 'finalizado'), false)
 assert.equal(filtrarReservas(reservas, { vista: 'todas', fecha: '2026-10-17' }, canchas, ahora).length, 3)
 assert.deepEqual(filtrarReservas(reservas, { vista: 'todas', canchaId: '2' }, canchas, ahora).map((r) => r.id), ['d', 'b'])
 assert.equal(filtrarReservas(reservas, { vista: 'todas', buscar: 'tigres' }, canchas, ahora)[0].id, 'b')

@@ -112,6 +112,7 @@ const opcionesEstado: readonly AdminFiltroMenuOpcion[] = [
   { value: 'proximas', label: 'Próximas' },
   { value: 'en-curso', label: 'En curso' },
   { value: 'por-revisar', label: 'Por revisar' },
+  { value: 'finalizadas', label: 'Finalizadas' },
   { value: 'historial', label: 'Historial' },
   { value: 'canceladas', label: 'Canceladas' },
 ]
