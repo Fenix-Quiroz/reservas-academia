@@ -15,6 +15,7 @@
     "check:components": "tsx src/componentization.check.ts",
     "check:scenarios": "tsx src/reservas.scenarios.check.ts",
     "check:horarios-media": "tsx src/horariosMediaHora.check.ts",
+    "check:horarios-fronteras": "tsx src/selectorHorarioFronteras.check.ts",
     "check:admin": "tsx src/admin.check.ts",
     "check:editar-admin": "tsx src/editarReservaAdmin.check.ts",
     "check:validacion": "tsx src/validacionCliente.check.ts",
@@ -34,7 +35,7 @@
     "check:excel-txt": "tsx src/verificarExcelTxt.check.ts",
     "check:typescript": "tsx src/typescript.check.ts",
     "check:accion": "tsx src/accionUnica.check.ts",
-    "check:simulacion": "tsx src/simulacionReservas.test.ts && tsx src/simulacionClienteReservas.check.ts"
+    "check:simulacion": "tsx src/simulacionReservas.test.ts && tsx src/simulacionClienteReservas.check.ts && tsx src/simulacionCrucesTurnos.test.ts"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.118.0",

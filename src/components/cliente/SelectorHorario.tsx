@@ -1,4 +1,4 @@
-import { type RefObject } from 'react'
+import { Fragment, type RefObject } from 'react'
 import { DURACION_BLOQUE, esBloqueAislado, rangoLibre, type HorarioDisponible } from '../../reservas'
 import type { Campo } from '../../types.js'
 import type { EtapaHorario, TurnoHorario } from '../../borradorReserva'
@@ -72,13 +72,45 @@ export default function SelectorHorario({
 }: SelectorHorarioProps) {
   const setEtapa = onEtapaChange
   const grupoSeleccionado = GRUPOS.find((grupo) => grupo.clave === turno)
+
+  // Rango base con tolerancia de inicio en fronteras:
+  // - En la Tarde, se incluye 12:30 p. m. (12.5) para que quien busque al mediodía pueda empezar aquí
+  // - En la Noche, se incluye 6:30 p. m. (18.5) para conectar fluidamente con la noche
+  const desdeBase = grupoSeleccionado
+    ? grupoSeleccionado.clave === 'tarde'
+      ? 12.5
+      : grupoSeleccionado.clave === 'noche'
+        ? 18.5
+        : grupoSeleccionado.desde
+    : 7
+
+  const desdeEfectivo = inicio !== null && grupoSeleccionado
+    ? Math.min(desdeBase, inicio)
+    : desdeBase
+
+  // Si hay una hora seleccionada cerca del límite del turno, se extiende hasta 3 horas (MAX_HORAS)
+  // hacia el siguiente turno para que el usuario pueda reservar de corrido (ej. 12:30 a 1:30 o hasta 3:30)
+  const hastaBase = grupoSeleccionado?.hasta ?? 25
+  const hastaEfectivo = inicio !== null && grupoSeleccionado
+    ? Math.max(hastaBase, inicio + MAX_HORAS)
+    : hastaBase
+
   const listaTurno = grupoSeleccionado
-    ? horariosDisponibles.filter((h) => h.inicio >= grupoSeleccionado.desde && h.inicio < grupoSeleccionado.hasta)
+    ? horariosDisponibles.filter((h) => h.inicio >= desdeEfectivo && h.inicio < hastaEfectivo)
     : []
   const duracionMinima = (nuevoInicio: number): number =>
     esBloqueAislado(horariosDisponibles, nuevoInicio) ? DURACION_BLOQUE : MIN_HORAS_SECUENCIA
   const hayInicioValido = listaTurno.some((h) => h.libre && rangoLibre(horariosDisponibles, h.inicio, duracionMinima(h.inicio)))
   const resumenDia = nombreDiaCorto(dia)
+
+  const etiquetaTurnoResumen = (): string => {
+    if (!grupoSeleccionado) return ''
+    if (inicio === null) return grupoSeleccionado.nombre
+    const fin = inicio + horas
+    if (inicio < 13 && fin > 13) return 'Mañana / Tarde'
+    if (inicio < 19 && fin > 19) return 'Tarde / Noche'
+    return grupoSeleccionado.nombre
+  }
 
   const elegirDia = (nuevoDia: number) => {
     onDiaChange(nuevoDia)
@@ -103,8 +135,28 @@ export default function SelectorHorario({
     setEtapa('horario')
   }
 
+  const cambiarTurnoDirecto = (nuevoTurno: TurnoHorario) => {
+    if (nuevoTurno === turno) return
+    const nuevoGrupo = GRUPOS.find((g) => g.clave === nuevoTurno)
+    if (!nuevoGrupo) return
+    const nuevoDesde = nuevoTurno === 'tarde' ? 12.5 : nuevoTurno === 'noche' ? 18.5 : nuevoGrupo.desde
+    const nuevoHasta = nuevoTurno === 'manana' ? 13 : nuevoTurno === 'tarde' ? 19 : nuevoGrupo.hasta
+    if (inicio !== null) {
+      const fin = inicio + horas
+      const estaEnRango = (inicio >= nuevoDesde && inicio < nuevoHasta) || (fin > nuevoDesde && fin <= nuevoHasta)
+      if (!estaEnRango) {
+        onClearHour()
+        onHorasChange(MIN_HORAS_SECUENCIA)
+      }
+    }
+    onTurnoChange(nuevoTurno)
+  }
+
   const elegirBloque = (nuevoInicio: number) => {
+    const esExtensionSiguienteTurno = Boolean(grupoSeleccionado && nuevoInicio >= grupoSeleccionado.hasta)
+
     if (inicio === null) {
+      if (esExtensionSiguienteTurno) return
       const minimo = duracionMinima(nuevoInicio)
       if (rangoLibre(horariosDisponibles, nuevoInicio, minimo)) {
         onSelectHour(nuevoInicio)
@@ -126,6 +178,9 @@ export default function SelectorHorario({
     }
 
     if (nuevoInicio >= inicio && nuevoInicio < inicio + horas) return
+
+    // Los bloques de extensión del siguiente turno solo se usan para sumar/restar horas consecutivas
+    if (esExtensionSiguienteTurno) return
 
     const minimo = duracionMinima(nuevoInicio)
     if (rangoLibre(horariosDisponibles, nuevoInicio, minimo)) {
@@ -172,8 +227,10 @@ export default function SelectorHorario({
             </span>
             {grupoSeleccionado && (
               <span className="selector-resumen-chip" role="listitem">
-                <span className="selector-resumen-chip-icon" aria-hidden="true">☀</span>
-                <span>{grupoSeleccionado.nombre}</span>
+                <span className="selector-resumen-chip-icon" aria-hidden="true">
+                  {turno === 'manana' ? '🌅' : turno === 'tarde' ? '☀️' : '🌙'}
+                </span>
+                <span>{etiquetaTurnoResumen()}</span>
               </span>
             )}
             {inicio !== null && (
@@ -233,6 +290,24 @@ export default function SelectorHorario({
       {etapa === 'horario' && grupoSeleccionado && (
         <fieldset className="selector-grupo">
           <legend>3. Elige el horario</legend>
+          <div className="selector-turnos-tabs" role="tablist" aria-label="Cambiar turno">
+            {GRUPOS.map((grupo) => {
+              const activo = grupo.clave === turno
+              return (
+                <button
+                  key={grupo.clave}
+                  className={`chip turno-tab ${activo ? 'activo' : ''}`}
+                  type="button"
+                  role="tab"
+                  aria-selected={activo}
+                  onClick={() => cambiarTurnoDirecto(grupo.clave)}
+                >
+                  <span aria-hidden="true">{grupo.icono}</span>
+                  <span>{grupo.nombre}</span>
+                </button>
+              )
+            })}
+          </div>
           <p className="ayuda-horario">Elige cuánto tiempo quieres reservar: desde 1 hora hasta un máximo de 3 horas.</p>
           {cargando && <p className="aviso" role="status">Buscando horas disponibles…</p>}
           {!cargando && !hayInicioValido && (
@@ -247,13 +322,14 @@ export default function SelectorHorario({
           <div className="horarios-agenda">
             {listaTurno.map((h) => {
               const seleccionado = inicio !== null && h.inicio >= inicio && h.inicio < inicio + horas
+              const esExtensionSiguienteTurno = Boolean(grupoSeleccionado && h.inicio >= grupoSeleccionado.hasta)
               const puedeSeleccionarse = inicio === null
-                ? rangoLibre(horariosDisponibles, h.inicio, duracionMinima(h.inicio))
+                ? !esExtensionSiguienteTurno && rangoLibre(horariosDisponibles, h.inicio, duracionMinima(h.inicio))
                 : h.inicio === inicio + horas
                   ? horas < MAX_HORAS && rangoLibre(horariosDisponibles, inicio, horas + DURACION_BLOQUE)
                   : h.inicio === inicio + horas - DURACION_BLOQUE
                     ? horas > duracionMinima(inicio)
-                    : !seleccionado && rangoLibre(horariosDisponibles, h.inicio, duracionMinima(h.inicio))
+                    : !esExtensionSiguienteTurno && !seleccionado && rangoLibre(horariosDisponibles, h.inicio, duracionMinima(h.inicio))
               const esInicioSeleccionado = seleccionado && h.inicio === inicio
               const esFinSeleccionado = seleccionado && h.inicio + DURACION_BLOQUE === inicio + horas
               const claseFila = [
@@ -264,23 +340,52 @@ export default function SelectorHorario({
                 !h.libre ? 'ocupado' : '',
               ].filter(Boolean).join(' ')
               return (
-                <button
-                  key={h.inicio}
-                  className={claseFila}
-                  type="button"
-                  aria-label={`${horaVisible(h.inicio)} a ${horaVisible(h.inicio + DURACION_BLOQUE)}`}
-                  aria-pressed={seleccionado}
-                  disabled={!h.libre || !puedeSeleccionarse}
-                  onClick={() => elegirBloque(h.inicio)}
-                >
-                  <span className="horario-rango">
-                    <span>{horaVisible(h.inicio)}</span>
-                    <span className="hora-conector">a</span>
-                    <span>{horaVisible(h.inicio + DURACION_BLOQUE)}</span>
-                  </span>
-                  <span className="horario-precio">S/ {(cancha.precioHora / 2).toFixed(2)}</span>
-                  <span className="horario-estado">{h.libre ? (seleccionado ? 'Seleccionado' : 'Libre') : 'Ocupado'}</span>
-                </button>
+                <Fragment key={h.inicio}>
+                  {grupoSeleccionado.clave === 'manana' && h.inicio === 13 && (
+                    <div className="horario-separador-turno" role="separator" aria-label="Turno Tarde">
+                      <span className="separador-icono" aria-hidden="true">☀️</span>
+                      <span className="separador-titulo">Turno Tarde</span>
+                      <span className="separador-subtitulo">Extensión hasta 3 horas</span>
+                    </div>
+                  )}
+                  {grupoSeleccionado.clave === 'tarde' && h.inicio === 19 && (
+                    <div className="horario-separador-turno" role="separator" aria-label="Turno Noche">
+                      <span className="separador-icono" aria-hidden="true">🌙</span>
+                      <span className="separador-titulo">Turno Noche</span>
+                      <span className="separador-subtitulo">Extensión hasta 3 horas</span>
+                    </div>
+                  )}
+                  {grupoSeleccionado.clave === 'tarde' && h.inicio === 12.5 && (
+                    <div className="horario-separador-turno previo" role="note" aria-label="Mediodía (12:30 p. m.)">
+                      <span className="separador-icono" aria-hidden="true">🌅</span>
+                      <span className="separador-titulo">Mediodía (12:30 p. m.)</span>
+                      <span className="separador-subtitulo">Disponible para iniciar</span>
+                    </div>
+                  )}
+                  {grupoSeleccionado.clave === 'noche' && h.inicio === 18.5 && (
+                    <div className="horario-separador-turno previo" role="note" aria-label="Atardecer (6:30 p. m.)">
+                      <span className="separador-icono" aria-hidden="true">☀️</span>
+                      <span className="separador-titulo">Atardecer (6:30 p. m.)</span>
+                      <span className="separador-subtitulo">Disponible para iniciar</span>
+                    </div>
+                  )}
+                  <button
+                    className={claseFila}
+                    type="button"
+                    aria-label={`${horaVisible(h.inicio)} a ${horaVisible(h.inicio + DURACION_BLOQUE)}`}
+                    aria-pressed={seleccionado}
+                    disabled={!h.libre || !puedeSeleccionarse}
+                    onClick={() => elegirBloque(h.inicio)}
+                  >
+                    <span className="horario-rango">
+                      <span>{horaVisible(h.inicio)}</span>
+                      <span className="hora-conector">a</span>
+                      <span>{horaVisible(h.inicio + DURACION_BLOQUE)}</span>
+                    </span>
+                    <span className="horario-precio">S/ {(cancha.precioHora / 2).toFixed(2)}</span>
+                    <span className="horario-estado">{h.libre ? (seleccionado ? 'Seleccionado' : 'Libre') : 'Ocupado'}</span>
+                  </button>
+                </Fragment>
               )
             })}
           </div>
