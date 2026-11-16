@@ -1,5 +1,5 @@
 import { Fragment, type RefObject } from 'react'
-import { DURACION_BLOQUE, esBloqueAislado, rangoLibre, type HorarioDisponible } from '../../reservas'
+import { CIERRA_ADMIN_FUERA_HORARIO, DURACION_BLOQUE, esBloqueAislado, rangoLibre, type HorarioDisponible } from '../../reservas'
 import type { Campo } from '../../types.js'
 import type { EtapaHorario, TurnoHorario } from '../../borradorReserva'
 
@@ -47,6 +47,7 @@ export interface SelectorHorarioProps {
   onClearHour: () => void
   onConfirmHour: () => void
   tituloRef: RefObject<HTMLHeadingElement | null>
+  fueraDeHorario?: boolean
 }
 
 export default function SelectorHorario({
@@ -69,9 +70,13 @@ export default function SelectorHorario({
   onClearHour,
   onConfirmHour,
   tituloRef,
+  fueraDeHorario = false,
 }: SelectorHorarioProps) {
   const setEtapa = onEtapaChange
   const grupoSeleccionado = GRUPOS.find((grupo) => grupo.clave === turno)
+  const limiteTurno = grupoSeleccionado?.clave === 'noche' && fueraDeHorario
+    ? CIERRA_ADMIN_FUERA_HORARIO
+    : grupoSeleccionado?.hasta ?? 25
 
   // Rango base con tolerancia de inicio en fronteras:
   // - En la Tarde, se incluye 12:30 p. m. (12.5) para que quien busque al mediodía pueda empezar aquí
@@ -80,7 +85,7 @@ export default function SelectorHorario({
     ? grupoSeleccionado.clave === 'tarde'
       ? 12.5
       : grupoSeleccionado.clave === 'noche'
-        ? 18.5
+        ? fueraDeHorario ? 19 : 18.5
         : grupoSeleccionado.desde
     : 7
 
@@ -90,7 +95,7 @@ export default function SelectorHorario({
 
   // Si hay una hora seleccionada cerca del límite del turno, se extiende hasta 3 horas (MAX_HORAS)
   // hacia el siguiente turno para que el usuario pueda reservar de corrido (ej. 12:30 a 1:30 o hasta 3:30)
-  const hastaBase = grupoSeleccionado?.hasta ?? 25
+  const hastaBase = limiteTurno
   const hastaEfectivo = inicio !== null && grupoSeleccionado
     ? Math.max(hastaBase, inicio + MAX_HORAS)
     : hastaBase
@@ -139,8 +144,18 @@ export default function SelectorHorario({
     if (nuevoTurno === turno) return
     const nuevoGrupo = GRUPOS.find((g) => g.clave === nuevoTurno)
     if (!nuevoGrupo) return
-    const nuevoDesde = nuevoTurno === 'tarde' ? 12.5 : nuevoTurno === 'noche' ? 18.5 : nuevoGrupo.desde
-    const nuevoHasta = nuevoTurno === 'manana' ? 13 : nuevoTurno === 'tarde' ? 19 : nuevoGrupo.hasta
+    const nuevoDesde = nuevoTurno === 'tarde'
+      ? 12.5
+      : nuevoTurno === 'noche'
+        ? fueraDeHorario ? 19 : 18.5
+        : nuevoGrupo.desde
+    const nuevoHasta = nuevoTurno === 'manana'
+      ? 13
+      : nuevoTurno === 'tarde'
+        ? 19
+        : fueraDeHorario
+          ? CIERRA_ADMIN_FUERA_HORARIO
+          : nuevoGrupo.hasta
     if (inicio !== null) {
       const fin = inicio + horas
       const estaEnRango = (inicio >= nuevoDesde && inicio < nuevoHasta) || (fin > nuevoDesde && fin <= nuevoHasta)
@@ -153,7 +168,7 @@ export default function SelectorHorario({
   }
 
   const elegirBloque = (nuevoInicio: number) => {
-    const esExtensionSiguienteTurno = Boolean(grupoSeleccionado && nuevoInicio >= grupoSeleccionado.hasta)
+    const esExtensionSiguienteTurno = Boolean(grupoSeleccionado && nuevoInicio >= limiteTurno)
 
     if (inicio === null) {
       if (esExtensionSiguienteTurno) return
@@ -322,7 +337,7 @@ export default function SelectorHorario({
           <div className="horarios-agenda">
             {listaTurno.map((h) => {
               const seleccionado = inicio !== null && h.inicio >= inicio && h.inicio < inicio + horas
-              const esExtensionSiguienteTurno = Boolean(grupoSeleccionado && h.inicio >= grupoSeleccionado.hasta)
+              const esExtensionSiguienteTurno = Boolean(grupoSeleccionado && h.inicio >= limiteTurno)
               const puedeSeleccionarse = inicio === null
                 ? !esExtensionSiguienteTurno && rangoLibre(horariosDisponibles, h.inicio, duracionMinima(h.inicio))
                 : h.inicio === inicio + horas

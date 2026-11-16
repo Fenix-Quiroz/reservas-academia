@@ -22,6 +22,7 @@
     "check:tokens": "tsx src/tokensReserva.check.ts",
     "check:control-clientes": "tsx src/controlClientes.check.ts",
     "check:confiables": "tsx src/clientesConfiablesAdelanto.check.ts",
+    "check:admin-fuera-horario": "tsx src/reservaAdminFueraHorario.check.ts",
     "check:pago-preview": "tsx src/pagoAdelanto.check.ts",
     "check:pago-admin": "tsx src/pagosAdmin.check.ts",
     "check:supabase": "tsx src/supabase.check.ts",

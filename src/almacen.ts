@@ -5,7 +5,7 @@ import { eventoChocaConReserva, eventoBloquea, eventoEnElPasado, eventoYaTermino
 import type { NumeroBloqueado, NumeroConfiable, ResultadoControlCliente } from './controlClientes.js'
 import { INASISTENCIAS_PARA_BLOQUEAR } from './controlClientes.js'
 import { normalizarReserva, puedeCambiarEstado } from './estadoReserva.js'
-import { chocan, activa, esDuracionValida, fechaISO, sumarDias, sePuedeCancelar, MAX_ACTIVAS } from './reservas.js'
+import { chocan, activa, esDuracionValida, esHorarioAdminFueraHorarioValido, fechaISO, sumarDias, sePuedeCancelar, MAX_ACTIVAS } from './reservas.js'
 import { supabaseFaltaEnProduccion, supabaseConfigurado } from './supabase.js'
 import { normalizarAlias, normalizarCelular, validarAlias, validarCelular } from './validacionCliente.js'
 import type {
@@ -18,6 +18,7 @@ import type {
 import {
   leerReservasRemotas,
   crearReservaPublicaRemota,
+  crearReservaAdminFueraHorarioRemota,
   cancelarReservaPublicaRemota,
   cancelarReservaAdminRemota,
   actualizarEstadoReservaRemota,
@@ -517,6 +518,20 @@ export function crearReserva(nueva: ReservaNueva, sinAdelanto = false): Resultad
   }
   guardar('reservas', [...leer<Reserva[]>('reservas', []), reserva])
   return { reserva }
+}
+
+export function crearReservaAdminFueraHorario(nueva: ReservaNueva): ResultadoReserva | Promise<ResultadoReserva> {
+  if (!esHorarioAdminFueraHorarioValido(nueva.inicio, nueva.horas)) return { error: 'tarde' }
+  if (supabaseFaltaEnProduccion) return { error: 'conexion' }
+  if (supabaseConfigurado) return crearReservaAdminFueraHorarioRemota(nueva)
+  const celular = normalizarCelular(nueva.celular)
+  if (leerNumerosBloqueados().some((numero) => numero.celular === celular && numero.activo)) {
+    return { error: 'celular-bloqueado' }
+  }
+  if (!leerNumerosConfiables().some((numero) => numero.celular === celular && numero.activo)) {
+    return { error: 'numero-no-confiable' }
+  }
+  return crearReserva({ ...nueva, celular }, true)
 }
 
 // Las reservas de la demo no están guardadas, así que no se pueden cancelar

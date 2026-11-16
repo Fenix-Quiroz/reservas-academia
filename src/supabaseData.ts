@@ -7,7 +7,7 @@ import type {
   ResultadoControlCliente,
 } from './controlClientes.js'
 import { normalizarReserva, puedeCambiarEstado } from './estadoReserva.js'
-import { DURACION_BLOQUE, ocultarHorariosPasados, sePuedeCancelar, type HorarioDisponible } from './reservas.js'
+import { DURACION_BLOQUE, esHorarioAdminFueraHorarioValido, ocultarHorariosPasados, sePuedeCancelar, type HorarioDisponible } from './reservas.js'
 import { SUPABASE_PUBLISHABLE_KEY, SUPABASE_URL, supabase, supabasePublic } from './supabase.js'
 import { validarComprobante } from './pagos.js'
 import { normalizarAlias, normalizarCelular, validarAlias, validarCelular } from './validacionCliente.js'
@@ -155,7 +155,7 @@ export function errorDeSupabase(error?: ErrorSupabase): ErrorReserva {
   if (error?.message?.includes('celular_invalido')) return 'celular-invalido'
   if (error?.message?.includes('hora_pasada')) return 'tarde'
   if (error?.message?.includes('fecha_invalida')) return 'tarde'
-  if (error?.message?.includes('horario_invalido')) return 'tarde'
+  if (error?.message?.includes('horario_invalido') || error?.message?.includes('horario_fuera_horario_invalido')) return 'tarde'
   if (error?.message?.includes('duracion_invalida')) return 'duracion-invalida'
   return 'conexion'
 }
@@ -369,6 +369,23 @@ export async function leerHorariosRemotos(canchaId: number, fecha: string): Prom
   )
 }
 
+export async function leerHorariosAdminFueraHorarioRemotos(
+  canchaId: number,
+  fecha: string,
+): Promise<HorarioDisponible[]> {
+  const { data, error } = await clienteSupabase().rpc('obtener_horarios_admin_fuera_horario', {
+    p_cancha_id: canchaId,
+    p_fecha: fecha,
+    p_horas: DURACION_BLOQUE,
+  })
+
+  if (error) throw error
+  return ocultarHorariosPasados(
+    (data as FilaHorarioPublico[] | null ?? []).map(deHorarioPublico),
+    fecha,
+  )
+}
+
 export async function verificarNumeroConfiableRemoto(celular: string): Promise<boolean> {
   const nuevoCelular = normalizarCelular(celular)
   if (validarCelular(nuevoCelular)) return false
@@ -414,6 +431,43 @@ export async function crearReservaPublicaRemota(
       })
     }
     if (error.message?.includes('limite_intentos_reserva')) return { error: 'limite-intentos' }
+    return { error: errorDeSupabase(error) }
+  }
+  const fila = (Array.isArray(data) ? data[0] : data) as FilaReserva | null | undefined
+  if (!fila) return { error: 'conexion' }
+  const token = typeof fila.token === 'string' ? fila.token : undefined
+  return { reserva: deReserva(fila), ...(token ? { token } : {}) }
+}
+
+export async function crearReservaAdminFueraHorarioRemota(
+  reserva: ReservaNueva,
+): Promise<ResultadoReserva> {
+  const nuevoAlias = normalizarAlias(reserva.alias)
+  const nuevoCelular = normalizarCelular(reserva.celular)
+  const errorAlias = validarAlias(nuevoAlias)
+  if (errorAlias) return { error: errorAlias }
+  const errorCelular = validarCelular(nuevoCelular)
+  if (errorCelular) return { error: errorCelular }
+  if (!esHorarioAdminFueraHorarioValido(reserva.inicio, reserva.horas)) return { error: 'tarde' }
+
+  const { data, error } = await clienteSupabase().rpc('crear_reserva_admin_fuera_horario', {
+    p_cancha_id: reserva.canchaId,
+    p_fecha: reserva.fecha,
+    p_inicio: reserva.inicio,
+    p_horas: reserva.horas,
+    p_alias: nuevoAlias,
+    p_celular: nuevoCelular,
+  })
+
+  if (error) {
+    if (import.meta.env.DEV) {
+      console.error('[Reserva admin fuera de horario] Error de Supabase', {
+        code: error.code,
+        message: error.message,
+        details: error.details,
+        hint: error.hint,
+      })
+    }
     return { error: errorDeSupabase(error) }
   }
   const fila = (Array.isArray(data) ? data[0] : data) as FilaReserva | null | undefined

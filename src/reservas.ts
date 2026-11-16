@@ -8,11 +8,28 @@ import { eventoBloquea } from './eventos.js'
 
 export const ABRE = 7
 export const CIERRA = 25
+export const CIERRA_ADMIN_FUERA_HORARIO = 26.5
 export const DURACION_BLOQUE = 0.5 as const
 export const DURACIONES_RESERVA = [0.5, 1, 1.5, 2, 2.5, 3] as const
 
 export const esDuracionValida = (horas: number): boolean =>
   DURACIONES_RESERVA.includes(horas as (typeof DURACIONES_RESERVA)[number])
+
+export function esHorarioAdminFueraHorarioValido(inicio: number, horas: number): boolean {
+  return esDuracionValida(horas)
+    && inicio >= CIERRA
+    && inicio < CIERRA_ADMIN_FUERA_HORARIO
+    && Math.round(inicio * 2) === inicio * 2
+    && inicio + horas <= CIERRA_ADMIN_FUERA_HORARIO
+}
+
+export function horariosAdminFueraHorario(): HorarioDisponible[] {
+  const lista: HorarioDisponible[] = []
+  for (let inicio = CIERRA; inicio < CIERRA_ADMIN_FUERA_HORARIO; inicio += DURACION_BLOQUE) {
+    lista.push({ inicio, libre: true })
+  }
+  return lista
+}
 
 const esDuracionHorarioValida = (horas: number): boolean =>
   horas === DURACION_BLOQUE || esDuracionValida(horas)
@@ -59,12 +76,13 @@ export function horarios(
   horas: number,
   ahora: Date = new Date(),
   bloqueosEventos: readonly BloqueoEvento[] = [],
+  limiteHorario: number = CIERRA,
 ): HorarioDisponible[] {
   if (!esDuracionHorarioValida(horas)) return []
   const esHoy = fecha === fechaISO(ahora)
   const diaSemana = new Date(`${fecha}T12:00:00`).getDay()
   const lista: HorarioDisponible[] = []
-  for (let inicio = ABRE; inicio + horas <= CIERRA; inicio += 0.5) {
+  for (let inicio = ABRE; inicio + horas <= limiteHorario; inicio += 0.5) {
     const horaActual = ahora.getHours() + ahora.getMinutes() / 60
     if (esHoy && inicio <= horaActual) continue
     const libre = !entrenamientoBloquea(canchaId, diaSemana, inicio, horas)
