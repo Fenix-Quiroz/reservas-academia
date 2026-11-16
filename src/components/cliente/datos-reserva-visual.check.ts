@@ -5,6 +5,7 @@ const datosReserva = fs.readFileSync(new URL('./DatosReserva.tsx', import.meta.u
 
 assert.doesNotMatch(datosReserva, /className="reserva-sin-adelanto"/)
 assert.match(datosReserva, /const sinAdelanto = numeroConfiable === true/)
+assert.match(datosReserva, /const mostrarPagoAdelanto = !sinAdelanto && numeroConfiable !== null && !comprobandoConfiable/)
 assert.match(datosReserva, /if \(!sinAdelanto\)[\s\S]*?PagoAdelanto/)
 
 console.log('✔ datos-reserva-visual.check.ts OK')

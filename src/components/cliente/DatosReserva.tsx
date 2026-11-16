@@ -348,6 +348,7 @@ export default function DatosReserva({
   )
 
   const sinAdelanto = numeroConfiable === true
+  const mostrarPagoAdelanto = !sinAdelanto && numeroConfiable !== null && !comprobandoConfiable
   const puedeConfirmar = sinAdelanto || Boolean(comprobante && !errorComprobante)
   const textoAccion = procesando
     ? sinAdelanto ? 'Confirmando reserva…' : 'Asegurando reserva…'
@@ -412,7 +413,7 @@ export default function DatosReserva({
         <h1 ref={tituloRef} tabIndex={-1}>¿Todo bien, {yo.alias}?</h1>
         <p className="reserva-a-nombre">Reserva a nombre de <strong>{yo.alias}</strong></p>
         {resumen}
-        {!sinAdelanto && (
+        {mostrarPagoAdelanto && (
           <PagoAdelanto
             archivo={comprobante}
             disabled={Boolean(procesando)}
@@ -483,7 +484,7 @@ export default function DatosReserva({
           />
           <small id="ayuda-celular" className="ayuda-campo">Lo usamos para encontrar tu reserva. No necesitas crear una cuenta.</small>
         </label>
-        {!sinAdelanto && (
+        {mostrarPagoAdelanto && (
           <PagoAdelanto
             archivo={comprobante}
             disabled={Boolean(procesando)}

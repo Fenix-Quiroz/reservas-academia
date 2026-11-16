@@ -259,6 +259,74 @@ assert.equal(resultadoReservaConfiable.reserva.pagoEstado, 'no_requerido', 'Clie
 console.log('   ✔ Cliente confiable registrado con pagoEstado: "no_requerido".')
 
 // -----------------------------------------------------------------------------
+// 6b. SIMULACIÓN: VARIOS CLIENTES CONFIABLES Y COLISIONES ENTRE RESERVAS
+// -----------------------------------------------------------------------------
+console.log('\n6b. Simulando varios clientes confiables reservando en paralelo...')
+
+const clientesConfiablesAdicionales = [
+  { celular: '999000222', alias: 'Carlos Ramirez' },
+  { celular: '999000333', alias: 'Ana Torres' },
+]
+for (const cliente of clientesConfiablesAdicionales) {
+  assert.deepEqual(agregarNumeroConfiable(cliente.celular, cliente.alias), {})
+}
+
+const confiablesMultiples = leerNumerosConfiables().filter((numero) => numero.activo)
+assert.equal(confiablesMultiples.length, 3, 'Deben coexistir tres clientes confiables activos')
+assert.deepEqual(
+  confiablesMultiples.map((numero) => numero.celular),
+  ['999000111', '999000222', '999000333'],
+)
+
+const reservaConfiableCampo3 = await Promise.resolve(crearReserva({
+  canchaId: 3,
+  fecha: '2099-07-10',
+  inicio: 14,
+  horas: 1,
+  alias: 'Carlos Ramirez',
+  celular: '999000222',
+  montoTotal: 50,
+}, true))
+const reservaConfiableCampo4 = await Promise.resolve(crearReserva({
+  canchaId: 4,
+  fecha: '2099-07-10',
+  inicio: 14,
+  horas: 1,
+  alias: 'Ana Torres',
+  celular: '999000333',
+  montoTotal: 40,
+}, true))
+
+assert.ok('reserva' in reservaConfiableCampo3 && 'reserva' in reservaConfiableCampo4)
+assert.equal(reservaConfiableCampo3.reserva.pagoEstado, 'no_requerido')
+assert.equal(reservaConfiableCampo4.reserva.pagoEstado, 'no_requerido')
+assert.equal(
+  horarios(leerReservas(), 3, '2099-07-10', 1, new Date('2090-01-01T12:00:00'))
+    .find((horario) => horario.inicio === 14)?.libre,
+  false,
+  'La reserva del cliente confiable debe ocupar Campo 3',
+)
+assert.equal(
+  horarios(leerReservas(), 4, '2099-07-10', 1, new Date('2090-01-01T12:00:00'))
+    .find((horario) => horario.inicio === 14)?.libre,
+  false,
+  'La reserva del cliente confiable debe ocupar Campo 4',
+)
+
+const choqueEntreConfiables = await Promise.resolve(crearReserva({
+  canchaId: 3,
+  fecha: '2099-07-10',
+  inicio: 14,
+  horas: 1,
+  alias: 'Tercer cliente',
+  celular: '999000111',
+  montoTotal: 50,
+}, true))
+assert.ok('error' in choqueEntreConfiables)
+assert.equal(choqueEntreConfiables.error, 'ocupado', 'Clientes confiables también deben respetar colisiones')
+console.log('   ✔ Tres clientes confiables coexistieron; dos reservas ocuparon campos distintos y el choque fue rechazado.')
+
+// -----------------------------------------------------------------------------
 // 7. SIMULACIÓN: CONFLICTO DE HORARIO Y SUGERENCIA MÁS CERCANA
 // -----------------------------------------------------------------------------
 console.log('\n7. Simulando colisión de horario y sugerencia de alternativa más cercana...')

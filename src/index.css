@@ -279,6 +279,15 @@ button {
   gap: 6px;
 }
 
+.admin-navegacion-deslizable {
+  position: relative;
+  min-width: 0;
+}
+
+.admin-navegacion-indicador {
+  display: none;
+}
+
 .admin-navegacion-enlace {
   display: flex;
   min-width: 0;
@@ -4051,6 +4060,19 @@ button:disabled {
   background: var(--color-ink-900);
 }
 
+.admin-control-clientes-confiables,
+.admin-control-clientes-bloqueados {
+  scroll-margin-top: 24px;
+}
+
+.admin-control-clientes-bloqueados {
+  margin-top: 20px;
+}
+
+.admin-control-bloqueados-card {
+  gap: 14px;
+}
+
 .admin-control-cabecera h2 {
   margin: 4px 0 0;
 }
@@ -4209,6 +4231,205 @@ button:disabled {
 .admin-control-fila span {
   color: var(--color-ink-300);
   font-size: 0.85rem;
+}
+
+/* Clientes confiables: acceso rápido a reservas manuales. */
+.admin-control-cabecera-contenido {
+  min-width: 0;
+}
+
+.admin-control-confiables {
+  min-width: 0;
+}
+
+.admin-control-confiables-cabecera h3 {
+  margin: 0;
+  color: var(--color-ink-100);
+}
+
+.admin-confiables-buscador {
+  display: flex;
+  min-height: 48px;
+  align-items: center;
+  gap: 10px;
+  margin: 0;
+  padding: 0 14px;
+  border: 2px solid var(--color-ink-600);
+  border-radius: 10px;
+  background: var(--color-ink-950);
+  color: var(--color-gold-200);
+}
+
+.admin-control-form-confiable {
+  margin: 0;
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--color-ink-700);
+}
+
+.admin-confiables-buscador:focus-within {
+  border-color: var(--color-gold-300);
+  box-shadow: 0 0 0 3px rgb(228 179 57 / 16%);
+}
+
+.admin-confiables-buscador input {
+  min-width: 0;
+  min-height: 44px;
+  flex: 1;
+  padding: 0;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: var(--color-ink-50);
+  font-size: 1rem;
+}
+
+.admin-confiables-buscador input::placeholder {
+  color: var(--color-ink-400);
+}
+
+.admin-confiables-lista {
+  gap: 8px;
+}
+
+.admin-confiable-card {
+  position: relative;
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 12px;
+  border: 1px solid var(--color-ink-700);
+  border-radius: 12px;
+  background: var(--color-ink-900);
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+.admin-confiable-card:hover,
+.admin-confiable-card:focus-within {
+  border-color: var(--color-gold-600);
+  background: var(--color-ink-800);
+}
+
+.admin-confiable-identidad {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 12px;
+}
+
+.admin-confiable-identidad > div {
+  display: grid;
+  min-width: 0;
+  gap: 3px;
+}
+
+.admin-confiable-identidad strong,
+.admin-confiable-identidad span {
+  overflow-wrap: anywhere;
+}
+
+.admin-confiable-identidad strong {
+  color: var(--color-ink-100);
+  font-size: 1rem;
+}
+
+.admin-confiable-identidad div > span {
+  color: var(--color-ink-300);
+  font-size: 0.9rem;
+}
+
+.admin-confiable-avatar {
+  display: inline-flex;
+  width: 38px;
+  height: 38px;
+  flex: 0 0 38px;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--color-gold-700);
+  border-radius: 50%;
+  background: var(--color-gold-950);
+  color: var(--color-gold-200);
+  font-weight: 900;
+}
+
+.admin-confiable-acciones {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 8px;
+}
+
+.admin-confiable-reservar {
+  display: inline-flex;
+  min-height: 42px;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 0 14px;
+  border: 1px solid var(--color-gold-500);
+  border-radius: 10px;
+  background: transparent;
+  color: var(--color-gold-200);
+  font-weight: 800;
+}
+
+.admin-confiable-reservar:hover:not(:disabled) {
+  background: var(--color-gold-500);
+  color: var(--color-ink-950);
+}
+
+.admin-confiable-mas {
+  display: inline-flex;
+  width: 42px;
+  height: 42px;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: 1px solid var(--color-ink-600);
+  border-radius: 10px;
+  background: var(--color-ink-900);
+  color: var(--color-ink-100);
+}
+
+.admin-confiable-mas:hover,
+.admin-confiable-mas[aria-expanded='true'] {
+  border-color: var(--color-gold-500);
+  color: var(--color-gold-200);
+}
+
+.admin-confiable-menu-contenedor {
+  position: relative;
+}
+
+.admin-confiable-menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: 30;
+  min-width: 154px;
+  padding: 6px;
+  border: 1px solid var(--color-gold-700);
+  border-radius: 10px;
+  background: var(--color-ink-800);
+  box-shadow: 0 10px 24px rgb(0 0 0 / 38%);
+}
+
+.admin-confiable-menu button {
+  width: 100%;
+  min-height: 38px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--color-ink-100);
+  font-weight: 700;
+  text-align: left;
+}
+
+.admin-confiable-menu button:hover:not(:disabled) {
+  background: var(--color-gold-950);
+  color: var(--color-gold-100);
 }
 
 .admin-eventos {
@@ -5202,8 +5423,30 @@ button:disabled {
     width: 100%;
   }
 
+  .admin-navegacion-deslizable {
+    min-width: 0;
+  }
+
   .admin-navegacion-contenido::-webkit-scrollbar {
     display: none;
+  }
+
+  .admin-navegacion-indicador {
+    position: absolute;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    display: flex;
+    width: 42px;
+    align-items: center;
+    justify-content: flex-end;
+    padding-right: 2px;
+    background: linear-gradient(90deg, transparent, rgba(14, 13, 11, 0.96) 46%);
+    color: var(--color-gold-300);
+    font-size: 1.5rem;
+    font-weight: 800;
+    line-height: 1;
+    pointer-events: none;
   }
 
   .admin-navegacion-enlace {
@@ -5755,6 +5998,19 @@ button:disabled {
     padding: 14px;
   }
 
+  .admin-confiable-card {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .admin-confiable-acciones {
+    width: 100%;
+  }
+
+  .admin-confiable-reservar {
+    flex: 1;
+  }
+
   .admin-control-form {
     grid-template-columns: 1fr;
     gap: 10px;
@@ -5912,6 +6168,203 @@ button:disabled {
     width: min(100%, 520px);
     margin-right: auto;
     margin-left: auto;
+  }
+}
+
+/* ==========================================================================
+   NUEVA RESERVA DESDE EL PANEL ADMINISTRATIVO
+   ========================================================================== */
+
+.admin-modal-reserva-capa {
+  position: fixed;
+  inset: 0;
+  z-index: 1200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  background: rgb(0 0 0 / 76%);
+  backdrop-filter: blur(5px);
+  -webkit-backdrop-filter: blur(5px);
+}
+
+.admin-modal-reserva {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  width: min(1080px, 100%);
+  max-height: calc(100dvh - 32px);
+  overflow: hidden;
+  border: 1px solid var(--color-gold-700);
+  border-radius: 22px;
+  background: var(--color-ink-950);
+  color: var(--color-ink-100);
+  box-shadow: 0 24px 80px rgb(0 0 0 / 72%);
+}
+
+.admin-modal-reserva-cabecera {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 18px 22px 14px;
+  border-bottom: 1px solid var(--color-ink-800);
+  background: var(--color-ink-900);
+}
+
+.admin-modal-reserva-kicker {
+  color: var(--color-gold-300);
+  font-size: 0.76rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.admin-modal-reserva-cabecera h2 {
+  margin: 4px 0 2px;
+  color: var(--color-ink-50);
+  font-size: clamp(1.3rem, 2.6vw, 1.8rem);
+}
+
+.admin-modal-reserva-cabecera p {
+  margin: 0;
+  color: var(--color-ink-300);
+  font-size: 0.92rem;
+}
+
+.admin-modal-reserva-cabecera p strong {
+  color: var(--color-ink-50);
+}
+
+.admin-modal-reserva-cerrar {
+  display: inline-grid;
+  flex: 0 0 40px;
+  width: 40px;
+  height: 40px;
+  place-items: center;
+  border: 1px solid var(--color-ink-600);
+  border-radius: 10px;
+  background: var(--color-ink-950);
+  color: var(--color-ink-200);
+  cursor: pointer;
+}
+
+.admin-modal-reserva-cerrar:hover,
+.admin-modal-reserva-cerrar:focus-visible {
+  border-color: var(--color-gold-400);
+  background: var(--color-gold-950);
+  color: var(--color-gold-100);
+}
+
+.admin-modal-reserva-cuerpo {
+  min-height: 0;
+  overflow: auto;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  padding: 18px 22px 28px;
+  background: var(--color-ink-950);
+}
+
+.admin-modal-reserva-cuerpo::-webkit-scrollbar {
+  display: none;
+}
+
+.admin-modal-reserva-cuerpo > .progreso {
+  width: min(100%, 980px);
+  margin: 0 auto 14px;
+}
+
+.admin-modal-reserva-cuerpo .admin-modal-reserva-atras {
+  display: inline-flex;
+  margin: 0 0 10px;
+}
+
+.admin-modal-reserva-paso.main-campos,
+.admin-modal-reserva-paso.main-horario,
+.admin-modal-reserva-paso.main-datos {
+  width: 100%;
+  min-height: 0;
+  margin: 0;
+  padding: 0;
+  background: transparent;
+}
+
+.admin-modal-reserva-paso.main-campos > section,
+.admin-modal-reserva-paso.main-horario > section,
+.admin-modal-reserva-paso.main-datos > section {
+  width: min(100%, 980px);
+  margin-right: auto;
+  margin-left: auto;
+}
+
+.admin-modal-reserva-paso.main-campos h1,
+.admin-modal-reserva-paso.main-horario h1,
+.admin-modal-reserva-paso.main-datos h1 {
+  color: var(--color-ink-50);
+}
+
+.admin-modal-reserva-paso.main-datos > section {
+  width: min(100%, 560px);
+}
+
+.admin-modal-reserva-paso.main-completada {
+  min-height: 0;
+  padding: 0;
+  background: transparent;
+}
+
+.admin-modal-reserva-paso.main-completada > .listo {
+  width: min(100%, 720px);
+  margin: 0 auto;
+  padding: 28px;
+  border: 1px solid var(--color-gold-700);
+  border-radius: 16px;
+  background: var(--color-ink-900);
+}
+
+@media (max-width: 760px) {
+  .admin-modal-reserva-capa {
+    align-items: flex-end;
+    padding: 0;
+  }
+
+  .admin-modal-reserva {
+    width: 100%;
+    height: 100dvh;
+    max-height: 100dvh;
+    border-right: 0;
+    border-bottom: 0;
+    border-left: 0;
+    border-radius: 22px 22px 0 0;
+  }
+
+  .admin-modal-reserva-cabecera {
+    padding: 14px 16px 12px;
+  }
+
+  .admin-modal-reserva-cabecera p {
+    max-width: 30ch;
+  }
+
+  .admin-modal-reserva-cuerpo {
+    padding: 14px 16px 28px;
+  }
+
+  .admin-modal-reserva-paso.main-campos .canchas {
+    grid-template-columns: 1fr;
+    margin-top: 16px;
+  }
+
+  .admin-modal-reserva-paso.main-campos .tarjeta-cancha {
+    gap: 10px;
+  }
+
+  .admin-modal-reserva-paso.main-datos .resumen-imagen {
+    height: 150px;
+  }
+
+  .admin-modal-reserva-paso.main-completada > .listo {
+    padding: 22px 16px 20px;
   }
 }
 

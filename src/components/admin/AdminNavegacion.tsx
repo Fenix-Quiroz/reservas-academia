@@ -1,7 +1,13 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { BarChart3, CalendarDays, Home, Star, Users } from 'lucide-react'
 
-type SeccionAdmin = 'admin-inicio' | 'admin-agenda' | 'admin-reservas-especiales' | 'admin-balance' | 'admin-clientes'
+type SeccionAdmin =
+  | 'admin-inicio'
+  | 'admin-agenda'
+  | 'admin-reservas-especiales'
+  | 'admin-balance'
+  | 'admin-clientes-confiables'
+  | 'admin-clientes-bloqueados'
 
 interface ItemNavegacion {
   id: SeccionAdmin
@@ -14,7 +20,8 @@ const ITEMS_NAVEGACION: readonly ItemNavegacion[] = [
   { id: 'admin-agenda', etiqueta: 'Agenda', Icono: CalendarDays },
   { id: 'admin-reservas-especiales', etiqueta: 'Reservas especiales', Icono: Star },
   { id: 'admin-balance', etiqueta: 'Balance mensual', Icono: BarChart3 },
-  { id: 'admin-clientes', etiqueta: 'Clientes', Icono: Users },
+  { id: 'admin-clientes-confiables', etiqueta: 'Clientes confiables', Icono: Users },
+  { id: 'admin-clientes-bloqueados', etiqueta: 'Clientes bloqueados', Icono: Users },
 ]
 
 const POSICION_ACTIVA = 180
@@ -42,6 +49,16 @@ function seccionMasCercana(): SeccionAdmin {
 
 export default function AdminNavegacion() {
   const [activa, setActiva] = useState<SeccionAdmin>('admin-inicio')
+  const [navegacionDesbordada, setNavegacionDesbordada] = useState(false)
+  const contenidoRef = useRef<HTMLDivElement | null>(null)
+
+  function actualizarDesbordamiento(): void {
+    const contenido = contenidoRef.current
+    if (!contenido) return
+
+    const maximoDesplazamiento = contenido.scrollWidth - contenido.clientWidth
+    setNavegacionDesbordada(maximoDesplazamiento - contenido.scrollLeft > 4)
+  }
 
   useEffect(() => {
     const actualizarActiva = () => setActiva(seccionMasCercana())
@@ -53,6 +70,26 @@ export default function AdminNavegacion() {
       window.removeEventListener('resize', actualizarActiva)
     }
   }, [])
+
+  useEffect(() => {
+    actualizarDesbordamiento()
+    window.addEventListener('resize', actualizarDesbordamiento)
+    return () => window.removeEventListener('resize', actualizarDesbordamiento)
+  }, [])
+
+  useEffect(() => {
+    const contenido = contenidoRef.current
+    const enlaceActivo = contenido?.querySelector<HTMLAnchorElement>(
+      '[aria-current="page"]',
+    )
+    if (!contenido || !enlaceActivo) return
+
+    const posicionCentrada = Math.max(
+      0,
+      enlaceActivo.offsetLeft - (contenido.clientWidth - enlaceActivo.offsetWidth) / 2,
+    )
+    contenido.scrollTo({ left: posicionCentrada, behavior: 'smooth' })
+  }, [activa])
 
   function navegar(evento: React.MouseEvent<HTMLAnchorElement>, id: SeccionAdmin): void {
     evento.preventDefault()
@@ -66,19 +103,30 @@ export default function AdminNavegacion() {
       <div className="admin-navegacion-cabecera">
         <span className="admin-navegacion-titulo">Menú</span>
       </div>
-      <div className="admin-navegacion-contenido">
-        {ITEMS_NAVEGACION.map(({ id, etiqueta, Icono }) => (
-          <a
-            className="admin-navegacion-enlace"
-            href={`#${id}`}
-            key={id}
-            aria-current={activa === id ? 'page' : undefined}
-            onClick={(evento) => navegar(evento, id)}
-          >
-            <Icono size={20} strokeWidth={2.4} aria-hidden="true" />
-            <span>{etiqueta}</span>
-          </a>
-        ))}
+      <div className="admin-navegacion-deslizable">
+        <div
+          ref={contenidoRef}
+          className="admin-navegacion-contenido"
+          onScroll={actualizarDesbordamiento}
+        >
+          {ITEMS_NAVEGACION.map(({ id, etiqueta, Icono }) => (
+            <a
+              className="admin-navegacion-enlace"
+              href={`#${id}`}
+              key={id}
+              aria-current={activa === id ? 'page' : undefined}
+              onClick={(evento) => navegar(evento, id)}
+            >
+              <Icono size={20} strokeWidth={2.4} aria-hidden="true" />
+              <span>{etiqueta}</span>
+            </a>
+          ))}
+        </div>
+        {navegacionDesbordada && (
+          <span className="admin-navegacion-indicador" aria-hidden="true">
+            →
+          </span>
+        )}
       </div>
     </nav>
   )

@@ -1,7 +1,7 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { ALIAS_MAXIMO } from '../../validacionCliente'
 import type { FormEvent } from 'react'
-import { UserCheck, UserX } from 'lucide-react'
+import { CalendarDays, MoreHorizontal, Search, UserCheck, UserX } from 'lucide-react'
 import type {
   NumeroBloqueado,
   NumeroConfiable,
@@ -12,11 +12,13 @@ export interface AdminControlClientesProps {
   bloqueados: readonly NumeroBloqueado[]
   confiables: readonly NumeroConfiable[]
   cargando: boolean
-  procesando: boolean
+  procesandoConfiables: boolean
+  procesandoBloqueados: boolean
   onBloquear: (celular: string, motivo: string) => Promise<ResultadoControlCliente>
   onDesbloquear: (celular: string) => Promise<ResultadoControlCliente>
   onAgregarConfiable: (celular: string, alias: string) => Promise<ResultadoControlCliente>
   onQuitarConfiable: (celular: string) => Promise<ResultadoControlCliente>
+  onNuevaReserva?: (cliente?: NumeroConfiable) => void
 }
 
 function mensajeError(resultado: ResultadoControlCliente): string {
@@ -31,11 +33,13 @@ export default function AdminControlClientes({
   bloqueados,
   confiables,
   cargando,
-  procesando,
+  procesandoConfiables,
+  procesandoBloqueados,
   onBloquear,
   onDesbloquear,
   onAgregarConfiable,
   onQuitarConfiable,
+  onNuevaReserva,
 }: AdminControlClientesProps) {
   const [celularBloqueado, setCelularBloqueado] = useState('')
   const [motivo, setMotivo] = useState('Dos inasistencias')
@@ -43,6 +47,8 @@ export default function AdminControlClientes({
   const [aliasConfiable, setAliasConfiable] = useState('')
   const [error, setError] = useState('')
   const [exito, setExito] = useState('')
+  const [busquedaConfiables, setBusquedaConfiables] = useState('')
+  const [menuConfiableAbierto, setMenuConfiableAbierto] = useState<string | null>(null)
 
   const [bloqueando, setBloqueando] = useState(false)
   const [agregandoConfiable, setAgregandoConfiable] = useState(false)
@@ -61,11 +67,12 @@ export default function AdminControlClientes({
     return () => window.clearTimeout(temporizador)
   }, [exito])
 
-  const accionEnCurso = procesando || bloqueando || agregandoConfiable || Boolean(desbloqueandoNumero) || Boolean(quitandoNumero)
+  const accionConfiableEnCurso = procesandoConfiables || agregandoConfiable || Boolean(quitandoNumero)
+  const accionBloqueadaEnCurso = procesandoBloqueados || bloqueando || Boolean(desbloqueandoNumero)
 
   async function bloquear(evento: FormEvent<HTMLFormElement>): Promise<void> {
     evento.preventDefault()
-    if (accionEnCurso) return
+    if (accionBloqueadaEnCurso) return
     setError('')
     setExito('')
     setBloqueando(true)
@@ -84,7 +91,7 @@ export default function AdminControlClientes({
 
   async function agregarConfiable(evento: FormEvent<HTMLFormElement>): Promise<void> {
     evento.preventDefault()
-    if (accionEnCurso) return
+    if (accionConfiableEnCurso) return
     setError('')
     setExito('')
     setAgregandoConfiable(true)
@@ -103,7 +110,7 @@ export default function AdminControlClientes({
   }
 
   async function desbloquear(celular: string): Promise<void> {
-    if (accionEnCurso) return
+    if (accionBloqueadaEnCurso) return
     setError('')
     setExito('')
     setDesbloqueandoNumero(celular)
@@ -117,7 +124,7 @@ export default function AdminControlClientes({
   }
 
   async function quitarConfiable(celular: string): Promise<void> {
-    if (accionEnCurso) return
+    if (accionConfiableEnCurso) return
     setError('')
     setExito('')
     setQuitandoNumero(celular)
@@ -132,27 +139,162 @@ export default function AdminControlClientes({
 
   const bloqueadosActivos = bloqueados.filter((numero) => numero.activo)
   const confiablesActivos = confiables.filter((numero) => numero.activo)
+  const confiablesVisibles = useMemo(() => {
+    const termino = busquedaConfiables.trim().toLocaleLowerCase()
+    if (!termino) return confiablesActivos
+    return confiablesActivos.filter((numero) =>
+      `${numero.alias} ${numero.celular}`.toLocaleLowerCase().includes(termino),
+    )
+  }, [busquedaConfiables, confiablesActivos])
 
   return (
-    <section className="admin-control-clientes" aria-labelledby="titulo-control-clientes">
-      <div className="admin-control-cabecera">
-        <div>
-          <p className="admin-kicker">Control de clientes</p>
-          <h2 id="titulo-control-clientes">Bloqueados y confiables</h2>
-          <p className="admin-control-ayuda">
-            Gestiona los celulares que no pueden reservar y los clientes habituales.
-          </p>
+    <>
+      <section
+        id="admin-clientes-confiables"
+        className="admin-control-clientes admin-control-clientes-confiables"
+        aria-labelledby="titulo-control-clientes-confiables"
+      >
+        <div className="admin-control-cabecera">
+          <div className="admin-control-cabecera-contenido">
+            <p className="admin-kicker">Control de clientes</p>
+            <h2 id="titulo-control-clientes-confiables">Clientes confiables</h2>
+            <p className="admin-control-ayuda">
+              Reserva manualmente para clientes que prefieren llamar.
+            </p>
+          </div>
         </div>
-      </div>
 
-      {(error || exito) && (
-        <p className={error ? 'error' : 'exito'} role={error ? 'alert' : 'status'}>
-          {error || exito}
-        </p>
-      )}
+        {(error || exito) && (
+          <p className={error ? 'error' : 'exito'} role={error ? 'alert' : 'status'}>
+            {error || exito}
+          </p>
+        )}
 
-      <div className="admin-control-grid">
-        <section className="admin-control-card" aria-labelledby="titulo-bloqueados">
+        <section className="admin-control-card admin-control-confiables" aria-labelledby="titulo-confiables">
+          <div className="admin-control-confiables-cabecera">
+            <div>
+              <h3 id="titulo-confiables">Clientes confiables</h3>
+              <p>Selecciona un cliente para iniciar una reserva a su nombre.</p>
+            </div>
+          </div>
+
+          <form className="admin-control-form admin-control-form-confiable" onSubmit={(evento) => void agregarConfiable(evento)}>
+            <label>
+              <span>Celular</span>
+              <input
+                type="tel"
+                value={celularConfiable}
+                required
+                maxLength={9}
+                inputMode="numeric"
+                placeholder="987654321"
+                onChange={(evento) => setCelularConfiable(evento.target.value.replace(/\D/g, ''))}
+              />
+            </label>
+            <label>
+              <span>Nombre o apodo</span>
+              <input
+                value={aliasConfiable}
+                required
+                maxLength={ALIAS_MAXIMO}
+                placeholder="Cliente habitual"
+                onChange={(evento) => setAliasConfiable(evento.target.value)}
+              />
+            </label>
+            <button className="admin-boton admin-control-primario admin-control-guardar" type="submit" disabled={accionConfiableEnCurso}>
+              <UserCheck size={20} strokeWidth={2.5} aria-hidden="true" />
+              <span>{agregandoConfiable ? 'Guardando…' : 'Guardar cliente'}</span>
+            </button>
+          </form>
+
+          <label className="admin-confiables-buscador">
+            <span className="sr-only">Buscar clientes confiables</span>
+            <Search size={20} strokeWidth={2.4} aria-hidden="true" />
+            <input
+              type="search"
+              value={busquedaConfiables}
+              placeholder="Buscar por nombre o celular"
+              onChange={(evento) => setBusquedaConfiables(evento.target.value)}
+            />
+          </label>
+
+          <div className="admin-control-lista admin-confiables-lista" aria-live="polite" aria-busy={cargando}>
+            {cargando && confiablesActivos.length === 0 ? <p>Cargando clientes confiables…</p> : confiablesActivos.length === 0 ? (
+              <p>No hay clientes confiables.</p>
+            ) : confiablesVisibles.length === 0 ? (
+              <p>No encontramos clientes con esa búsqueda.</p>
+            ) : confiablesVisibles.map((numero) => (
+              <article className="admin-confiable-card" key={numero.celular}>
+                <div className="admin-confiable-identidad">
+                  <span className="admin-confiable-avatar" aria-hidden="true">
+                    {numero.alias.trim().charAt(0).toLocaleUpperCase() || '?'}
+                  </span>
+                  <div>
+                    <strong>{numero.alias}</strong>
+                    <span>{numero.celular}</span>
+                  </div>
+                </div>
+                <div className="admin-confiable-acciones">
+                  <button
+                    className="admin-boton admin-confiable-reservar"
+                    type="button"
+                    disabled={!onNuevaReserva}
+                    onClick={() => onNuevaReserva?.(numero)}
+                  >
+                    <CalendarDays size={18} strokeWidth={2.5} aria-hidden="true" />
+                    <span>Reservar</span>
+                  </button>
+                  <div className="admin-confiable-menu-contenedor">
+                    <button
+                      className="admin-confiable-mas"
+                      type="button"
+                      aria-label={`Más acciones para ${numero.alias}`}
+                      aria-expanded={menuConfiableAbierto === numero.celular}
+                      onClick={() => setMenuConfiableAbierto((actual) => actual === numero.celular ? null : numero.celular)}
+                    >
+                      <MoreHorizontal size={20} strokeWidth={2.5} aria-hidden="true" />
+                    </button>
+                    {menuConfiableAbierto === numero.celular && (
+                      <div className="admin-confiable-menu" role="menu">
+                        <button
+                          type="button"
+                          role="menuitem"
+                          disabled={accionConfiableEnCurso}
+                          onClick={() => {
+                            setMenuConfiableAbierto(null)
+                            void quitarConfiable(numero.celular)
+                          }}
+                        >
+                          {quitandoNumero === numero.celular ? 'Quitando…' : 'Quitar cliente'}
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </article>
+            ))}
+          </div>
+
+        </section>
+
+      </section>
+
+      <section
+        id="admin-clientes-bloqueados"
+        className="admin-control-clientes admin-control-clientes-bloqueados"
+        aria-labelledby="titulo-control-clientes-bloqueados"
+      >
+        <div className="admin-control-cabecera">
+          <div className="admin-control-cabecera-contenido">
+            <p className="admin-kicker">Control de clientes</p>
+            <h2 id="titulo-control-clientes-bloqueados">Clientes bloqueados</h2>
+            <p className="admin-control-ayuda">
+              Administra los números que no pueden reservar por inasistencias.
+            </p>
+          </div>
+        </div>
+
+        <section className="admin-control-card admin-control-bloqueados-card" aria-labelledby="titulo-bloqueados">
           <div>
             <h3 id="titulo-bloqueados">Números bloqueados</h3>
             <p>Después de 2 inasistencias, el bloqueo se crea automáticamente.</p>
@@ -180,13 +322,13 @@ export default function AdminControlClientes({
                 onChange={(evento) => setMotivo(evento.target.value)}
               />
             </label>
-            <button className="admin-boton admin-control-primario admin-control-guardar" type="submit" disabled={accionEnCurso}>
+            <button className="admin-boton admin-control-primario admin-control-guardar" type="submit" disabled={accionBloqueadaEnCurso}>
               <UserX size={20} strokeWidth={2.5} aria-hidden="true" />
               <span>{bloqueando ? 'Guardando…' : 'Bloquear número'}</span>
             </button>
           </form>
-          <div className="admin-control-lista" aria-live="polite">
-            {cargando ? <p>Cargando números bloqueados…</p> : bloqueadosActivos.length === 0 ? (
+          <div className="admin-control-lista" aria-live="polite" aria-busy={cargando}>
+            {cargando && bloqueadosActivos.length === 0 ? <p>Cargando números bloqueados…</p> : bloqueadosActivos.length === 0 ? (
               <p>No hay números bloqueados.</p>
             ) : bloqueadosActivos.map((numero) => (
               <article className="admin-control-fila" key={numero.celular}>
@@ -197,7 +339,7 @@ export default function AdminControlClientes({
                 <button
                   className="admin-boton admin-control-secundario"
                   type="button"
-                  disabled={accionEnCurso}
+                  disabled={accionBloqueadaEnCurso}
                   onClick={() => void desbloquear(numero.celular)}
                 >
                   {desbloqueandoNumero === numero.celular ? 'Desbloqueando…' : 'Desbloquear'}
@@ -206,62 +348,7 @@ export default function AdminControlClientes({
             ))}
           </div>
         </section>
-
-        <section className="admin-control-card" aria-labelledby="titulo-confiables">
-          <div>
-            <h3 id="titulo-confiables">Clientes confiables</h3>
-            <p>Quedarán preparados para omitir el adelanto cuando ese cobro esté activo.</p>
-          </div>
-          <form className="admin-control-form" onSubmit={(evento) => void agregarConfiable(evento)}>
-            <label>
-              <span>Celular</span>
-              <input
-                type="tel"
-                value={celularConfiable}
-                required
-                maxLength={9}
-                inputMode="numeric"
-                placeholder="987654321"
-                onChange={(evento) => setCelularConfiable(evento.target.value.replace(/\D/g, ''))}
-              />
-            </label>
-            <label>
-              <span>Nombre o apodo</span>
-              <input
-                value={aliasConfiable}
-                required
-                maxLength={ALIAS_MAXIMO}
-                placeholder="Cliente habitual"
-                onChange={(evento) => setAliasConfiable(evento.target.value)}
-              />
-            </label>
-            <button className="admin-boton admin-control-primario admin-control-guardar" type="submit" disabled={accionEnCurso}>
-              <UserCheck size={20} strokeWidth={2.5} aria-hidden="true" />
-              <span>{agregandoConfiable ? 'Guardando…' : 'Agregar confiable'}</span>
-            </button>
-          </form>
-          <div className="admin-control-lista" aria-live="polite">
-            {cargando ? <p>Cargando clientes confiables…</p> : confiablesActivos.length === 0 ? (
-              <p>No hay clientes confiables.</p>
-            ) : confiablesActivos.map((numero) => (
-              <article className="admin-control-fila" key={numero.celular}>
-                <div>
-                  <strong>{numero.alias}</strong>
-                  <span>{numero.celular}</span>
-                </div>
-                <button
-                  className="admin-boton admin-control-secundario"
-                  type="button"
-                  disabled={accionEnCurso}
-                  onClick={() => void quitarConfiable(numero.celular)}
-                >
-                  {quitandoNumero === numero.celular ? 'Quitando…' : 'Quitar'}
-                </button>
-              </article>
-            ))}
-          </div>
-        </section>
-      </div>
-    </section>
+      </section>
+    </>
   )
 }

@@ -44,6 +44,7 @@ import {
   suscribirseAReservas,
 } from './supabaseData'
 import { filtrarReservas } from './admin'
+import type { ResultadoCancelacionEvento } from './eventos.js'
 import { esAdmin } from './adminAuth'
 import AdminLogin from './components/admin/AdminLogin'
 import AdminNoAutorizado from './components/admin/AdminNoAutorizado'
@@ -53,6 +54,7 @@ import AdminListado from './components/admin/AdminListado'
 import AdminAlarmaTurno from './components/admin/AdminAlarmaTurno'
 import AdminBalanceMensual from './components/admin/AdminBalanceMensual'
 import AdminControlClientes from './components/admin/AdminControlClientes'
+import AdminModalNuevaReserva from './components/admin/AdminModalNuevaReserva'
 import AdminSorteosVista from './components/admin/AdminSorteosVista'
 import AdminEventos from './components/admin/AdminEventos'
 import AdminNavegacion from './components/admin/AdminNavegacion'
@@ -125,10 +127,12 @@ export default function AdminApp() {
   const [numerosBloqueados, setNumerosBloqueados] = useState<NumeroBloqueado[]>([])
   const [numerosConfiables, setNumerosConfiables] = useState<NumeroConfiable[]>([])
   const [cargandoControl, setCargandoControl] = useState(false)
-  const [procesandoControl, setProcesandoControl] = useState(false)
+  const [procesandoControlConfiables, setProcesandoControlConfiables] = useState(false)
+  const [procesandoControlBloqueados, setProcesandoControlBloqueados] = useState(false)
   const [eventos, setEventos] = useState<BloqueoEvento[]>(leerBloqueosEventos)
   const [cargandoEventos, setCargandoEventos] = useState(false)
   const [procesandoEvento, setProcesandoEvento] = useState(false)
+  const [modalNuevaReserva, setModalNuevaReserva] = useState<{ cliente?: NumeroConfiable } | null>(null)
   const [reservaAEditar, setReservaAEditar] = useState<Reserva | null>(null)
   const [guardandoEdicion, setGuardandoEdicion] = useState(false)
   const bloqueoEditar = useRef(crearBloqueoAccion())
@@ -136,8 +140,12 @@ export default function AdminApp() {
   const bloqueoCancelar = useRef(crearBloqueoAccion())
   const bloqueoEstado = useRef(crearBloqueoAccion())
   const bloqueoComprobante = useRef(crearBloqueoAccion())
-  const bloqueoControl = useRef(crearBloqueoAccion())
+  const bloqueoControlConfiables = useRef(crearBloqueoAccion())
+  const bloqueoControlBloqueados = useRef(crearBloqueoAccion())
+  const bloqueoEventoCreacion = useRef(crearBloqueoAccion())
   const bloqueoEvento = useRef(crearBloqueoAccion())
+  const bloqueosCancelacionEvento = useRef(new Map<string, ReturnType<typeof crearBloqueoAccion>>())
+  const rolUsuario = usuario?.app_metadata?.role
 
   useEffect(() => {
     if (!mensaje) return undefined
@@ -190,7 +198,7 @@ export default function AdminApp() {
   }, [])
 
   useEffect(() => {
-    if (supabaseConfigurado && !esAdmin(usuario)) {
+    if (supabaseConfigurado && rolUsuario !== 'admin') {
       setCargando(false)
       return undefined
     }
@@ -240,7 +248,7 @@ export default function AdminApp() {
       window.removeEventListener('storage', actualizar)
       dejarDeEscuchar()
     }
-  }, [usuario])
+  }, [rolUsuario])
 
   async function cargarControlClientes(): Promise<boolean> {
     setCargandoControl(true)
@@ -271,10 +279,10 @@ export default function AdminApp() {
   }
 
   useEffect(() => {
-    if (supabaseConfigurado && !esAdmin(usuario)) return undefined
+    if (supabaseConfigurado && rolUsuario !== 'admin') return undefined
     void cargarControlClientes()
     return undefined
-  }, [usuario])
+  }, [rolUsuario])
 
   const visibles = useMemo(() => filtrarReservas(reservas, filtros, canchas), [reservas, filtros])
   const porRevisar = useMemo(() => filtrarReservas(reservas, { vista: 'por-revisar' }, canchas).length, [reservas])
@@ -549,10 +557,13 @@ export default function AdminApp() {
   }
 
   async function ejecutarControl(
+    seccion: 'confiables' | 'bloqueados',
     accion: () => Promise<ResultadoControlCliente> | ResultadoControlCliente,
   ): Promise<ResultadoControlCliente> {
-    if (!bloqueoControl.current.adquirir()) return { error: 'conexion' }
-    setProcesandoControl(true)
+    const bloqueo = seccion === 'confiables' ? bloqueoControlConfiables.current : bloqueoControlBloqueados.current
+    const setProcesando = seccion === 'confiables' ? setProcesandoControlConfiables : setProcesandoControlBloqueados
+    if (!bloqueo.adquirir()) return { error: 'conexion' }
+    setProcesando(true)
     try {
       const resultado = await accion()
       if (!('error' in resultado)) await cargarControlClientes()
@@ -560,8 +571,8 @@ export default function AdminApp() {
     } catch {
       return { error: 'conexion' }
     } finally {
-      setProcesandoControl(false)
-      bloqueoControl.current.liberar()
+      setProcesando(false)
+      bloqueo.liberar()
     }
   }
 
@@ -579,6 +590,39 @@ export default function AdminApp() {
     } finally {
       setProcesandoEvento(false)
       bloqueoEvento.current.liberar()
+    }
+  }
+
+  async function ejecutarCreacionEvento<T>(
+    accion: () => Promise<T> | T,
+  ): Promise<T> {
+    if (!bloqueoEventoCreacion.current.adquirir()) return { error: 'conexion' } as T
+    try {
+      const resultado = await accion()
+      if (!(typeof resultado === 'object' && resultado !== null && 'error' in resultado)) await cargarEventos()
+      return resultado
+    } catch {
+      return { error: 'conexion' } as T
+    } finally {
+      bloqueoEventoCreacion.current.liberar()
+    }
+  }
+
+  async function ejecutarCancelacionEvento(grupoId: string): Promise<ResultadoCancelacionEvento> {
+    const bloqueo = bloqueosCancelacionEvento.current.get(grupoId) ?? crearBloqueoAccion()
+    bloqueosCancelacionEvento.current.set(grupoId, bloqueo)
+    if (!bloqueo.adquirir()) return { error: 'conexion' }
+    try {
+      const resultado = await (supabaseConfigurado
+        ? cancelarEventoEspecialRemoto(grupoId)
+        : cancelarEventoEspecialLocal(grupoId))
+      if (!('error' in resultado)) await cargarEventos()
+      return resultado
+    } catch {
+      return { error: 'conexion' }
+    } finally {
+      bloqueo.liberar()
+      bloqueosCancelacionEvento.current.delete(grupoId)
     }
   }
 
@@ -696,12 +740,10 @@ export default function AdminApp() {
           reservas={reservas}
           cargando={cargandoEventos}
           procesando={procesandoEvento}
-          onCrear={(nuevo) => ejecutarEvento(() => supabaseConfigurado
+          onCrear={(nuevo) => ejecutarCreacionEvento(() => supabaseConfigurado
             ? crearEventoEspecialRemoto(nuevo)
             : crearEventoEspecialLocal(nuevo, reservas))}
-          onCancelar={(grupoId) => ejecutarEvento(() => supabaseConfigurado
-            ? cancelarEventoEspecialRemoto(grupoId)
-            : cancelarEventoEspecialLocal(grupoId))}
+          onCancelar={ejecutarCancelacionEvento}
           onEditar={(actualizado) => ejecutarEvento(async () => {
             const res = await (supabaseConfigurado
               ? actualizarEventoEspecialRemoto(actualizado)
@@ -718,22 +760,24 @@ export default function AdminApp() {
         <AdminBalanceMensual reservas={reservas} canchas={canchas} eventos={eventos} />
       </div>
 
-      <div id="admin-clientes" className="admin-seccion-destino">
+      <div className="admin-clientes-secciones-destino">
         <AdminControlClientes
           bloqueados={numerosBloqueados}
           confiables={numerosConfiables}
           cargando={cargandoControl}
-          procesando={procesandoControl}
-          onBloquear={(celular, motivo) => ejecutarControl(() => supabaseConfigurado
+          procesandoConfiables={procesandoControlConfiables}
+          procesandoBloqueados={procesandoControlBloqueados}
+          onNuevaReserva={(cliente) => setModalNuevaReserva({ cliente })}
+          onBloquear={(celular, motivo) => ejecutarControl('bloqueados', () => supabaseConfigurado
             ? bloquearNumeroRemoto(celular, motivo)
             : bloquearNumero(celular, motivo))}
-          onDesbloquear={(celular) => ejecutarControl(() => supabaseConfigurado
+          onDesbloquear={(celular) => ejecutarControl('bloqueados', () => supabaseConfigurado
             ? desbloquearNumeroRemoto(celular)
             : desbloquearNumero(celular))}
-          onAgregarConfiable={(celular, alias) => ejecutarControl(() => supabaseConfigurado
+          onAgregarConfiable={(celular, alias) => ejecutarControl('confiables', () => supabaseConfigurado
             ? agregarNumeroConfiableRemoto(celular, alias)
             : agregarNumeroConfiable(celular, alias))}
-          onQuitarConfiable={(celular) => ejecutarControl(() => supabaseConfigurado
+          onQuitarConfiable={(celular) => ejecutarControl('confiables', () => supabaseConfigurado
             ? quitarNumeroConfiableRemoto(celular)
             : quitarNumeroConfiable(celular))}
         />
@@ -748,6 +792,24 @@ export default function AdminApp() {
           procesando={guardandoEdicion}
           onClose={() => setReservaAEditar(null)}
           onGuardar={guardarEdicion}
+        />
+      )}
+      {modalNuevaReserva && (
+        <AdminModalNuevaReserva
+          clienteInicial={modalNuevaReserva.cliente}
+          reservas={reservas}
+          bloqueosEventos={eventos}
+          confiables={numerosConfiables}
+          bloqueados={numerosBloqueados}
+          onClose={() => setModalNuevaReserva(null)}
+          onCreated={(reserva) => {
+            setReservas((actuales) => actuales.some((actual) => actual.id === reserva.id)
+              ? actuales
+              : [...actuales, reserva])
+            if (supabaseConfigurado) {
+              void Promise.resolve(cargarReservas()).then((actuales) => setReservas(actuales)).catch(() => undefined)
+            }
+          }}
         />
       )}
       {modalComprobante && (

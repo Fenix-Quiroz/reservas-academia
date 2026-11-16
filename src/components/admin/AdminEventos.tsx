@@ -108,7 +108,7 @@ export default function AdminEventos({
   const [error, setError] = useState('')
   const [exito, setExito] = useState('')
   const [guardando, setGuardando] = useState(false)
-  const [cancelandoGrupoId, setCancelandoGrupoId] = useState<string | null>(null)
+  const [cancelandoGrupoIds, setCancelandoGrupoIds] = useState<Set<string>>(() => new Set())
   const guardandoRef = useRef(false)
   const [eventoAEditar, setEventoAEditar] = useState<readonly BloqueoEvento[] | null>(null)
   const [filtroPill, setFiltroPill] = useState<'activos' | 'finalizados' | 'cancelados'>('activos')
@@ -299,9 +299,10 @@ export default function AdminEventos({
   }
 
   async function cancelar(grupoId: string): Promise<void> {
+    if (cancelandoGrupoIds.has(grupoId)) return
     setError('')
     setExito('')
-    setCancelandoGrupoId(grupoId)
+    setCancelandoGrupoIds((actuales) => new Set(actuales).add(grupoId))
     try {
       const resultado = await onCancelar(grupoId)
       if ('error' in resultado) {
@@ -310,7 +311,11 @@ export default function AdminEventos({
       }
       setExito('Evento cancelado. El horario puede volver a reservarse.')
     } finally {
-      setCancelandoGrupoId(null)
+      setCancelandoGrupoIds((actuales) => {
+        const siguiente = new Set(actuales)
+        siguiente.delete(grupoId)
+        return siguiente
+      })
     }
   }
 
@@ -378,7 +383,7 @@ export default function AdminEventos({
           <textarea value={notas} maxLength={240} rows={2} placeholder="Información para el encargado" onChange={(evento) => setNotas(evento.target.value)} />
         </label>
 
-        <button className="admin-boton admin-control-primario admin-eventos-guardar" type="submit" disabled={procesando || guardando || Boolean(cancelandoGrupoId)}>
+        <button className="admin-boton admin-control-primario admin-eventos-guardar" type="submit" disabled={procesando || guardando}>
           <CalendarPlus size={20} strokeWidth={2.5} aria-hidden="true" />
           <span>{guardando ? 'Guardando…' : 'Crear evento especial'}</span>
         </button>
@@ -443,8 +448,8 @@ export default function AdminEventos({
                   key={grupo.map((evento) => evento.id).join('-')}
                   eventos={grupo}
                   canchas={canchas}
-                  procesando={procesando || Boolean(cancelandoGrupoId)}
-                  cancelando={cancelandoGrupoId === grupoIdActual}
+                  procesando={procesando}
+                  cancelando={cancelandoGrupoIds.has(grupoIdActual)}
                   onCancel={cancelar}
                   onEditar={onEditar ? (g) => setEventoAEditar(g) : undefined}
                   ahora={ahora}
@@ -463,8 +468,8 @@ export default function AdminEventos({
                   key={grupo.map((evento) => evento.id).join('-')}
                   eventos={grupo}
                   canchas={canchas}
-                  procesando={procesando || Boolean(cancelandoGrupoId)}
-                  cancelando={cancelandoGrupoId === grupoIdActual}
+                  procesando={procesando}
+                  cancelando={cancelandoGrupoIds.has(grupoIdActual)}
                   onCancel={cancelar}
                   onEditar={onEditar ? (g) => setEventoAEditar(g) : undefined}
                   ahora={ahora}
@@ -483,8 +488,8 @@ export default function AdminEventos({
                   key={grupo.map((evento) => evento.id).join('-')}
                   eventos={grupo}
                   canchas={canchas}
-                  procesando={procesando || Boolean(cancelandoGrupoId)}
-                  cancelando={cancelandoGrupoId === grupoIdActual}
+                  procesando={procesando}
+                  cancelando={cancelandoGrupoIds.has(grupoIdActual)}
                   onCancel={cancelar}
                   onEditar={onEditar ? (g) => setEventoAEditar(g) : undefined}
                   ahora={ahora}

@@ -4,8 +4,6 @@ import {
   rangoLibre,
   esBloqueAislado,
   DURACION_BLOQUE,
-  sumarDias,
-  fechaISO,
 } from './reservas.js'
 import {
   crearReserva,
@@ -61,8 +59,9 @@ function crearReservaOk(datos: Parameters<typeof crearReserva>[0], sinAdelanto =
 resetState()
 
 const cancha1 = canchas[0] // Campo 1, Fútbol 6, precioHora: 55
-const hoy = new Date()
-const fechaManana = fechaISO(sumarDias(1, hoy))
+const hoy = new Date('2099-07-11T12:00:00')
+// Domingo fijo sin entrenamientos: la simulación no debe depender de la fecha real.
+const fechaManana = '2099-07-12'
 
 // Función idéntica a la lógica del componente SelectorHorario
 function obtenerListaTurno(
