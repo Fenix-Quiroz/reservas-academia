@@ -79,7 +79,7 @@ assert.deepEqual(crearBloqueoEventoLocal({
   notas: '',
 }), {
   error: 'entrenamiento-ocupado',
-  entrenamiento: { inicioMinuto: 930, finMinuto: 1195 },
+  entrenamiento: { inicioMinuto: 930, finMinuto: 990 },
 })
 assert.deepEqual(crearReserva({
   canchaId: 1,

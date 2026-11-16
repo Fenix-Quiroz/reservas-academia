@@ -116,11 +116,11 @@ assert.equal(
   '24:00 + 1.5 = 25.5 excede cierre',
 )
 
-// 7. Horario que choca con entrenamiento (jueves 2026-11-05 a las 18:00 en Cancha 1)
+// 7. Horario que choca con entrenamiento (jueves 2026-11-05 a las 18:30 en Cancha 1)
 assert.equal(
-  verificarConflicto(reservaExistente1.id, 1, '2026-11-05', 18, 1, reservas),
+  verificarConflicto(reservaExistente1.id, 1, '2026-11-05', 18.5, 1, reservas),
   'entrenamiento',
-  'Jueves a las 18:00 debe detectar entrenamiento',
+  'Jueves a las 18:30 debe detectar entrenamiento',
 )
 
 console.log('✔ editarReservaAdmin.check.ts OK')

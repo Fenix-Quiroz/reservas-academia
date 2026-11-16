@@ -1,7 +1,7 @@
 // Corre con: npm run check
 import assert from 'node:assert/strict'
 import { chocan, horarios, masCercana, rangoHablado, deCliente, sePuedeCancelar, ocultarHorariosPasados, esDuracionValida, esBloqueAislado, fechaISO, sumarDias, DURACION_BLOQUE, rangoLibre } from './reservas'
-import { entrenamientoBloquea } from './horariosEntrenamiento'
+import { entrenamientoBloquea, horariosEntrenamiento } from './horariosEntrenamiento'
 import { horaVisible, rangoVisible } from './utils/fechasReserva'
 import type { Reserva } from './types'
 
@@ -33,9 +33,13 @@ assert.ok(!lista.find((h) => h.inicio === 20)!.libre, '8pm ocupada por la reserv
 assert.ok(horarios([r(20, 1, { estado: 'cancelado' })], 1, '2026-10-20', 1, ahora).find((h) => h.inicio === 20)!.libre, 'una cancelada libera la hora')
 assert.equal(horarios([], 1, '2026-10-20', 2, ahora).at(-1)!.inicio, 23, 'última de 2h empieza a las 11pm')
 assert.equal(horarios([], 1, '2026-10-25', 3, ahora).at(-1)!.inicio, 22, 'última de 3h empieza a las 10pm')
-assert.ok(horarios([], 1, '2026-10-20', 1, ahora).find((h) => h.inicio === 15 && !h.libre), 'el entrenamiento del martes bloquea las 3pm')
-assert.ok(horarios([], 1, '2026-10-20', 1, ahora).find((h) => h.inicio === 19 && !h.libre), 'el entrenamiento hasta las 7:55pm bloquea las 7pm')
-assert.ok(horarios([], 1, '2026-10-20', 1.5, ahora).find((h) => h.inicio === 19 && !h.libre), 'una duración de 1.5h también cruza el entrenamiento')
+assert.ok(!entrenamientoBloquea(1, 1, 16, 1), 'el lunes de 4:00 a 5:25pm de C1 queda libre')
+assert.ok(entrenamientoBloquea(1, 1, 17.5, 1), 'el lunes de 5:30 a 6:55pm de C1 queda bloqueado')
+assert.ok(!entrenamientoBloquea(1, 1, 19, 1), 'el lunes de 7:00 a 8:25pm de C1 queda libre')
+assert.ok(!entrenamientoBloquea(3, 2, 15.5, 1), 'el martes de 3:30 a 4:30pm de C3 queda libre')
+assert.ok(entrenamientoBloquea(3, 2, 17, 1), 'el martes de 5:00 a 6:25pm de C3 queda bloqueado')
+assert.ok(entrenamientoBloquea(3, 2, 18.5, 1), 'una de las mitades ocupadas de C3 bloquea todo el campo')
+assert.equal(horariosEntrenamiento().length, 37, 'el calendario nuevo conserva C4 y carga los bloqueos de C1-C3')
 assert.ok(horarios([], 1, '2026-10-20', 1, ahora).find((h) => h.inicio === 20 && h.libre), 'las 8pm quedan libres después del entrenamiento')
 assert.ok(!horarios([], 1, '2026-10-20', 2, ahora).find((h) => h.inicio === 14)!.libre, 'una reserva de 2h que cruza el entrenamiento queda ocupada')
 assert.equal(esDuracionValida(2.5), true, 'acepta una duración de 2.5 horas')

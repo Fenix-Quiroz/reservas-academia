@@ -164,20 +164,22 @@ console.log('   ✔ Validación de comprobantes de pago OK.')
 console.log('\n3. Probando generación de agenda de disponibilidad (horarios)...')
 
 const fechaTest = '2099-06-15' // Lunes (día de semana 1)
-// En cancha 1, lunes tiene entrenamiento de academia de 960m (16:00) a 1225m (20:25)
+// En cancha 1, lunes solo quedan bloqueados los bloques de 17:30 a 18:55.
 const horasDisponiblesLunes = horarios([], 1, fechaTest, 1, new Date('2090-01-01T12:00:00'))
 
 const bloque15 = horasDisponiblesLunes.find((h) => h.inicio === 15)
 const bloque16 = horasDisponiblesLunes.find((h) => h.inicio === 16)
+const bloque17 = horasDisponiblesLunes.find((h) => h.inicio === 17)
 const bloque18 = horasDisponiblesLunes.find((h) => h.inicio === 18)
+const bloque19 = horasDisponiblesLunes.find((h) => h.inicio === 19)
 const bloque20 = horasDisponiblesLunes.find((h) => h.inicio === 20)
-const bloque21 = horasDisponiblesLunes.find((h) => h.inicio === 21)
 
 assert.equal(bloque15?.libre, true, '15:00 a 16:00 debe estar libre antes del entrenamiento')
-assert.equal(bloque16?.libre, false, '16:00 a 17:00 debe estar bloqueado por entrenamiento de academia')
+assert.equal(bloque16?.libre, true, '16:00 a 17:00 debe estar libre antes del entrenamiento')
+assert.equal(bloque17?.libre, false, '17:00 a 18:00 debe cruzar el entrenamiento de academia')
 assert.equal(bloque18?.libre, false, '18:00 a 19:00 debe estar bloqueado por entrenamiento de academia')
-assert.equal(bloque20?.libre, false, '20:00 a 21:00 debe estar bloqueado por entrenamiento de academia (termina 20:25)')
-assert.equal(bloque21?.libre, true, '21:00 a 22:00 debe estar libre después del entrenamiento')
+assert.equal(bloque19?.libre, true, '19:00 a 20:00 debe quedar libre después del entrenamiento')
+assert.equal(bloque20?.libre, true, '20:00 a 21:00 debe quedar libre después del entrenamiento')
 
 console.log('   ✔ Entrenamientos de la academia bloquean correctamente los horarios del cliente.')
 

@@ -18,6 +18,7 @@ Sin esas variables, la aplicación funciona con el modo demo local. Con Supabase
 3. Si la base ya existía, ejecuta también `supabase/fix-monto-reservas.sql` para que las nuevas reservas guarden su precio real.
 4. Para activar los estados de inasistencia, los números bloqueados y los clientes confiables, ejecuta `supabase/fix-control-clientes.sql`.
 5. Ejecuta `supabase/fix-horarios-academia.sql` para convertir `horas` a `numeric(2,1)`, habilitar reservas de `1`, `1.5`, `2` o `3` horas, cargar los entrenamientos semanales, el horario de atención y los precios reales en la API pública.
+   Para una base ya operativa que solo necesita reemplazar la programación de fútbol, ejecuta `supabase/fix-horarios-academia-programacion.sql`; esta migración no cambia tipos, triggers, reservas ni C4/vóley.
 6. La misma migración crea `bloqueos_eventos`: desde el panel, el encargado puede bloquear eventos de 5 o más horas. Esos rangos aparecen como no disponibles para clientes y no exponen los detalles del evento.
 7. En Database > Publications, confirma que `reservas` esté en `supabase_realtime`.
 8. En Authentication, crea el usuario del encargado y asígnale `app_metadata.role = admin`.
@@ -43,7 +44,7 @@ En Supabase hospedado, `SUPABASE_SERVICE_ROLE_KEY` es una variable reservada que
 
 El panel se abre en `/admin` y requiere iniciar sesión. La vista pública de clientes no requiere cuenta.
 
-Las reservas comienzan en horas enteras y pueden durar una hora, una hora y media, dos o tres horas. El precio se calcula proporcionalmente al precio por hora de cada campo. El orden recomendado para una base existente es ejecutar `fix-monto-reservas.sql`, `fix-control-clientes.sql` y finalmente `fix-horarios-academia.sql`; este último reemplaza las funciones públicas con sus firmas decimales.
+Las reservas comienzan en horas enteras y pueden durar una hora, una hora y media, dos o tres horas. El precio se calcula proporcionalmente al precio por hora de cada campo. El orden recomendado para una base existente es ejecutar `fix-monto-reservas.sql`, `fix-control-clientes.sql` y finalmente `fix-horarios-academia.sql`; este último reemplaza las funciones públicas con sus firmas decimales. Para cambiar únicamente la programación de C1, C2 y C3 sin tocar una base ya operativa, usa `fix-horarios-academia-programacion.sql`.
 
 Los eventos especiales no son reservas públicas ni se incluyen todavía en el balance mensual: son bloqueos administrativos para torneos y actividades largas. Al cancelarlos se conserva el histórico y se libera el rango para futuras reservas.
 
