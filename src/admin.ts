@@ -1,5 +1,5 @@
 import type { Campo, FiltrosAdmin, Reserva } from './types.js'
-import { activa, fechaISO } from './reservas.js'
+import { activa, estaEnCurso, fechaISO } from './reservas.js'
 
 type CanchaAdmin = Pick<Campo, 'id' | 'nombre' | 'precioHora'>
 
@@ -19,10 +19,7 @@ export const precioDeReserva = (reserva: Reserva, canchas: CanchaAdmin[]): numbe
 export const ordenarReservas = (a: Reserva, b: Reserva): number =>
   a.fecha.localeCompare(b.fecha) || a.inicio - b.inicio || a.canchaId - b.canchaId
 
-const enCursoPorHora = (reserva: Reserva, ahora: Date): boolean =>
-  reserva.fecha === fechaISO(ahora)
-  && reserva.inicio <= ahora.getHours() + ahora.getMinutes() / 60
-  && reserva.inicio + reserva.horas > ahora.getHours() + ahora.getMinutes() / 60
+const enCursoPorHora = (reserva: Reserva, ahora: Date): boolean => estaEnCurso(reserva, ahora)
 
 const esEnCurso = (reserva: Reserva, ahora: Date): boolean =>
   reserva.estado === 'iniciado' || (reserva.estado === 'activo' && enCursoPorHora(reserva, ahora))

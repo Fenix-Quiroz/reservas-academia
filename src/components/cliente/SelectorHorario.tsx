@@ -1,5 +1,5 @@
 import { Fragment, type RefObject } from 'react'
-import { CIERRA_ADMIN_FUERA_HORARIO, DURACION_BLOQUE, esBloqueAislado, rangoLibre, type HorarioDisponible } from '../../reservas'
+import { CIERRA, DURACION_BLOQUE, esBloqueAislado, rangoLibre, type HorarioDisponible } from '../../reservas'
 import type { Campo } from '../../types.js'
 import type { EtapaHorario, TurnoHorario } from '../../borradorReserva'
 
@@ -24,7 +24,7 @@ const GRUPOS = [
   // `hasta` es exclusivo: 13 representa la 1:00 p. m., 19 las 7:00 p. m.
   { clave: 'manana', nombre: 'Mañana', icono: '🌅', desde: 7, hasta: 13 },
   { clave: 'tarde', nombre: 'Tarde', icono: '☀️', desde: 13, hasta: 19 },
-  { clave: 'noche', nombre: 'Noche', icono: '🌙', desde: 19, hasta: 25 },
+  { clave: 'noche', nombre: 'Noche', icono: '🌙', desde: 19, hasta: CIERRA },
 ] as const
 
 export interface SelectorHorarioProps {
@@ -47,7 +47,6 @@ export interface SelectorHorarioProps {
   onClearHour: () => void
   onConfirmHour: () => void
   tituloRef: RefObject<HTMLHeadingElement | null>
-  fueraDeHorario?: boolean
 }
 
 export default function SelectorHorario({
@@ -70,13 +69,10 @@ export default function SelectorHorario({
   onClearHour,
   onConfirmHour,
   tituloRef,
-  fueraDeHorario = false,
 }: SelectorHorarioProps) {
   const setEtapa = onEtapaChange
   const grupoSeleccionado = GRUPOS.find((grupo) => grupo.clave === turno)
-  const limiteTurno = grupoSeleccionado?.clave === 'noche' && fueraDeHorario
-    ? CIERRA_ADMIN_FUERA_HORARIO
-    : grupoSeleccionado?.hasta ?? 25
+  const limiteTurno = grupoSeleccionado?.hasta ?? CIERRA
 
   // Rango base con tolerancia de inicio en fronteras:
   // - En la Tarde, se incluye 12:30 p. m. (12.5) para que quien busque al mediodía pueda empezar aquí
@@ -85,7 +81,7 @@ export default function SelectorHorario({
     ? grupoSeleccionado.clave === 'tarde'
       ? 12.5
       : grupoSeleccionado.clave === 'noche'
-        ? fueraDeHorario ? 19 : 18.5
+        ? 18.5
         : grupoSeleccionado.desde
     : 7
 
@@ -147,15 +143,13 @@ export default function SelectorHorario({
     const nuevoDesde = nuevoTurno === 'tarde'
       ? 12.5
       : nuevoTurno === 'noche'
-        ? fueraDeHorario ? 19 : 18.5
+        ? 18.5
         : nuevoGrupo.desde
     const nuevoHasta = nuevoTurno === 'manana'
       ? 13
       : nuevoTurno === 'tarde'
         ? 19
-        : fueraDeHorario
-          ? CIERRA_ADMIN_FUERA_HORARIO
-          : nuevoGrupo.hasta
+        : nuevoGrupo.hasta
     if (inicio !== null) {
       const fin = inicio + horas
       const estaEnRango = (inicio >= nuevoDesde && inicio < nuevoHasta) || (fin > nuevoDesde && fin <= nuevoHasta)

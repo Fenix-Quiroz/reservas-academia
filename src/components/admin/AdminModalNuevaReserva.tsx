@@ -4,7 +4,6 @@ import { X } from 'lucide-react'
 import canchas from '../../data/canchas.json'
 import {
   crearReserva,
-  crearReservaAdminFueraHorario,
   cancelarReserva,
   registrarCliente,
   eliminarTokenReserva,
@@ -13,14 +12,13 @@ import {
 import { supabaseConfigurado } from '../../supabase'
 import {
   cancelarReservaPublicaRemota,
-  leerHorariosAdminFueraHorarioRemotos,
   leerHorariosRemotos,
   precalentarRegistrarAdelantoYapeRemoto,
   registrarAdelantoYapeRemoto,
   verificarNumeroConfiableRemoto,
 } from '../../supabaseData'
 import type { ErrorReservaPublica, ResultadoCliente, ResultadoPago } from '../../supabaseData'
-import { horarios, masCercana, fechaISO, sumarDias, CIERRA, CIERRA_ADMIN_FUERA_HORARIO, DURACION_BLOQUE } from '../../reservas'
+import { horarios, masCercana, fechaISO, sumarDias, CIERRA, DURACION_BLOQUE } from '../../reservas'
 import type { HorarioDisponible } from '../../reservas'
 import { optimizarComprobante, validarComprobante } from '../../pagos'
 import type { BloqueoEvento, Campo, Cliente, Reserva } from '../../types.js'
@@ -67,7 +65,6 @@ export default function AdminModalNuevaReserva({
   const [semanaHorario, setSemanaHorario] = useState(0)
   const [horariosDisponibles, setHorariosDisponibles] = useState<HorarioDisponible[]>([])
   const [cargandoHorarios, setCargandoHorarios] = useState(false)
-  const [fueraDeHorario, setFueraDeHorario] = useState(false)
   const [errorConexion, setErrorConexion] = useState('')
   const [yo, setYo] = useState<Cliente | null>(() => clienteInicial
     ? { alias: clienteInicial.alias, celular: clienteInicial.celular }
@@ -115,15 +112,10 @@ export default function AdminModalNuevaReserva({
             DURACION_BLOQUE,
             new Date(),
             bloqueosEventos,
-            fueraDeHorario ? CIERRA_ADMIN_FUERA_HORARIO : CIERRA,
-          ).filter((horario) => !fueraDeHorario || horario.inicio >= CIERRA)
+            CIERRA,
+          )
         if (!montado) return
-        const especiales = fueraDeHorario && supabaseConfigurado
-          ? await leerHorariosAdminFueraHorarioRemotos(cancha.id, fecha)
-          : []
-        if (!montado) return
-        const porInicio = new Map([...actuales, ...especiales].map((horario) => [horario.inicio, horario]))
-        setHorariosDisponibles([...porInicio.values()].sort((a, b) => a.inicio - b.inicio))
+        setHorariosDisponibles([...actuales].sort((a, b) => a.inicio - b.inicio))
         setErrorConexion('')
       } catch {
         if (montado) setErrorConexion('No pudimos cargar los horarios. Revisa la conexión e inténtalo de nuevo.')
@@ -135,7 +127,7 @@ export default function AdminModalNuevaReserva({
     return () => {
       montado = false
     }
-  }, [paso, cancha, fecha, reservas, bloqueosEventos, fueraDeHorario])
+  }, [paso, cancha, fecha, reservas, bloqueosEventos])
 
   async function cancelarPendiente(): Promise<void> {
     const pendiente = reservaPendienteRef.current
@@ -166,17 +158,8 @@ export default function AdminModalNuevaReserva({
     setEtapaHorario('dia')
     setTurnoHorario(null)
     setSemanaHorario(0)
-    setFueraDeHorario(false)
     setErrorConexion('')
     setPaso(2)
-  }
-
-  function cambiarFueraDeHorario(permitir: boolean): void {
-    setFueraDeHorario(permitir)
-    if (inicio !== null && (permitir ? inicio >= CIERRA - DURACION_BLOQUE : inicio >= CIERRA)) {
-      setInicio(null)
-      setHoras(1)
-    }
   }
 
   async function retroceder(): Promise<void> {
@@ -206,12 +189,7 @@ export default function AdminModalNuevaReserva({
         montoTotal: cancha.precioHora * horas,
         ...cliente,
       }
-      const esReservaFueraDeHorario = fueraDeHorario && hora >= CIERRA
-      const resultado = await Promise.resolve(
-        esReservaFueraDeHorario
-          ? crearReservaAdminFueraHorario(nuevaReserva)
-          : crearReserva(nuevaReserva, sinAdelanto),
-      )
+      const resultado = await Promise.resolve(crearReserva(nuevaReserva, sinAdelanto))
 
       if ('reserva' in resultado) {
         if (resultado.token) guardarTokenReserva(resultado.reserva.id, resultado.token, cliente.celular)
@@ -226,11 +204,7 @@ export default function AdminModalNuevaReserva({
         if (supabaseConfigurado) {
           try {
             actuales = await leerHorariosRemotos(cancha.id, fecha)
-            const especiales = fueraDeHorario
-              ? await leerHorariosAdminFueraHorarioRemotos(cancha.id, fecha)
-              : []
-            const porInicio = new Map([...actuales, ...especiales].map((horario) => [horario.inicio, horario]))
-            setHorariosDisponibles([...porInicio.values()].sort((a, b) => a.inicio - b.inicio))
+            setHorariosDisponibles([...actuales].sort((a, b) => a.inicio - b.inicio))
           } catch {
             // Conserva la disponibilidad anterior para orientar al administrador.
           }
@@ -283,7 +257,6 @@ export default function AdminModalNuevaReserva({
     setTurnoHorario(null)
     setSemanaHorario(0)
     setHorariosDisponibles([])
-    setFueraDeHorario(false)
     setHecha(null)
     setErrorConexion('')
   }
@@ -315,21 +288,6 @@ export default function AdminModalNuevaReserva({
       )}
       {paso === 2 && cancha && (
         <div className="admin-modal-reserva-paso main-horario">
-          {clienteInicial && (
-            <div className="admin-horario-especial-control">
-              <label>
-                <input
-                  type="checkbox"
-                  checked={fueraDeHorario}
-                  onChange={(evento) => cambiarFueraDeHorario(evento.target.checked)}
-                />
-                <span>Permitir reserva fuera de horario hasta las 2:30 a. m.</span>
-              </label>
-              {fueraDeHorario && (
-                <p>Solo aplica a este cliente confiable. También se validará que el horario esté libre.</p>
-              )}
-            </div>
-          )}
           <SelectorHorario
             tituloRef={tituloRef}
             cancha={cancha}
@@ -350,7 +308,6 @@ export default function AdminModalNuevaReserva({
             onSelectHour={setInicio}
             onClearHour={() => setInicio(null)}
             onConfirmHour={() => setPaso(3)}
-            fueraDeHorario={fueraDeHorario}
           />
         </div>
       )}

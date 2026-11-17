@@ -7,8 +7,9 @@ import { eventoBloquea } from './eventos.js'
 // Cuando conectemos Supabase, este archivo se queda igual.
 
 export const ABRE = 7
-export const CIERRA = 25
-export const CIERRA_ADMIN_FUERA_HORARIO = 26.5
+export const CIERRA = 27
+export const CIERRA_ADMIN_FUERA_HORARIO = CIERRA
+const INICIO_ADMIN_FUERA_HORARIO = 25
 export const DURACION_BLOQUE = 0.5 as const
 export const DURACIONES_RESERVA = [0.5, 1, 1.5, 2, 2.5, 3] as const
 
@@ -17,7 +18,7 @@ export const esDuracionValida = (horas: number): boolean =>
 
 export function esHorarioAdminFueraHorarioValido(inicio: number, horas: number): boolean {
   return esDuracionValida(horas)
-    && inicio >= CIERRA
+    && inicio >= INICIO_ADMIN_FUERA_HORARIO
     && inicio < CIERRA_ADMIN_FUERA_HORARIO
     && Math.round(inicio * 2) === inicio * 2
     && inicio + horas <= CIERRA_ADMIN_FUERA_HORARIO
@@ -25,7 +26,7 @@ export function esHorarioAdminFueraHorarioValido(inicio: number, horas: number):
 
 export function horariosAdminFueraHorario(): HorarioDisponible[] {
   const lista: HorarioDisponible[] = []
-  for (let inicio = CIERRA; inicio < CIERRA_ADMIN_FUERA_HORARIO; inicio += DURACION_BLOQUE) {
+  for (let inicio = INICIO_ADMIN_FUERA_HORARIO; inicio < CIERRA_ADMIN_FUERA_HORARIO; inicio += DURACION_BLOQUE) {
     lista.push({ inicio, libre: true })
   }
   return lista
@@ -128,6 +129,22 @@ export function ocultarHorariosPasados(
   return lista.filter((horario) => horario.inicio > actual.hora)
 }
 
+function instanteReserva(fecha: string, hora: number): number {
+  const [anio, mes, dia] = fecha.split('-').map(Number)
+  const instante = new Date(anio, mes - 1, dia)
+  instante.setMinutes(Math.round(hora * 60))
+  return instante.getTime()
+}
+
+export const estaEnCurso = (
+  reserva: Pick<Reserva, 'fecha' | 'inicio' | 'horas'>,
+  ahora: Date = new Date(),
+): boolean => {
+  const inicio = instanteReserva(reserva.fecha, reserva.inicio)
+  const fin = instanteReserva(reserva.fecha, reserva.inicio + reserva.horas)
+  return inicio <= ahora.getTime() && ahora.getTime() < fin
+}
+
 // La hora libre más cercana a la que el usuario quería
 export function masCercana(lista: HorarioDisponible[], inicio: number, horas?: number): HorarioDisponible | undefined {
   return lista
@@ -140,8 +157,7 @@ export const activa = (r: ReservaHorario, ahora: Date = new Date()): boolean =>
   r.estado !== 'cancelado' &&
   r.estado !== 'finalizado' &&
   r.estado !== 'no_asistio' &&
-  (r.fecha > fechaISO(ahora) ||
-    (r.fecha === fechaISO(ahora) && r.inicio + r.horas > ahora.getHours() + ahora.getMinutes() / 60))
+  instanteReserva(r.fecha, r.inicio + r.horas) > ahora.getTime()
 
 export const MAX_ACTIVAS = 2
 

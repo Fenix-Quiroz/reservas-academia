@@ -6,7 +6,7 @@ begin;
 alter table public.reservas drop constraint if exists reservas_inicio_check;
 alter table public.reservas drop constraint if exists reservas_inicio_horario_check;
 alter table public.reservas add constraint reservas_inicio_horario_check
-  check (inicio between 7 and 25 and inicio * 2 = trunc(inicio * 2));
+  check (inicio between 7 and 27 and inicio * 2 = trunc(inicio * 2));
 
 drop function if exists public.obtener_horarios_admin_fuera_horario(integer, date, numeric);
 
@@ -62,7 +62,7 @@ begin
           and numrange(r.inicio, r.inicio + r.horas, '[)')
             && numrange(serie.media_hora / 2.0, serie.media_hora / 2.0 + p_horas, '[)')
       ) as libre
-  from generate_series(50, floor((26.5 - p_horas) * 2)::integer) as serie(media_hora)
+  from generate_series(50, floor((27 - p_horas) * 2)::integer) as serie(media_hora)
   where (p_fecha <> v_hoy or serie.media_hora / 2.0 > v_hora_actual)
   order by serie.media_hora;
 end;
@@ -131,10 +131,10 @@ begin
   end if;
 
   if p_inicio < 25
-     or p_inicio >= 26.5
+     or p_inicio >= 27
      or p_inicio * 2 <> trunc(p_inicio * 2)
      or p_horas not in (0.5, 1, 1.5, 2, 2.5, 3)
-     or p_inicio + p_horas > 26.5 then
+     or p_inicio + p_horas > 27 then
     raise exception using errcode = '22023', message = 'horario_fuera_horario_invalido';
   end if;
 
@@ -188,7 +188,8 @@ begin
     from public.reservas as reserva
     where reserva.celular = v_celular
       and reserva.estado not in ('cancelado', 'finalizado')
-      and reserva.fecha >= v_hoy
+      and reserva.fecha::timestamp + (reserva.inicio + reserva.horas) * interval '1 hour'
+        > timezone('America/Lima', now())
   ) >= 2 then
     raise exception using errcode = 'P0001', message = 'limite_reservas';
   end if;

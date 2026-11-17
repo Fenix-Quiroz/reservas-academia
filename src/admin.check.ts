@@ -31,6 +31,12 @@ assert.deepEqual(filtrarReservas(reservas, { vista: 'en-curso' }, canchas, ahora
 const mediaHora = { ...reservas[0], id: 'media-hora', inicio: 9, horas: 1.5 }
 assert.equal(filtrarReservas([...reservas, mediaHora], { vista: 'en-curso' }, canchas, new Date('2026-10-17T10:29:00')).some((r) => r.id === 'media-hora'), true)
 assert.equal(filtrarReservas([...reservas, mediaHora], { vista: 'en-curso' }, canchas, new Date('2026-10-17T10:30:00')).some((r) => r.id === 'media-hora'), false)
+const reservaMedianoche: Reserva = { ...reservas[0], id: 'medianoche', fecha: '2026-10-16', inicio: 24, horas: 1 }
+assert.equal(
+  filtrarReservas([...reservas, reservaMedianoche], { vista: 'en-curso' }, canchas, new Date('2026-10-17T00:30:00')).some((r) => r.id === 'medianoche'),
+  true,
+  'una reserva de 12 a 1 debe aparecer en curso a las 12:30am del día siguiente',
+)
 assert.deepEqual(filtrarReservas(reservas, { vista: 'por-revisar' }, canchas, ahora).map((r) => r.id), ['f'])
 assert.deepEqual(filtrarReservas(reservas, { vista: 'finalizadas' }, canchas, ahora).map((r) => r.id), ['c'])
 assert.equal(filtrarReservas(reservas, { vista: 'todas' }, canchas, ahora).some((r) => r.estado === 'finalizado'), false)

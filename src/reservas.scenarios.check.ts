@@ -77,14 +77,14 @@ const todasOcupadas = Array.from({ length: 15 }, (_, i) => ({
   inicio: 7 + i,
   horas: 1,
 }))
-const todasOcupadasHastaLaUna = Array.from({ length: 3 }, (_, i) => ({
+const todasOcupadasHastaLasTres = Array.from({ length: 5 }, (_, i) => ({
   canchaId: 1,
   fecha: '2099-05-17',
   inicio: 22 + i,
   horas: 1,
 }))
 const sinDisponibilidad = horarios(
-  [...todasOcupadas, ...todasOcupadasHastaLaUna],
+  [...todasOcupadas, ...todasOcupadasHastaLasTres],
   1,
   '2099-05-17',
   1,

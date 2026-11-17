@@ -1,6 +1,6 @@
 // Corre con: npm run check
 import assert from 'node:assert/strict'
-import { chocan, horarios, masCercana, rangoHablado, deCliente, sePuedeCancelar, ocultarHorariosPasados, esDuracionValida, esBloqueAislado, fechaISO, sumarDias, DURACION_BLOQUE, rangoLibre } from './reservas'
+import { activa, chocan, horarios, masCercana, rangoHablado, deCliente, sePuedeCancelar, ocultarHorariosPasados, esDuracionValida, esBloqueAislado, fechaISO, sumarDias, DURACION_BLOQUE, rangoLibre, CIERRA, CIERRA_ADMIN_FUERA_HORARIO, esHorarioAdminFueraHorarioValido } from './reservas'
 import { entrenamientoBloquea, horariosEntrenamiento } from './horariosEntrenamiento'
 import { horaVisible, rangoVisible } from './utils/fechasReserva'
 import type { Reserva } from './types'
@@ -25,14 +25,20 @@ assert.ok(!chocan(r(8, 1), r(8, 1, { canchaId: 2 })), 'otra cancha no choca')
 assert.ok(!chocan(r(8, 1), r(8, 1, { fecha: '2026-10-21' })), 'otro día no choca')
 
 const ahora = new Date('2026-10-19T12:00')
+const reservaMedianoche = r(24, 1, { fecha: '2026-10-19' })
+assert.equal(activa(reservaMedianoche, new Date('2026-10-20T00:30')), true, 'una reserva de 12 a 1 sigue activa después de medianoche')
+assert.equal(activa(reservaMedianoche, new Date('2026-10-20T01:00')), false, 'una reserva de 12 a 1 termina a la 1am real')
 assert.equal(fechaISO(sumarDias(13, new Date('2026-10-24T12:00'))), '2026-11-06', 'el selector puede llegar hasta 13 días después de hoy')
+assert.equal(CIERRA, 27, 'el horario público termina a las 3am operativas')
+assert.equal(CIERRA_ADMIN_FUERA_HORARIO, 27, 'el flujo administrativo conserva el mismo cierre de las 3am')
+assert.equal(esHorarioAdminFueraHorarioValido(26.5, 0.5), true, 'el admin puede reservar el bloque de 2:30 a 3am')
 const lista = horarios([r(19, 2)], 1, '2026-10-20', 1, ahora)
 assert.equal(lista[0]!.inicio, 7, 'abre a las 7')
-assert.equal(lista.at(-1)!.inicio, 24, 'última hora de 1h empieza a medianoche')
+assert.equal(lista.at(-1)!.inicio, 26, 'última hora de 1h empieza a las 2am y termina a las 3am')
 assert.ok(!lista.find((h) => h.inicio === 20)!.libre, '8pm ocupada por la reserva 7-9')
 assert.ok(horarios([r(20, 1, { estado: 'cancelado' })], 1, '2026-10-20', 1, ahora).find((h) => h.inicio === 20)!.libre, 'una cancelada libera la hora')
-assert.equal(horarios([], 1, '2026-10-20', 2, ahora).at(-1)!.inicio, 23, 'última de 2h empieza a las 11pm')
-assert.equal(horarios([], 1, '2026-10-25', 3, ahora).at(-1)!.inicio, 22, 'última de 3h empieza a las 10pm')
+assert.equal(horarios([], 1, '2026-10-20', 2, ahora).at(-1)!.inicio, 25, 'última de 2h empieza a la 1am y termina a las 3am')
+assert.equal(horarios([], 1, '2026-10-25', 3, ahora).at(-1)!.inicio, 24, 'última de 3h empieza a medianoche y termina a las 3am')
 assert.ok(!entrenamientoBloquea(1, 1, 16, 1), 'el lunes de 4:00 a 5:25pm de C1 queda libre')
 assert.ok(entrenamientoBloquea(1, 1, 17.5, 1), 'el lunes de 5:30 a 6:55pm de C1 queda bloqueado')
 assert.ok(!entrenamientoBloquea(1, 1, 19, 1), 'el lunes de 7:00 a 8:25pm de C1 queda libre')
@@ -74,7 +80,8 @@ assert.deepEqual(
   [7, 7.5, 8, 8.5],
   'genera inicios cada 30 minutos',
 )
-assert.equal(horarios([], 1, '2026-10-25', 2.5, ahora).at(-1)!.inicio, 22.5, '2.5h puede terminar a la 1am')
+assert.equal(horarios([], 1, '2026-10-25', 2.5, ahora).at(-1)!.inicio, 24.5, '2.5h puede terminar a las 3am')
+assert.equal(horarios([r(26, 1, { fecha: '2026-10-25' })], 1, '2026-10-25', 1, ahora).find((h) => h.inicio === 26)!.libre, false, 'una reserva actual de 2 a 3am sigue bloqueando ese horario')
 const reservaMediaHora = horarios([r(9.5, 1, { fecha: '2026-10-25' })], 1, '2026-10-25', 1, ahora)
 assert.equal(reservaMediaHora.find((h) => h.inicio === 10)!.libre, false, '10:00 se solapa con 9:30-10:30')
 assert.equal(reservaMediaHora.find((h) => h.inicio === 10.5)!.libre, true, '10:30 queda libre después de 9:30-10:30')
