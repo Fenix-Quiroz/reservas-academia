@@ -4,7 +4,6 @@ import {
   Calendar,
   Check,
   CheckCircle2,
-  Clock,
   Copy,
   Gift,
   HelpCircle,
@@ -12,6 +11,7 @@ import {
   RotateCcw,
   ShieldCheck,
   Sparkles,
+  Ticket,
   Trophy,
   Users,
   Volume2,
@@ -19,36 +19,26 @@ import {
 } from 'lucide-react'
 import AdminMarca from './AdminMarca'
 import AdminHistorialClientes from './AdminHistorialClientes'
-import datosDemo from '../../data/clientes-frecuentes-demo.json'
-import type { ClienteFrecuente } from '../../clientesFrecuentes'
+import {
+  DATOS_SORTEO_DEMO,
+  crearParticipantesDemo,
+  crearTicketsDemo,
+  ventanaSlot,
+  type TicketSorteo,
+} from '../../sorteoDemo'
+import {
+  INICIO_DESACELERACION_GIRO_DEMO_MS,
+  INTERVALO_GIRO_RAPIDO_DEMO_MS,
+  calcularIntervaloGiroDemo,
+  calcularSaltoRapidoGiroDemo,
+  crearIntervalosDesaceleracionDemo,
+  crearRutaGiroDemo,
+} from '../../sorteoConfiguracion'
 
 export interface AdminSorteosVistaProps {
   onVolver: () => void
 }
 
-export interface TicketSorteo {
-  id: string
-  clienteId: string
-  nombre: string
-  celular: string
-  ticketIndex: number
-  totalTickets: number
-  numeroGlobal: number
-}
-
-export interface ParticipanteSorteo {
-  cliente: ClienteFrecuente
-  tickets: number
-  probabilidad: number
-}
-
-const CARD_WIDTH = 164
-const CARD_GAP = 12
-const CARD_STEP = CARD_WIDTH + CARD_GAP
-const POSICION_GANADOR_STRIP = 96
-const TOTAL_CARDS_STRIP = 135
-
-// Efectos de sonido sintetizados mediante Web Audio API (100% nativo, sin archivos externos)
 function reproducirSonidoTick(frecuencia = 420, duracion = 0.025): void {
   try {
     const AudioCtx = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext
@@ -58,14 +48,14 @@ function reproducirSonidoTick(frecuencia = 420, duracion = 0.025): void {
     const gain = ctx.createGain()
     osc.type = 'triangle'
     osc.frequency.setValueAtTime(frecuencia, ctx.currentTime)
-    gain.gain.setValueAtTime(0.06, ctx.currentTime)
+    gain.gain.setValueAtTime(0.05, ctx.currentTime)
     gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + duracion)
     osc.connect(gain)
     gain.connect(ctx.destination)
     osc.start()
     osc.stop(ctx.currentTime + duracion)
   } catch {
-    // Ignorar si el navegador bloquea audio sin interacción
+    // El navegador puede bloquear Web Audio hasta que exista interacción.
   }
 }
 
@@ -74,560 +64,384 @@ function reproducirSonidoVictoria(): void {
     const AudioCtx = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext
     if (!AudioCtx) return
     const ctx = new AudioCtx()
-    const notas = [523.25, 659.25, 783.99, 1046.50] // Acorde Do Mayor alegre
-    notas.forEach((freq, idx) => {
+    const notas = [523.25, 659.25, 783.99, 1046.5]
+    notas.forEach((frecuencia, index) => {
       const osc = ctx.createOscillator()
       const gain = ctx.createGain()
-      const start = ctx.currentTime + idx * 0.09
+      const inicio = ctx.currentTime + index * 0.09
       osc.type = 'sine'
-      osc.frequency.setValueAtTime(freq, start)
-      gain.gain.setValueAtTime(0.12, start)
-      gain.gain.exponentialRampToValueAtTime(0.001, start + 0.4)
+      osc.frequency.setValueAtTime(frecuencia, inicio)
+      gain.gain.setValueAtTime(0.1, inicio)
+      gain.gain.exponentialRampToValueAtTime(0.001, inicio + 0.4)
       osc.connect(gain)
       gain.connect(ctx.destination)
-      osc.start(start)
-      osc.stop(start + 0.45)
+      osc.start(inicio)
+      osc.stop(inicio + 0.45)
     })
   } catch {
-    // Ignorar
+    // El sonido es decorativo y no debe bloquear el sorteo demo.
   }
+}
+
+function formatearPorcentaje(valor: number): string {
+  return `${valor.toFixed(1)}%`
+}
+
+type PosicionTicketSlot = 'anterior-2' | 'anterior' | 'actual' | 'siguiente' | 'siguiente-2'
+
+const POSICIONES_TICKET_SLOT: PosicionTicketSlot[] = ['anterior-2', 'anterior', 'actual', 'siguiente', 'siguiente-2']
+
+function TicketSlot({ ticket, posicion, ganador }: {
+  ticket: TicketSorteo
+  posicion: PosicionTicketSlot
+  ganador: boolean
+}) {
+  return (
+    <article className={`sorteo-slot-ticket sorteo-slot-ticket-${posicion} ${ganador ? 'sorteo-slot-ticket-ganador' : ''}`}>
+      <div className="sorteo-slot-ticket-topline">
+        <span className="sorteo-slot-ticket-label">
+          <Ticket size={15} aria-hidden="true" />
+          Ticket
+        </span>
+        <span className="sorteo-slot-ticket-order">
+          {ticket.ticketIndex}/{ticket.totalTickets}
+        </span>
+      </div>
+      <strong className="sorteo-slot-ticket-number">#{ticket.numeroGlobal}</strong>
+      <span className="sorteo-slot-ticket-name">{ticket.nombre}</span>
+      <span className="sorteo-slot-ticket-phone">{ticket.celular}</span>
+      {ganador && <span className="sorteo-slot-ticket-winner-label">Ticket ganador</span>}
+    </article>
+  )
 }
 
 export default function AdminSorteosVista({ onVolver }: AdminSorteosVistaProps) {
   const [girando, setGirando] = useState(false)
   const [ganador, setGanador] = useState<TicketSorteo | null>(null)
-  const [offsetRueda, setOffsetRueda] = useState(0)
-  const [duracionAnimacion, setDuracionAnimacion] = useState(0)
+  const [indiceVisible, setIndiceVisible] = useState(0)
   const [copiado, setCopiado] = useState(false)
   const [sonidoHabilitado, setSonidoHabilitado] = useState(true)
-  const [tabActual, setTabActual] = useState<'tambor' | 'probabilidades' | 'historial'>('tambor')
+  const [tabActual, setTabActual] = useState<'sorteo' | 'historial'>('sorteo')
+  const temporizadorPasoGiroRef = useRef<number | null>(null)
 
-  const contenedorRef = useRef<HTMLDivElement>(null)
-  const trackRef = useRef<HTMLDivElement>(null)
-  const ticketElegidoRef = useRef<TicketSorteo | null>(null)
-  const animacionCompletadaRef = useRef(false)
-  const temporizadoresTick = useRef<number[]>([])
+  const participantes = useMemo(() => crearParticipantesDemo(DATOS_SORTEO_DEMO), [])
+  const tickets = useMemo(() => crearTicketsDemo(participantes), [participantes])
+  const ticketsSlot = useMemo(() => ventanaSlot(tickets, indiceVisible), [tickets, indiceVisible])
+  const totalTickets = tickets.length
+  const totalParticipantes = participantes.length
+  const promedioTickets = totalParticipantes > 0 ? (totalTickets / totalParticipantes).toFixed(1) : '0.0'
+  const clienteGanador = ganador ? participantes.find((participante) => participante.cliente.id === ganador.clienteId) : null
 
-  // 1. Calcular los participantes y sus tickets de la campaña activa (1 reserva = 1 ticket)
-  const { participantes, totalTickets, ticketsIntercalados } = useMemo(() => {
-    const listado: ParticipanteSorteo[] = datosDemo.map((c) => ({
-      cliente: c,
-      tickets: c.reservasMes,
-      probabilidad: 0,
-    }))
-
-    const total = listado.reduce((acc, p) => acc + p.tickets, 0)
-
-    listado.forEach((p) => {
-      p.probabilidad = total > 0 ? Math.round((p.tickets / total) * 1000) / 10 : 0
-    })
-
-    // Algoritmo de dispersión: Intercalar tickets para que los de una misma persona NO queden juntos
-    const colas = listado.map((p) => ({
-      clienteId: p.cliente.id,
-      nombre: p.cliente.nombre,
-      celular: p.cliente.celular,
-      totalTickets: p.tickets,
-      restantes: p.tickets,
-    })).sort((a, b) => b.restantes - a.restantes)
-
-    const intercalados: TicketSorteo[] = []
-    let ultimoId = ''
-    let penultimoId = ''
-
-    for (let i = 0; i < total; i += 1) {
-      let mejor = colas.find((c) => c.restantes > 0 && c.clienteId !== ultimoId && c.clienteId !== penultimoId)
-      if (!mejor) {
-        mejor = colas.find((c) => c.restantes > 0 && c.clienteId !== ultimoId)
-      }
-      if (!mejor) {
-        mejor = colas.find((c) => c.restantes > 0)
-      }
-      if (!mejor) break
-
-      const numTicketCliente = mejor.totalTickets - mejor.restantes + 1
-      intercalados.push({
-        id: `${mejor.clienteId}-t${numTicketCliente}`,
-        clienteId: mejor.clienteId,
-        nombre: mejor.nombre,
-        celular: mejor.celular,
-        ticketIndex: numTicketCliente,
-        totalTickets: mejor.totalTickets,
-        numeroGlobal: i + 1,
-      })
-
-      mejor.restantes -= 1
-      penultimoId = ultimoId
-      ultimoId = mejor.clienteId
-      colas.sort((a, b) => b.restantes - a.restantes)
-    }
-
-    return {
-      participantes: listado.sort((a, b) => b.tickets - a.tickets),
-      totalTickets: total,
-      ticketsIntercalados: intercalados,
-    }
-  }, [])
-
-  // 2. Strip de tarjetas para el tambor horizontal
-  const [stripTarjetas, setStripTarjetas] = useState<TicketSorteo[]>([])
-
-  // Función constructora de tira con espectro completo (para que pasen tickets de todo el rango 1..N)
-  function armarTiraEspectroCompleto(
-    tickets: TicketSorteo[],
-    ticketGanador: TicketSorteo | null,
-  ): TicketSorteo[] {
-    const tira: TicketSorteo[] = []
-    const total = tickets.length
-    if (total === 0) return tira
-
-    for (let i = 0; i < TOTAL_CARDS_STRIP; i += 1) {
-      if (ticketGanador && i === POSICION_GANADOR_STRIP) {
-        tira.push(ticketGanador)
-      } else if (ticketGanador && Math.abs(i - POSICION_GANADOR_STRIP) <= 5) {
-        // En los alrededores inmediatos del ganador durante la frenada final, colocar boletos reales adyacentes
-        const offset = i - POSICION_GANADOR_STRIP
-        const indiceReal = (ticketGanador.numeroGlobal - 1 + offset + total) % total
-        tira.push(tickets[indiceReal])
-      } else {
-        // En el resto del tambor (especialmente al inicio y alta velocidad):
-        // Mapear de forma que se recorra TODO el rango (boletos del #1 al #374 repetidas veces)
-        // Usamos una progresión que garantiza que tickets de los cientos 300, 200, 100 y 10 pasen por pantalla
-        const salto = Math.floor((i * (total / 12) + (i % 5) * 17)) % total
-        tira.push(tickets[salto] ?? tickets[i % total])
-      }
-    }
-    return tira
+  function limpiarTemporizadores(): void {
+    if (temporizadorPasoGiroRef.current !== null) window.clearTimeout(temporizadorPasoGiroRef.current)
+    temporizadorPasoGiroRef.current = null
   }
 
-  useEffect(() => {
-    // Al cambiar el periodo o iniciar, armar la tira inicial mostrando diversidad de tickets
-    if (ticketsIntercalados.length === 0) return
-    const tiraInicial = armarTiraEspectroCompleto(ticketsIntercalados, null)
-    setStripTarjetas(tiraInicial)
-    setOffsetRueda(0)
-    setDuracionAnimacion(0)
-    setGanador(null)
-  }, [ticketsIntercalados])
+  useEffect(() => () => limpiarTemporizadores(), [])
 
-  // Limpiar temporizadores de sonido al desmontar
-  useEffect(() => {
-    return () => {
-      temporizadoresTick.current.forEach((id) => window.clearTimeout(id))
-    }
-  }, [])
+  function girarSorteo(): void {
+    if (girando || tickets.length === 0) return
 
-  // 3. Ejecución del giro del tambor
-  function finalizarGiro(): void {
-    if (animacionCompletadaRef.current) return
-    animacionCompletadaRef.current = true
-    setGirando(false)
-    if (ticketElegidoRef.current) {
-      setGanador(ticketElegidoRef.current)
-    }
-    if (sonidoHabilitado) {
-      reproducirSonidoVictoria()
-    }
-  }
-
-  function girarTambor(): void {
-    if (girando || ticketsIntercalados.length === 0) return
-
+    limpiarTemporizadores()
+    const indiceGanador = Math.floor(Math.random() * tickets.length)
+    const rutaGiro = crearRutaGiroDemo(indiceVisible, indiceGanador, tickets.length)
+    const intervalosDesaceleracion = crearIntervalosDesaceleracionDemo()
+    let indiceActual = indiceVisible
+    let pasoRapido = 0
+    let pasoDesaceleracion = 0
+    const inicioGiro = performance.now()
     setGirando(true)
     setGanador(null)
-    animacionCompletadaRef.current = false
 
-    // Limpiar temporizadores de ticks anteriores
-    temporizadoresTick.current.forEach((id) => window.clearTimeout(id))
-    temporizadoresTick.current = []
+    const avanzarSlot = (): void => {
+      const transcurrido = performance.now() - inicioGiro
 
-    // 1. ELECCIÓN MATEMÁTICA REAL Y EQUITATIVA ENTRE TODOS LOS TICKETS (1..N)
-    // Cada uno de los N tickets tiene exactamente 1/N de probabilidad de ganar
-    const indiceGanadorPool = Math.floor(Math.random() * ticketsIntercalados.length)
-    const ticketElegido = ticketsIntercalados[indiceGanadorPool]
-    ticketElegidoRef.current = ticketElegido
+      if (transcurrido < INICIO_DESACELERACION_GIRO_DEMO_MS) {
+        indiceActual = (indiceActual + calcularSaltoRapidoGiroDemo(tickets.length, pasoRapido)) % tickets.length
+        setIndiceVisible(indiceActual)
+        if (sonidoHabilitado && pasoRapido % 5 === 0) reproducirSonidoTick(440 + (pasoRapido % 3) * 50)
+        pasoRapido += 1
 
-    // 2. Construir la tira que recorre boletos de todo el bombo y se frena en POSICION_GANADOR_STRIP
-    const nuevaTira = armarTiraEspectroCompleto(ticketsIntercalados, ticketElegido)
-    setStripTarjetas(nuevaTira)
+        const tiempoRestanteRapido = INICIO_DESACELERACION_GIRO_DEMO_MS - transcurrido
+        temporizadorPasoGiroRef.current = window.setTimeout(
+          avanzarSlot,
+          Math.min(INTERVALO_GIRO_RAPIDO_DEMO_MS, Math.max(1, tiempoRestanteRapido)),
+        )
+        return
+      }
 
-    // Reseteo inmediato del DOM y forzado de reflow:
-    // Evita al 100% que el navegador reutilice el offset previo al girar por segunda o tercera vez
-    if (trackRef.current) {
-      trackRef.current.style.transition = 'none'
-      trackRef.current.style.transform = 'translateX(0px)'
-      void trackRef.current.offsetHeight // Fuerza reflow sincrónico en el navegador
+      const paso = rutaGiro[pasoDesaceleracion]
+      if (!paso) return
+
+      indiceActual = paso.indice
+      setIndiceVisible(indiceActual)
+      if (sonidoHabilitado) reproducirSonidoTick(420 + (pasoDesaceleracion % 4) * 35, 0.035)
+      pasoDesaceleracion += 1
+
+      if (pasoDesaceleracion >= rutaGiro.length) {
+        setGanador(tickets[indiceGanador])
+        setGirando(false)
+        temporizadorPasoGiroRef.current = null
+        if (sonidoHabilitado) reproducirSonidoVictoria()
+        return
+      }
+
+      const progresoDesaceleracion = pasoDesaceleracion / (rutaGiro.length - 1)
+      const intervaloBase = intervalosDesaceleracion[pasoDesaceleracion - 1]
+      const intervalo = intervaloBase ?? calcularIntervaloGiroDemo(progresoDesaceleracion)
+      temporizadorPasoGiroRef.current = window.setTimeout(avanzarSlot, intervalo)
     }
 
-    setDuracionAnimacion(0)
-    setOffsetRueda(0)
-
-    // Doble requestAnimationFrame para garantizar que el nuevo frame en 0px se haya pintado antes de transicionar
-    window.requestAnimationFrame(() => {
-      window.requestAnimationFrame(() => {
-        const anchoContenedor = contenedorRef.current?.clientWidth ?? 900
-        const centroContenedor = anchoContenedor / 2
-        const centroTarjetaGanadora = POSICION_GANADOR_STRIP * CARD_STEP + CARD_WIDTH / 2
-        // Jitter aleatorio leve (+/- 14px) para caída realista dentro de la tarjeta
-        const jitter = Math.random() * 28 - 14
-        const offsetFinal = centroTarjetaGanadora - centroContenedor + jitter
-
-        const tiempoGiro = 6.8 // 6.8 segundos de alta emoción con desaceleración progresiva y continua
-        setDuracionAnimacion(tiempoGiro)
-        setOffsetRueda(offsetFinal)
-
-        // Programar ticks de sonido durante la desaceleración visible (de 3.8s a 6.8s)
-        if (sonidoHabilitado) {
-          // Fase media rápida: se empieza a percibir la reducción de velocidad
-          const tiemposFaseMedia = [3.8, 4.15, 4.5, 4.85, 5.2]
-          tiemposFaseMedia.forEach((t) => {
-            const id = window.setTimeout(() => reproducirSonidoTick(500), t * 1000)
-            temporizadoresTick.current.push(id)
-          })
-
-          // Fase final de suspenso: desaceleración tarjeta por tarjeta hasta el centro
-          const tiemposFaseFinal = [5.55, 5.9, 6.2, 6.45, 6.65, 6.8]
-          tiemposFaseFinal.forEach((t, i) => {
-            const id = window.setTimeout(
-              () => reproducirSonidoTick(400 + i * 40, 0.035),
-              t * 1000,
-            )
-            temporizadoresTick.current.push(id)
-          })
-        }
-
-        // Respaldo por si el navegador no emite onTransitionEnd (ej. pestaña en segundo plano)
-        const safetyId = window.setTimeout(() => {
-          finalizarGiro()
-        }, (tiempoGiro + 0.3) * 1000)
-        temporizadoresTick.current.push(safetyId)
-      })
-    })
+    avanzarSlot()
   }
 
-  function reiniciarTambor(): void {
-    temporizadoresTick.current.forEach((id) => window.clearTimeout(id))
-    temporizadoresTick.current = []
-    if (trackRef.current) {
-      trackRef.current.style.transition = 'none'
-      trackRef.current.style.transform = 'translateX(0px)'
-      void trackRef.current.offsetHeight
-    }
-    setOffsetRueda(0)
-    setDuracionAnimacion(0)
+  function reiniciarSorteo(): void {
+    limpiarTemporizadores()
     setGirando(false)
     setGanador(null)
-    animacionCompletadaRef.current = false
+    setIndiceVisible(0)
   }
 
-  function copiarListaTickets(): void {
+  async function copiarListaTickets(): Promise<void> {
     const texto = participantes
-      .map((p) => `${p.cliente.nombre} (${p.cliente.celular}) - ${p.tickets} tickets (${p.probabilidad}%)`)
+      .map((participante) => `${participante.cliente.nombre} (${participante.cliente.celular}) - ${participante.tickets} tickets (${formatearPorcentaje(participante.probabilidad)})`)
       .join('\n')
-    navigator.clipboard.writeText(texto)
+    await navigator.clipboard.writeText(texto)
     setCopiado(true)
-    setTimeout(() => setCopiado(false), 3000)
+    window.setTimeout(() => setCopiado(false), 3000)
   }
+
+  const ticketCentral = ticketsSlot[2]
 
   return (
-    <main className="admin-app admin-sorteos-app">
-      {/* Cabecera con marca y botón volver */}
-      <header className="admin-sorteos-cabecera">
-        <div className="admin-sorteos-marca-grupo">
+    <main className="admin-app admin-sorteos-app sorteo-page">
+      <header className="sorteo-page-header">
+        <div className="sorteo-page-brand">
           <AdminMarca />
-          <div className="admin-sorteos-titulos">
-            <p className="admin-kicker">Módulo de Sorteos por Fidelidad</p>
-            <h1>Sorteo de Clientes Frecuentes</h1>
+          <div className="sorteo-page-heading">
+            <span className="sorteo-page-eyebrow">Módulo independiente</span>
+            <h1>Sorteo de clientes frecuentes</h1>
           </div>
         </div>
 
-        <div className="admin-sorteos-acciones-cabecera">
-          <button
-            type="button"
-            className="boton-secundario admin-boton admin-boton-volver"
-            onClick={onVolver}
-          >
-            <ArrowLeft size={18} aria-hidden="true" />
-            <span>Volver al Panel</span>
+        <div className="sorteo-page-header-actions">
+          <span className="sorteo-demo-badge"><span aria-hidden="true" /> Modo demo</span>
+          <button type="button" className="sorteo-header-button" onClick={onVolver}>
+            <ArrowLeft size={17} aria-hidden="true" />
+            Volver al panel
           </button>
-          <a className="boton-secundario admin-boton" href="/">
-            Vista del cliente
-          </a>
+          <a className="sorteo-header-link" href="/">Vista del cliente</a>
         </div>
       </header>
 
-      {/* Campaña y regla del sorteo */}
-      <section className="admin-sorteo-configuracion">
-        <div className="admin-sorteo-regla">
-          <div className="regla-icono">
-            <Gift size={24} strokeWidth={2.4} aria-hidden="true" />
-          </div>
-          <div className="regla-texto">
-            <h2>Regla: 1 Reserva = 1 Ticket de Sorteo</h2>
-            <p>
-              Todos los clientes que reservaron durante la campaña participan automáticamente.
-              Quien tiene más reservas tiene más tickets repartidos en el tambor de forma separada.
-            </p>
-          </div>
+      <section className="sorteo-intro" aria-labelledby="sorteo-titulo-principal">
+        <div>
+          <p className="sorteo-kicker"><Sparkles size={15} aria-hidden="true" /> Fidelidad que se celebra</p>
+          <h2 id="sorteo-titulo-principal">Gran Sorteo Navideño</h2>
+          <p>Un ticket por cada reserva elegible. El slot se detiene en un número y revela al ganador de la campaña.</p>
         </div>
-
-        <div className="admin-sorteo-campana-box" aria-label="Campaña activa del sorteo">
-          <div className="admin-sorteo-campana-etiqueta">
-            <Calendar size={15} aria-hidden="true" />
-            <span>Campaña activa:</span>
-          </div>
-          <strong className="admin-sorteo-campana-nombre">
-            Gran Sorteo Navideño
-          </strong>
-          <span className="admin-sorteo-campana-fecha">
-            Válido hasta el 22 de Diciembre
-          </span>
+        <div className="sorteo-campaign-pill">
+          <Calendar size={17} aria-hidden="true" />
+          <span><strong>Campaña activa</strong> · 1 al 24 de diciembre</span>
         </div>
       </section>
 
-      {/* Transparencia y Métricas del bombo */}
-      <div className="admin-sorteo-metricas-bar">
-        <div className="metrica-item">
-          <Users size={18} />
-          <span>Participantes: <strong>{participantes.length} clientes</strong></span>
-        </div>
-        <div className="metrica-item">
-          <Sparkles size={18} />
-          <span>Tickets en el bombo: <strong>{totalTickets} tickets (del #1 al #{totalTickets})</strong></span>
-        </div>
-        <div className="metrica-item">
-          <Clock size={18} />
-          <span>Promedio: <strong>{(totalTickets / Math.max(1, participantes.length)).toFixed(1)} reservas / cliente</strong></span>
-        </div>
-        <div className="metrica-item transparencia-item" title="Todos los tickets participan con probabilidades equitativas">
-          <ShieldCheck size={18} />
-          <span>Sorteo 100% transparente: <strong>Todos los números giran en el tambor</strong></span>
-        </div>
-      </div>
-
-      {/* EL TAMBOR DE SORTEO HORIZONTAL (REEL) */}
-      <section className="admin-sorteo-tambor-wrapper" aria-label="Tambor del sorteo">
-        {/* Banner superior de estado del tambor */}
-        <div className="tambor-status-banner">
-          {girando ? (
-            <span className="status-girando">
-              ⚡ Girando a toda velocidad por los <strong>{totalTickets} tickets</strong> en juego…
-            </span>
-          ) : ganador ? (
-            <span className="status-ganador">
-              🏆 ¡La aguja se detuvo en el <strong>Ticket #{ganador.numeroGlobal}</strong>!
-            </span>
-          ) : (
-            <span className="status-listo">
-              🎯 Puntero listo para girar entre los <strong>{totalTickets} boletos numerados</strong>.
-            </span>
-          )}
-
-          <button
-            type="button"
-            className="boton-toggle-sonido"
-            onClick={() => setSonidoHabilitado((prev) => !prev)}
-            title={sonidoHabilitado ? 'Silenciar efectos' : 'Activar efectos de sonido'}
-          >
-            {sonidoHabilitado ? <Volume2 size={16} /> : <VolumeX size={16} />}
-            <span>{sonidoHabilitado ? 'Sonido ON' : 'Sonido OFF'}</span>
-          </button>
-        </div>
-
-        {/* Contenedor del visor panorámico con agujas relativas */}
-        <div className="admin-sorteo-tambor-visor-container">
-          <div className={`tambor-indicador-superior ${girando ? 'animando-aguja' : ''}`} aria-hidden="true">
-            <div className="flecha-puntero abajo" />
+      <section className="sorteo-summary-grid" aria-label="Resumen de la campaña">
+        <article className="sorteo-summary-card sorteo-summary-card-campaign">
+          <div className="sorteo-summary-icon"><Gift size={21} aria-hidden="true" /></div>
+          <div>
+            <span>Premio de la campaña</span>
+            <strong>2 horas de cancha gratis</strong>
+            <small>Para el ticket ganador</small>
           </div>
-          <div className="tambor-linea-central" aria-hidden="true" />
-          <div className={`tambor-indicador-inferior ${girando ? 'animando-aguja' : ''}`} aria-hidden="true">
-            <div className="flecha-puntero arriba" />
+        </article>
+        <article className="sorteo-summary-card">
+          <div className="sorteo-summary-icon"><Users size={21} aria-hidden="true" /></div>
+          <div>
+            <span>Participantes</span>
+            <strong>{totalParticipantes} clientes</strong>
+            <small>Con reservas elegibles</small>
           </div>
+        </article>
+        <article className="sorteo-summary-card">
+          <div className="sorteo-summary-icon"><Ticket size={21} aria-hidden="true" /></div>
+          <div>
+            <span>Tickets en juego</span>
+            <strong>{totalTickets} tickets</strong>
+            <small>Promedio: {promedioTickets} por cliente</small>
+          </div>
+        </article>
+        <article className="sorteo-summary-card sorteo-summary-card-success">
+          <div className="sorteo-summary-icon"><ShieldCheck size={21} aria-hidden="true" /></div>
+          <div>
+            <span>Transparencia</span>
+            <strong>1 ticket = 1 oportunidad</strong>
+            <small>Selección aleatoria demo</small>
+          </div>
+        </article>
+      </section>
 
-          {/* Visor con overflow hidden que ocupa casi todo el ancho */}
-          <div className="admin-sorteo-tambor-visor" ref={contenedorRef}>
-            <div
-              ref={trackRef}
-              className="admin-sorteo-tambor-track"
-              style={{
-                transform: `translateX(-${offsetRueda}px)`,
-                transition: duracionAnimacion > 0
-                  ? `transform ${duracionAnimacion}s cubic-bezier(0.16, 0.65, 0.14, 1.0)`
-                  : 'none',
-              }}
-              onTransitionEnd={(e) => {
-                if (e.propertyName === 'transform') {
-                  finalizarGiro()
-                }
-              }}
-            >
-              {stripTarjetas.map((ticket, index) => {
-                const esElGanador = ganador && index === POSICION_GANADOR_STRIP
-                return (
-                  <div
-                    key={`${ticket.id}-${index}`}
-                    className={`tambor-ticket-card ${esElGanador ? 'ticket-ganador-activo' : ''}`}
-                    style={{ width: `${CARD_WIDTH}px` }}
-                  >
-                    <div className="ticket-header">
-                      <span className="ticket-badge">🎟️ Ticket #{ticket.numeroGlobal}</span>
-                      <span className="ticket-contador">{ticket.ticketIndex}/{ticket.totalTickets}</span>
-                    </div>
-                    <strong className="ticket-nombre" title={ticket.nombre}>
-                      {ticket.nombre}
-                    </strong>
-                    <span className="ticket-celular">{ticket.celular}</span>
-                  </div>
-                )
-              })}
+      <section className="sorteo-main-grid" aria-label="Sorteo y detalles de campaña">
+        <article className="sorteo-slot-panel">
+          <div className="sorteo-section-heading">
+            <div>
+              <span className="sorteo-panel-kicker">El momento del sorteo</span>
+              <h2>Gira el slot y descubre el ticket</h2>
             </div>
-          </div>
-        </div>
-
-        {/* Controles de giro */}
-        <div className="tambor-acciones">
-          <button
-            type="button"
-            className="admin-boton-girar-tambor"
-            onClick={girarTambor}
-            disabled={girando}
-          >
-            <Sparkles size={20} aria-hidden="true" />
-            <span>{girando ? '¡Recorriendo todos los tickets…!' : '🎰 ¡Girar Tambor de Sorteo!'}</span>
-          </button>
-
-          {ganador && (
             <button
               type="button"
-              className="admin-boton-reiniciar-tambor"
-              onClick={girarTambor}
-              disabled={girando}
+              className="sorteo-sound-button"
+              onClick={() => setSonidoHabilitado((actual) => !actual)}
+              title={sonidoHabilitado ? 'Silenciar efectos' : 'Activar efectos de sonido'}
             >
-              <RotateCcw size={16} aria-hidden="true" />
-              <span>Girar de nuevo</span>
+              {sonidoHabilitado ? <Volume2 size={16} /> : <VolumeX size={16} />}
+              {sonidoHabilitado ? 'Sonido activo' : 'Sonido apagado'}
             </button>
-          )}
-        </div>
-      </section>
+          </div>
 
-      {/* Tarjeta de Ganador Celebratorio */}
-      {ganador && (
-        <section className="admin-sorteo-ganador-seccion" role="alert">
-          <div className="ganador-tarjeta-premium">
-            <div className="ganador-trofeo-animado">
-              <Trophy size={48} strokeWidth={2.4} />
+          <div className={`sorteo-slot-machine ${girando ? 'sorteo-slot-machine-girando' : ''}`}>
+            <div className="sorteo-slot-machine-topline">
+              <span><span className="sorteo-slot-light" /> SLOT DE TICKETS</span>
+              <span>{girando ? 'SELECCIONANDO…' : 'LISTO PARA GIRAR'}</span>
             </div>
 
-            <div className="ganador-info-principal">
-              <span className="ganador-kicker">🎉 ¡TICKET GANADOR DEL SORTEO!</span>
-              <h2 className="ganador-nombre-destacado">{ganador.nombre}</h2>
-              <div className="ganador-detalles-grid">
-                <div className="detalle-pill">
-                  <span>Teléfono:</span>
-                  <strong>{ganador.celular}</strong>
-                </div>
-                <div className="detalle-pill">
-                  <span>Ticket premiado:</span>
-                  <strong>#{ganador.numeroGlobal} (Oportunidad {ganador.ticketIndex} de {ganador.totalTickets})</strong>
-                </div>
-                <div className="detalle-pill">
-                  <span>Reservas en la campaña:</span>
-                  <strong>{ganador.totalTickets} reservas</strong>
-                </div>
+            <div className="sorteo-slot-frame">
+              <div className="sorteo-slot-pointer" aria-hidden="true" />
+              <div className="sorteo-slot-viewport" aria-live="polite" aria-label="Ticket seleccionado">
+                <div className="sorteo-slot-focus-window" aria-hidden="true" />
+                {ticketsSlot.length === 0 ? (
+                  <div className="sorteo-slot-empty">No hay tickets disponibles</div>
+                ) : (
+                  <div className="sorteo-slot-ticket-stack">
+                    {ticketsSlot.map((ticket, index) => (
+                      <TicketSlot
+                        key={`${ticket.id}-${index}-${indiceVisible}`}
+                        ticket={ticket}
+                        posicion={POSICIONES_TICKET_SLOT[index] ?? 'actual'}
+                        ganador={Boolean(ganador && ticket.id === ganador.id && index === 2)}
+                      />
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
 
-            <div className="ganador-accion-whatsapp">
-              <a
-                href={`https://wa.me/51${ganador.celular}?text=¡Hola%20${encodeURIComponent(ganador.nombre.split(' ')[0])}!%20🎉🏆%20Te%20saludamos%20del%20Polideportivo%20El%20Jaguar.%20¡Acabas%20de%20ganar%20el%20sorteo%20con%20tu%20Ticket%20%23${ganador.numeroGlobal}%20gracias%20a%20tus%20${ganador.totalTickets}%20reservas!`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="btn-whatsapp-ganador"
-              >
-                <MessageCircle size={20} aria-hidden="true" />
-                <span>Notificar por WhatsApp</span>
-              </a>
+            <div className="sorteo-slot-current-caption">
+              <span>{girando ? 'Buscando entre todos los tickets' : ganador ? 'Resultado del sorteo' : 'Ticket bajo el puntero'}</span>
+              <strong>{ticketCentral ? `Ticket #${ticketCentral.numeroGlobal}` : '—'}</strong>
             </div>
           </div>
-        </section>
-      )}
 
-      {/* Tabs inferiores: Tabla de Probabilidades y Listado de Clientes */}
-      <section className="admin-sorteos-tabs-seccion">
-        <div className="admin-sorteos-tabs-cabecera">
-          <div className="tabs-botones">
-            <button
-              type="button"
-              className={`tab-btn ${tabActual === 'tambor' ? 'activo' : ''}`}
-              onClick={() => setTabActual('tambor')}
-            >
-              🎲 Tickets & Probabilidades ({participantes.length} clientes)
+          <div className="sorteo-slot-actions">
+            <button type="button" className="sorteo-primary-action" onClick={girarSorteo} disabled={girando || tickets.length === 0}>
+              <Sparkles size={19} aria-hidden="true" />
+              {girando ? 'Girando el sorteo…' : ganador ? 'Girar de nuevo' : 'Girar sorteo'}
             </button>
-            <button
-              type="button"
-              className={`tab-btn ${tabActual === 'historial' ? 'activo' : ''}`}
-              onClick={() => setTabActual('historial')}
-            >
-              👥 Historial Completo de Clientes
+            {ganador && (
+              <button type="button" className="sorteo-secondary-action" onClick={reiniciarSorteo} disabled={girando}>
+                <RotateCcw size={16} aria-hidden="true" />
+                Reiniciar
+              </button>
+            )}
+          </div>
+        </article>
+
+        <aside className="sorteo-side-column">
+          {ganador ? (
+            <article className="sorteo-winner-card" role="alert">
+              <div className="sorteo-winner-card-heading">
+                <span className="sorteo-winner-icon"><Trophy size={21} aria-hidden="true" /></span>
+                <div>
+                  <span>Resultado del sorteo</span>
+                  <strong>¡Tenemos ganador!</strong>
+                </div>
+              </div>
+              <div className="sorteo-winner-ticket-number">#{ganador.numeroGlobal}</div>
+              <h3>{ganador.nombre}</h3>
+              <p>Ganó con su oportunidad {ganador.ticketIndex} de {ganador.totalTickets} reservas en la campaña.</p>
+              <div className="sorteo-winner-meta">
+                <span><strong>Celular</strong>{ganador.celular}</span>
+                <span><strong>Premio</strong>2 horas de cancha gratis</span>
+              </div>
+              <a
+                className="sorteo-whatsapp-action"
+                href={`https://wa.me/51${ganador.celular}?text=¡Hola%20${encodeURIComponent(ganador.nombre.split(' ')[0])}!%20🎉%20Ganaste%20el%20sorteo%20del%20Polideportivo%20El%20Jaguar%20con%20el%20Ticket%20%23${ganador.numeroGlobal}.`}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                <MessageCircle size={18} aria-hidden="true" />
+                Notificar por WhatsApp
+              </a>
+            </article>
+          ) : (
+            <article className="sorteo-info-card">
+              <div className="sorteo-info-card-title">
+                <span className="sorteo-info-icon"><ShieldCheck size={20} aria-hidden="true" /></span>
+                <div>
+                  <span>Transparencia del sorteo</span>
+                  <strong>Todo listo para girar</strong>
+                </div>
+              </div>
+              <ul className="sorteo-check-list">
+                <li><CheckCircle2 size={17} aria-hidden="true" /> Todos los tickets tienen una oportunidad proporcional.</li>
+                <li><CheckCircle2 size={17} aria-hidden="true" /> El número ganador queda visible al detenerse.</li>
+                <li><CheckCircle2 size={17} aria-hidden="true" /> Los datos mostrados corresponden a una demo.</li>
+              </ul>
+              <div className="sorteo-info-stat">
+                <span>Rango de tickets</span>
+                <strong>#1 — #{totalTickets}</strong>
+              </div>
+            </article>
+          )}
+
+          <article className="sorteo-rules-card">
+            <div className="sorteo-rules-heading">
+              <Gift size={19} aria-hidden="true" />
+              <h3>Reglas de la campaña</h3>
+            </div>
+            <p>Participan los clientes frecuentes con reservas registradas durante el periodo activo.</p>
+            <div className="sorteo-rule-row"><span>1</span><strong>reserva</strong><em>=</em><strong>1 ticket</strong></div>
+            <div className="sorteo-rule-row"><span>24</span><strong>diciembre</strong><em>·</em><strong>cierre</strong></div>
+          </article>
+        </aside>
+      </section>
+
+      <section className="sorteo-data-section" aria-label="Datos y transparencia">
+        <div className="sorteo-data-header">
+          <div className="sorteo-tabs" role="tablist" aria-label="Datos del sorteo">
+            <button type="button" role="tab" aria-selected={tabActual === 'sorteo'} className={tabActual === 'sorteo' ? 'activo' : ''} onClick={() => setTabActual('sorteo')}>
+              <HelpCircle size={16} aria-hidden="true" /> Probabilidades
+            </button>
+            <button type="button" role="tab" aria-selected={tabActual === 'historial'} className={tabActual === 'historial' ? 'activo' : ''} onClick={() => setTabActual('historial')}>
+              <Users size={16} aria-hidden="true" /> Historial de clientes
             </button>
           </div>
-
-          <button
-            type="button"
-            className="boton-copiar-tickets"
-            onClick={copiarListaTickets}
-            title="Copiar lista de tickets para usar en otra app o compartir"
-          >
+          <button type="button" className="sorteo-copy-action" onClick={() => void copiarListaTickets()}>
             {copiado ? <Check size={16} /> : <Copy size={16} />}
-            <span>{copiado ? '¡Copiado al portapapeles!' : 'Copiar lista de tickets'}</span>
+            {copiado ? 'Lista copiada' : 'Copiar lista de tickets'}
           </button>
         </div>
 
-        {tabActual === 'tambor' ? (
-          <div className="admin-probabilidades-contenedor">
-            <div className="probabilidades-ayuda">
-              <HelpCircle size={16} />
-              <span>
-                Los <strong>{totalTickets} tickets</strong> numerados están distribuidos en el tambor de manera intercalada.
-                Durante el giro, la animación recorre boletos de todos los rangos (desde números bajos hasta altos).
-              </span>
+        {tabActual === 'sorteo' ? (
+          <div className="sorteo-table-wrapper">
+            <div className="sorteo-table-intro">
+              <div><Ticket size={18} aria-hidden="true" /><span>Distribución de oportunidades</span></div>
+              <strong>{totalTickets} tickets · {totalParticipantes} participantes</strong>
             </div>
-
             <div className="probabilidades-tabla-responsive">
-              <table className="probabilidades-tabla">
+              <table className="probabilidades-tabla sorteo-table">
                 <thead>
-                  <tr>
-                    <th>#</th>
-                    <th>Cliente</th>
-                    <th>Celular</th>
-                    <th>Tickets (Reservas)</th>
-                    <th>Probabilidad</th>
-                    <th>Distribución en el Tambor</th>
-                  </tr>
+                  <tr><th>#</th><th>Cliente</th><th>Celular</th><th>Tickets</th><th>Probabilidad</th><th>Distribución</th></tr>
                 </thead>
                 <tbody>
-                  {participantes.map((p, index) => (
-                    <tr key={p.cliente.id} className={ganador?.clienteId === p.cliente.id ? 'fila-ganadora' : ''}>
+                  {participantes.map((participante, index) => (
+                    <tr key={participante.cliente.id} className={ganador?.clienteId === participante.cliente.id ? 'fila-ganadora' : ''}>
                       <td className="col-rank">{index + 1}</td>
-                      <td>
-                        <strong className="nombre-cliente-tab">{p.cliente.nombre}</strong>
-                        {p.tickets >= 8 && <span className="badge-top-tickets">Favorito</span>}
-                      </td>
-                      <td className="col-celular-tab">{p.cliente.celular}</td>
-                      <td className="col-tickets-tab">
-                        <span className="pill-tickets">🎟️ {p.tickets} tickets</span>
-                      </td>
-                      <td className="col-prob-tab">
-                        <span className="prob-porcentaje">{p.probabilidad}%</span>
-                      </td>
-                      <td className="col-barra-prob">
-                        <div className="barra-progreso-bg">
-                          <div
-                            className="barra-progreso-fill"
-                            style={{ width: `${Math.min(100, p.probabilidad * 12)}%` }}
-                          />
-                        </div>
-                      </td>
+                      <td><strong className="nombre-cliente-tab">{participante.cliente.nombre}</strong>{participante.tickets >= 8 && <span className="badge-top-tickets">Frecuente</span>}</td>
+                      <td className="col-celular-tab">{participante.cliente.celular}</td>
+                      <td><span className="pill-tickets"><Ticket size={13} aria-hidden="true" /> {participante.tickets}</span></td>
+                      <td><span className="prob-porcentaje">{formatearPorcentaje(participante.probabilidad)}</span></td>
+                      <td className="col-barra-prob"><div className="barra-progreso-bg"><div className="barra-progreso-fill" style={{ width: `${Math.min(100, participante.probabilidad * 12)}%` }} /></div></td>
                     </tr>
                   ))}
                 </tbody>
@@ -636,10 +450,12 @@ export default function AdminSorteosVista({ onVolver }: AdminSorteosVistaProps) 
           </div>
         ) : (
           <div className="admin-historial-embed">
-            <AdminHistorialClientes />
+            <AdminHistorialClientes clientes={participantes.map((participante) => participante.cliente)} />
           </div>
         )}
       </section>
+
+      {clienteGanador && <span className="sorteo-visually-hidden">Ganador: {clienteGanador.cliente.nombre}</span>}
     </main>
   )
 }

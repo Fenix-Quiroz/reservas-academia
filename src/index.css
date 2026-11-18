@@ -8978,3 +8978,1260 @@ button:disabled {
     align-items: stretch;
   }
 }
+
+/* ============================================================================
+   Rediseño independiente de Sorteos: slot vertical demo
+   ============================================================================ */
+
+.sorteo-page {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 24px;
+  width: min(1440px, calc(100% - 40px));
+  max-width: 1440px;
+  min-height: 100dvh;
+  margin: 0 auto;
+  padding: 24px 0 72px;
+  color: var(--color-ink-50);
+  background: var(--color-ink-950);
+  box-sizing: border-box;
+}
+
+.sorteo-page-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 4px 0 20px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.sorteo-page-brand,
+.sorteo-page-header-actions,
+.sorteo-page-brand .admin-marca,
+.sorteo-sound-button,
+.sorteo-header-button,
+.sorteo-header-link,
+.sorteo-demo-badge,
+.sorteo-campaign-pill,
+.sorteo-kicker,
+.sorteo-summary-card,
+.sorteo-summary-icon,
+.sorteo-slot-machine-topline,
+.sorteo-slot-ticket-topline,
+.sorteo-slot-ticket-label,
+.sorteo-slot-current-caption,
+.sorteo-slot-actions,
+.sorteo-winner-card-heading,
+.sorteo-info-card-title,
+.sorteo-rules-heading,
+.sorteo-rule-row,
+.sorteo-data-header,
+.sorteo-tabs button,
+.sorteo-copy-action,
+.sorteo-table-intro,
+.sorteo-winner-meta span,
+.sorteo-whatsapp-action {
+  display: flex;
+  align-items: center;
+}
+
+.sorteo-page-brand {
+  min-width: 0;
+  gap: 20px;
+}
+
+.sorteo-page-brand .admin-marca {
+  gap: 10px;
+  margin: 0;
+  flex-shrink: 0;
+}
+
+.sorteo-page-brand .admin-marca img {
+  width: 48px;
+  height: 48px;
+  flex-basis: 48px;
+  border-radius: 10px;
+}
+
+.sorteo-page-brand .admin-marca strong {
+  font-size: 0.84rem;
+}
+
+.sorteo-page-brand .admin-marca span {
+  font-size: 0.78rem;
+}
+
+.sorteo-page-heading {
+  min-width: 0;
+  padding-left: 20px;
+  border-left: 1px solid rgba(228, 179, 57, 0.42);
+}
+
+.sorteo-page-eyebrow,
+.sorteo-panel-kicker,
+.sorteo-kicker,
+.sorteo-summary-card span,
+.sorteo-winner-card-heading > div > span,
+.sorteo-info-card-title > div > span {
+  color: var(--color-gold-300);
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.sorteo-page-heading h1 {
+  margin: 3px 0 0;
+  color: var(--color-ink-50);
+  font-size: clamp(1.25rem, 2vw, 1.75rem);
+  line-height: 1.1;
+  text-transform: none;
+}
+
+.sorteo-page-header-actions {
+  justify-content: flex-end;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.sorteo-demo-badge,
+.sorteo-header-button,
+.sorteo-header-link {
+  min-height: 38px;
+  box-sizing: border-box;
+  border-radius: var(--radius-pill);
+  font-size: 0.8rem;
+  font-weight: 800;
+}
+
+.sorteo-demo-badge {
+  gap: 7px;
+  padding: 0 12px;
+  border: 1px solid rgba(34, 197, 94, 0.38);
+  background: rgba(34, 197, 94, 0.1);
+  color: #bbf7d0;
+}
+
+.sorteo-demo-badge span {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #4ade80;
+  box-shadow: 0 0 9px rgba(74, 222, 128, 0.75);
+}
+
+.sorteo-header-button,
+.sorteo-header-link {
+  justify-content: center;
+  gap: 7px;
+  padding: 0 14px;
+  border: 1px solid var(--color-ink-600);
+  background: var(--color-ink-900);
+  color: var(--color-ink-100);
+  text-decoration: none;
+  cursor: pointer;
+  transition: border-color 0.18s ease, color 0.18s ease, background 0.18s ease, transform 0.18s ease;
+}
+
+.sorteo-header-button:hover,
+.sorteo-header-link:hover {
+  border-color: var(--color-gold-500);
+  background: var(--color-ink-800);
+  color: var(--color-gold-100);
+  transform: translateY(-1px);
+}
+
+.sorteo-intro {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 24px;
+  padding: 12px 0 2px;
+}
+
+.sorteo-intro h2 {
+  margin: 7px 0 4px;
+  color: var(--color-ink-50);
+  font-size: clamp(2rem, 4vw, 3.35rem);
+  line-height: 0.98;
+  letter-spacing: -0.04em;
+}
+
+.sorteo-intro p:not(.sorteo-kicker) {
+  max-width: 680px;
+  margin: 0;
+  color: var(--color-ink-300);
+  font-size: 0.98rem;
+  line-height: 1.55;
+}
+
+.sorteo-kicker {
+  gap: 6px;
+  margin: 0;
+}
+
+.sorteo-campaign-pill {
+  flex-shrink: 0;
+  gap: 9px;
+  padding: 11px 15px;
+  border: 1px solid rgba(228, 179, 57, 0.34);
+  border-radius: var(--radius-pill);
+  background: rgba(228, 179, 57, 0.08);
+  color: var(--color-gold-100);
+  font-size: 0.85rem;
+}
+
+.sorteo-campaign-pill svg {
+  color: var(--color-gold-300);
+}
+
+.sorteo-campaign-pill strong {
+  color: var(--color-gold-300);
+}
+
+.sorteo-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.sorteo-summary-card {
+  min-width: 0;
+  gap: 12px;
+  padding: 16px;
+  border: 1px solid var(--color-ink-700);
+  border-radius: var(--radius-card);
+  background: linear-gradient(145deg, var(--color-ink-900), var(--color-ink-800));
+  box-shadow: 0 12px 26px rgba(0, 0, 0, 0.16);
+}
+
+.sorteo-summary-icon {
+  justify-content: center;
+  width: 42px;
+  height: 42px;
+  flex: 0 0 42px;
+  border: 1px solid rgba(228, 179, 57, 0.35);
+  border-radius: 12px;
+  background: rgba(228, 179, 57, 0.12);
+  color: var(--color-gold-300);
+}
+
+.sorteo-summary-card > div:last-child {
+  min-width: 0;
+}
+
+.sorteo-summary-card span,
+.sorteo-summary-card strong,
+.sorteo-summary-card small {
+  display: block;
+}
+
+.sorteo-summary-card strong {
+  margin-top: 4px;
+  overflow: hidden;
+  color: var(--color-ink-50);
+  font-size: 1rem;
+  line-height: 1.2;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sorteo-summary-card small {
+  margin-top: 4px;
+  overflow: hidden;
+  color: var(--color-ink-400);
+  font-size: 0.76rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sorteo-summary-card-success {
+  border-color: rgba(34, 197, 94, 0.28);
+  background: linear-gradient(145deg, rgba(22, 101, 52, 0.17), var(--color-ink-900));
+}
+
+.sorteo-summary-card-success .sorteo-summary-icon {
+  border-color: rgba(74, 222, 128, 0.34);
+  background: rgba(34, 197, 94, 0.12);
+  color: #86efac;
+}
+
+.sorteo-summary-card-success .sorteo-summary-card span,
+.sorteo-summary-card-success small {
+  color: #86efac;
+}
+
+.sorteo-main-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.35fr) minmax(300px, 0.65fr);
+  gap: 16px;
+  align-items: stretch;
+}
+
+.sorteo-slot-panel,
+.sorteo-info-card,
+.sorteo-winner-card,
+.sorteo-rules-card,
+.sorteo-data-section {
+  border: 1px solid var(--color-ink-700);
+  border-radius: var(--radius-lg);
+  background: var(--color-ink-900);
+  box-shadow: 0 18px 48px rgba(0, 0, 0, 0.2);
+}
+
+.sorteo-slot-panel {
+  min-width: 0;
+  padding: clamp(18px, 3vw, 30px);
+  background: radial-gradient(circle at 50% 12%, rgba(228, 179, 57, 0.11), transparent 32%), var(--color-ink-900);
+}
+
+.sorteo-section-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 22px;
+}
+
+.sorteo-section-heading h2 {
+  margin: 5px 0 0;
+  color: var(--color-ink-50);
+  font-size: clamp(1.25rem, 2.3vw, 1.7rem);
+  letter-spacing: -0.025em;
+}
+
+.sorteo-sound-button {
+  flex-shrink: 0;
+  gap: 7px;
+  padding: 8px 11px;
+  border: 1px solid var(--color-ink-600);
+  border-radius: 9px;
+  background: var(--color-ink-800);
+  color: var(--color-ink-300);
+  font-size: 0.76rem;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.sorteo-sound-button:hover {
+  color: var(--color-gold-200);
+  border-color: var(--color-gold-600);
+}
+
+.sorteo-slot-machine {
+  position: relative;
+  overflow: hidden;
+  padding: 15px;
+  border: 1px solid rgba(228, 179, 57, 0.38);
+  border-radius: 18px;
+  background: linear-gradient(145deg, #252018 0%, #0c0b0a 52%, #1d1912 100%);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.04), 0 20px 36px rgba(0, 0, 0, 0.38);
+}
+
+.sorteo-slot-machine::before,
+.sorteo-slot-machine::after {
+  position: absolute;
+  content: '';
+  width: 130px;
+  height: 130px;
+  border: 1px solid rgba(228, 179, 57, 0.13);
+  border-radius: 50%;
+  pointer-events: none;
+}
+
+.sorteo-slot-machine::before {
+  top: -88px;
+  right: -38px;
+}
+
+.sorteo-slot-machine::after {
+  bottom: -102px;
+  left: -64px;
+}
+
+.sorteo-slot-machine-topline {
+  position: relative;
+  z-index: 1;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 0 5px 12px;
+  color: var(--color-ink-400);
+  font-size: 0.68rem;
+  font-weight: 900;
+  letter-spacing: 0.14em;
+}
+
+.sorteo-slot-machine-topline > span:first-child {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  color: var(--color-gold-300);
+}
+
+.sorteo-slot-light {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #4ade80;
+  box-shadow: 0 0 10px rgba(74, 222, 128, 0.75);
+}
+
+.sorteo-slot-machine-girando .sorteo-slot-light {
+  background: var(--color-gold-300);
+  box-shadow: 0 0 11px rgba(241, 199, 91, 0.9);
+  animation: sorteo-slot-light-pulse 0.32s infinite alternate;
+}
+
+.sorteo-slot-frame {
+  position: relative;
+  z-index: 1;
+  padding: 9px;
+  border: 2px solid #9f6f0c;
+  border-radius: 14px;
+  background: #070706;
+  box-shadow: inset 0 0 22px rgba(0, 0, 0, 0.85), 0 0 0 1px rgba(241, 199, 91, 0.16);
+}
+
+.sorteo-slot-viewport {
+  position: relative;
+  height: 640px;
+  overflow: hidden;
+  border: 1px solid rgba(228, 179, 57, 0.25);
+  border-radius: 9px;
+  background: linear-gradient(90deg, rgba(0, 0, 0, 0.5), transparent 18%, transparent 82%, rgba(0, 0, 0, 0.5)), #12100c;
+}
+
+.sorteo-slot-viewport::before,
+.sorteo-slot-viewport::after {
+  position: absolute;
+  z-index: 4;
+  left: 0;
+  right: 0;
+  height: 88px;
+  content: '';
+  pointer-events: none;
+}
+
+.sorteo-slot-viewport::before {
+  top: 0;
+  background: linear-gradient(180deg, #090807 4%, rgba(9, 8, 7, 0.82) 38%, transparent 100%);
+}
+
+.sorteo-slot-viewport::after {
+  bottom: 0;
+  background: linear-gradient(0deg, #090807 4%, rgba(9, 8, 7, 0.82) 38%, transparent 100%);
+}
+
+.sorteo-slot-focus-window {
+  position: absolute;
+  z-index: 5;
+  top: 50%;
+  right: 14px;
+  left: 14px;
+  height: 170px;
+  border: 2px solid rgba(228, 179, 57, 0.38);
+  border-radius: 9px;
+  box-shadow: 0 0 0 3px rgba(228, 179, 57, 0.06), inset 0 0 22px rgba(228, 179, 57, 0.04);
+  pointer-events: none;
+  transform: translateY(-50%);
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.sorteo-slot-machine-girando .sorteo-slot-focus-window {
+  border-color: var(--color-gold-300);
+  box-shadow: 0 0 0 3px rgba(241, 199, 91, 0.14), 0 0 22px rgba(241, 199, 91, 0.22), inset 0 0 22px rgba(241, 199, 91, 0.08);
+}
+
+.sorteo-slot-ticket-stack {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 8px;
+  height: 100%;
+  padding: 14px;
+  box-sizing: border-box;
+  transition: transform 0.12s ease;
+}
+
+.sorteo-slot-machine-girando .sorteo-slot-ticket-stack {
+  animation: sorteo-slot-reel-scroll 0.26s linear infinite;
+  will-change: transform, filter;
+}
+
+.sorteo-slot-machine-girando .sorteo-slot-viewport::before,
+.sorteo-slot-machine-girando .sorteo-slot-viewport::after {
+  animation: sorteo-slot-mask-flow 0.34s ease-in-out infinite alternate;
+}
+
+.sorteo-slot-machine-girando .sorteo-slot-ticket-actual {
+  border-color: rgba(255, 255, 255, 0.08);
+  background: linear-gradient(135deg, #332f28, #171512);
+  color: var(--color-ink-50);
+  opacity: 0.52;
+  transform: scale(0.95);
+  box-shadow: none;
+}
+
+.sorteo-slot-machine-girando .sorteo-slot-ticket-actual .sorteo-slot-ticket-label {
+  color: var(--color-gold-300);
+}
+
+.sorteo-slot-machine-girando .sorteo-slot-ticket-actual .sorteo-slot-ticket-order,
+.sorteo-slot-machine-girando .sorteo-slot-ticket-actual .sorteo-slot-ticket-phone {
+  color: var(--color-ink-400);
+}
+
+.sorteo-slot-ticket {
+  position: relative;
+  display: flex;
+  flex: 0 0 96px;
+  flex-direction: column;
+  justify-content: center;
+  gap: 3px;
+  min-width: 0;
+  padding: 12px 18px;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 9px;
+  background: linear-gradient(135deg, #332f28, #171512);
+  color: var(--color-ink-50);
+  box-sizing: border-box;
+  opacity: 0.52;
+  transform: scale(0.95);
+  transition: opacity 0.15s ease, transform 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.sorteo-slot-ticket-anterior-2,
+.sorteo-slot-ticket-siguiente-2 {
+  opacity: 0.28;
+  transform: scale(0.9);
+}
+
+.sorteo-slot-ticket-anterior,
+.sorteo-slot-ticket-siguiente {
+  opacity: 0.52;
+  transform: scale(0.95);
+}
+
+.sorteo-slot-ticket-actual {
+  flex-basis: 170px;
+  padding: 18px 22px;
+  border-color: var(--color-gold-400);
+  background: linear-gradient(135deg, #fff8e4 0%, #f3d889 100%);
+  color: var(--color-ink-950);
+  opacity: 1;
+  transform: scale(1);
+  box-shadow: 0 0 0 3px rgba(228, 179, 57, 0.11), 0 12px 30px rgba(0, 0, 0, 0.38);
+}
+
+.sorteo-slot-ticket-ganador {
+  border-color: #fff1a8;
+  background: linear-gradient(135deg, #fff8d8, #e8b92e);
+  box-shadow: 0 0 0 4px rgba(241, 199, 91, 0.16), 0 0 36px rgba(241, 199, 91, 0.42);
+  animation: sorteo-slot-winner-glow 1.1s infinite alternate;
+}
+
+.sorteo-slot-ticket-topline {
+  justify-content: space-between;
+  gap: 10px;
+  font-size: 0.68rem;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.sorteo-slot-ticket-label {
+  gap: 5px;
+  color: var(--color-gold-300);
+}
+
+.sorteo-slot-ticket-actual .sorteo-slot-ticket-label {
+  color: var(--color-gold-800);
+}
+
+.sorteo-slot-ticket-order,
+.sorteo-slot-ticket-phone {
+  color: var(--color-ink-400);
+  font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+  font-size: 0.72rem;
+}
+
+.sorteo-slot-ticket-actual .sorteo-slot-ticket-order,
+.sorteo-slot-ticket-actual .sorteo-slot-ticket-phone {
+  color: var(--color-ink-600);
+}
+
+.sorteo-slot-ticket-number {
+  margin-top: 2px;
+  color: var(--color-ink-300);
+  font-size: 0.82rem;
+  line-height: 1;
+  letter-spacing: 0.08em;
+}
+
+.sorteo-slot-ticket-name {
+  display: -webkit-box;
+  max-width: 100%;
+  overflow: hidden;
+  font-size: clamp(1.05rem, 1.7vw, 1.35rem);
+  font-weight: 900;
+  line-height: 1.05;
+  text-overflow: ellipsis;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.sorteo-slot-ticket-actual .sorteo-slot-ticket-number {
+  color: var(--color-ink-600);
+  font-size: 0.9rem;
+}
+
+.sorteo-slot-ticket-actual .sorteo-slot-ticket-name {
+  font-size: clamp(1.55rem, 3vw, 2.45rem);
+  letter-spacing: -0.045em;
+  line-height: 1;
+}
+
+.sorteo-slot-ticket:not(.sorteo-slot-ticket-actual) .sorteo-slot-ticket-phone {
+  display: none;
+}
+
+.sorteo-slot-ticket-winner-label {
+  position: absolute;
+  top: 13px;
+  right: 18px;
+  padding: 4px 8px;
+  border-radius: var(--radius-pill);
+  background: var(--color-ink-950);
+  color: var(--color-gold-200);
+  font-size: 0.66rem;
+  font-weight: 900;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.sorteo-slot-pointer {
+  position: absolute;
+  z-index: 6;
+  top: 50%;
+  left: -5px;
+  width: 0;
+  height: 0;
+  border-top: 13px solid transparent;
+  border-bottom: 13px solid transparent;
+  border-left: 20px solid var(--color-gold-300);
+  filter: drop-shadow(0 0 8px rgba(241, 199, 91, 0.75));
+  transform: translateY(-50%);
+}
+
+.sorteo-slot-pointer::after {
+  position: absolute;
+  top: -1px;
+  left: 0;
+  width: 5px;
+  height: 2px;
+  content: '';
+  background: #fff4bc;
+}
+
+.sorteo-slot-empty {
+  display: grid;
+  height: 100%;
+  place-items: center;
+  color: var(--color-ink-400);
+}
+
+.sorteo-slot-current-caption {
+  position: relative;
+  z-index: 1;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 13px 6px 1px;
+  color: var(--color-ink-400);
+  font-size: 0.78rem;
+}
+
+.sorteo-slot-current-caption strong {
+  color: var(--color-gold-200);
+  font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+  font-size: 0.96rem;
+}
+
+.sorteo-slot-actions {
+  justify-content: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-top: 18px;
+}
+
+.sorteo-primary-action,
+.sorteo-secondary-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  min-height: 50px;
+  border-radius: 11px;
+  font: inherit;
+  font-weight: 900;
+  cursor: pointer;
+  transition: transform 0.18s ease, filter 0.18s ease, background 0.18s ease;
+}
+
+.sorteo-primary-action {
+  min-width: 210px;
+  padding: 0 25px;
+  border: 1px solid #f6d98a;
+  background: linear-gradient(135deg, #f6d98a, #d29a14);
+  color: #221603;
+  box-shadow: 0 9px 24px rgba(210, 154, 20, 0.26);
+}
+
+.sorteo-primary-action:hover:not(:disabled) {
+  filter: brightness(1.09);
+  transform: translateY(-2px);
+}
+
+.sorteo-primary-action:disabled {
+  cursor: wait;
+  opacity: 0.68;
+}
+
+.sorteo-secondary-action {
+  padding: 0 17px;
+  border: 1px solid var(--color-ink-600);
+  background: var(--color-ink-800);
+  color: var(--color-ink-200);
+}
+
+.sorteo-secondary-action:hover:not(:disabled) {
+  background: var(--color-ink-700);
+  color: var(--color-gold-100);
+  transform: translateY(-1px);
+}
+
+.sorteo-side-column {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-width: 0;
+}
+
+.sorteo-info-card,
+.sorteo-winner-card,
+.sorteo-rules-card {
+  padding: 21px;
+}
+
+.sorteo-info-card {
+  flex: 1;
+  background: linear-gradient(145deg, rgba(22, 101, 52, 0.18), var(--color-ink-900) 52%);
+  border-color: rgba(74, 222, 128, 0.22);
+}
+
+.sorteo-info-card-title,
+.sorteo-winner-card-heading {
+  gap: 11px;
+}
+
+.sorteo-info-card-title > div,
+.sorteo-winner-card-heading > div {
+  min-width: 0;
+}
+
+.sorteo-info-card-title strong,
+.sorteo-winner-card-heading strong {
+  display: block;
+  margin-top: 3px;
+  color: var(--color-ink-50);
+  font-size: 1.15rem;
+}
+
+.sorteo-info-icon,
+.sorteo-winner-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 42px;
+  height: 42px;
+  flex: 0 0 42px;
+  border-radius: 12px;
+  background: rgba(34, 197, 94, 0.13);
+  color: #86efac;
+}
+
+.sorteo-winner-icon {
+  background: rgba(228, 179, 57, 0.16);
+  color: var(--color-gold-200);
+}
+
+.sorteo-check-list {
+  display: grid;
+  gap: 13px;
+  padding: 0;
+  margin: 25px 0;
+  list-style: none;
+}
+
+.sorteo-check-list li {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  color: var(--color-ink-200);
+  font-size: 0.88rem;
+  line-height: 1.45;
+}
+
+.sorteo-check-list svg {
+  flex: 0 0 auto;
+  margin-top: 2px;
+  color: #86efac;
+}
+
+.sorteo-info-stat {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding-top: 14px;
+  border-top: 1px solid rgba(255, 255, 255, 0.09);
+  color: var(--color-ink-400);
+  font-size: 0.82rem;
+}
+
+.sorteo-info-stat strong {
+  color: var(--color-gold-200);
+  font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+}
+
+.sorteo-rules-card {
+  background: var(--color-ink-800);
+}
+
+.sorteo-rules-heading {
+  gap: 8px;
+  color: var(--color-gold-300);
+}
+
+.sorteo-rules-heading h3 {
+  margin: 0;
+  color: var(--color-ink-50);
+  font-size: 1rem;
+}
+
+.sorteo-rules-card p {
+  margin: 13px 0 16px;
+  color: var(--color-ink-300);
+  font-size: 0.84rem;
+  line-height: 1.5;
+}
+
+.sorteo-rule-row {
+  gap: 8px;
+  padding: 8px 0;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  color: var(--color-ink-200);
+  font-size: 0.82rem;
+}
+
+.sorteo-rule-row span {
+  display: inline-grid;
+  width: 24px;
+  height: 24px;
+  place-items: center;
+  border-radius: 7px;
+  background: rgba(228, 179, 57, 0.16);
+  color: var(--color-gold-200);
+  font-weight: 900;
+}
+
+.sorteo-rule-row em {
+  color: var(--color-gold-400);
+  font-style: normal;
+}
+
+.sorteo-winner-card {
+  flex: 1;
+  border-color: rgba(228, 179, 57, 0.5);
+  background: radial-gradient(circle at 82% 0%, rgba(228, 179, 57, 0.25), transparent 38%), linear-gradient(145deg, #382b0d, var(--color-ink-900) 58%);
+  animation: sorteo-winner-enter 0.35s ease-out;
+}
+
+.sorteo-winner-ticket-number {
+  margin: 29px 0 10px;
+  color: var(--color-gold-100);
+  font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+  font-size: clamp(3.25rem, 7vw, 5rem);
+  font-weight: 950;
+  letter-spacing: -0.08em;
+  line-height: 0.9;
+}
+
+.sorteo-winner-card h3 {
+  margin: 0;
+  overflow: hidden;
+  color: var(--color-ink-50);
+  font-size: 1.35rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sorteo-winner-card > p {
+  margin: 7px 0 20px;
+  color: var(--color-ink-300);
+  font-size: 0.84rem;
+  line-height: 1.45;
+}
+
+.sorteo-winner-meta {
+  display: grid;
+  gap: 8px;
+  margin-bottom: 18px;
+}
+
+.sorteo-winner-meta span {
+  justify-content: space-between;
+  gap: 12px;
+  padding: 9px 0;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  color: var(--color-gold-100);
+  font-size: 0.82rem;
+}
+
+.sorteo-winner-meta strong {
+  color: var(--color-ink-400);
+  font-size: 0.7rem;
+  font-weight: 800;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+}
+
+.sorteo-whatsapp-action {
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  min-height: 43px;
+  border-radius: 9px;
+  background: #25d366;
+  color: #06230f;
+  font-size: 0.84rem;
+  font-weight: 900;
+  text-decoration: none;
+  transition: filter 0.18s ease, transform 0.18s ease;
+}
+
+.sorteo-whatsapp-action:hover {
+  filter: brightness(1.08);
+  transform: translateY(-1px);
+}
+
+.sorteo-data-section {
+  overflow: hidden;
+}
+
+.sorteo-data-header {
+  justify-content: space-between;
+  gap: 16px;
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--color-ink-700);
+}
+
+.sorteo-tabs {
+  display: flex;
+  gap: 7px;
+  flex-wrap: wrap;
+}
+
+.sorteo-tabs button,
+.sorteo-copy-action {
+  justify-content: center;
+  gap: 7px;
+  min-height: 38px;
+  padding: 0 12px;
+  border: 1px solid var(--color-ink-700);
+  border-radius: 8px;
+  background: var(--color-ink-800);
+  color: var(--color-ink-300);
+  font-size: 0.78rem;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.sorteo-tabs button.activo {
+  border-color: var(--color-gold-600);
+  background: rgba(228, 179, 57, 0.13);
+  color: var(--color-gold-100);
+}
+
+.sorteo-tabs button:hover,
+.sorteo-copy-action:hover {
+  border-color: var(--color-gold-500);
+  color: var(--color-gold-100);
+}
+
+.sorteo-copy-action {
+  flex-shrink: 0;
+}
+
+.sorteo-table-wrapper {
+  padding: 16px 18px 4px;
+}
+
+.sorteo-table-intro {
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+  color: var(--color-ink-300);
+  font-size: 0.8rem;
+}
+
+.sorteo-table-intro > div {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  color: var(--color-gold-200);
+  font-weight: 800;
+}
+
+.sorteo-table-intro strong {
+  color: var(--color-ink-400);
+  font-weight: 700;
+}
+
+.sorteo-table {
+  background: transparent;
+}
+
+.sorteo-table th {
+  background: var(--color-ink-800);
+}
+
+.sorteo-table td,
+.sorteo-table th {
+  padding: 11px 12px;
+}
+
+.sorteo-table .pill-tickets {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.sorteo-visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+@keyframes sorteo-slot-reel-scroll {
+  0% {
+    transform: translateY(28px);
+  }
+  100% {
+    transform: translateY(-28px);
+  }
+}
+
+@keyframes sorteo-slot-mask-flow {
+  from { opacity: 0.78; }
+  to { opacity: 1; }
+}
+
+@keyframes sorteo-slot-light-pulse {
+  from { opacity: 0.45; }
+  to { opacity: 1; }
+}
+
+@keyframes sorteo-slot-winner-glow {
+  from { box-shadow: 0 0 0 4px rgba(241, 199, 91, 0.12), 0 0 24px rgba(241, 199, 91, 0.28); }
+  to { box-shadow: 0 0 0 4px rgba(241, 199, 91, 0.2), 0 0 44px rgba(241, 199, 91, 0.58); }
+}
+
+@keyframes sorteo-winner-enter {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@media (max-width: 1120px) {
+  .sorteo-summary-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .sorteo-main-grid {
+    grid-template-columns: minmax(0, 1fr) minmax(290px, 0.72fr);
+  }
+}
+
+@media (max-width: 860px) {
+  .sorteo-page {
+    width: min(100% - 28px, 720px);
+    padding-top: 16px;
+  }
+
+  .sorteo-page-header,
+  .sorteo-intro {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .sorteo-page-header-actions {
+    justify-content: flex-start;
+  }
+
+  .sorteo-main-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .sorteo-side-column {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    align-items: stretch;
+  }
+
+  .sorteo-side-column .sorteo-rules-card {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (max-width: 600px) {
+  .sorteo-page {
+    width: calc(100% - 20px);
+    gap: 18px;
+    padding-bottom: 42px;
+  }
+
+  .sorteo-page-brand {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 14px;
+  }
+
+  .sorteo-page-heading {
+    padding-left: 0;
+    border-left: 0;
+  }
+
+  .sorteo-page-header-actions {
+    width: 100%;
+  }
+
+  .sorteo-header-button,
+  .sorteo-header-link {
+    flex: 1;
+  }
+
+  .sorteo-demo-badge {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .sorteo-intro h2 {
+    font-size: 2.45rem;
+  }
+
+  .sorteo-campaign-pill {
+    width: 100%;
+    box-sizing: border-box;
+    border-radius: 11px;
+  }
+
+  .sorteo-summary-grid,
+  .sorteo-side-column {
+    grid-template-columns: 1fr;
+  }
+
+  .sorteo-side-column .sorteo-rules-card {
+    grid-column: auto;
+  }
+
+  .sorteo-section-heading,
+  .sorteo-data-header,
+  .sorteo-table-intro {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .sorteo-sound-button,
+  .sorteo-copy-action {
+    align-self: stretch;
+  }
+
+  .sorteo-slot-panel {
+    padding: 14px;
+  }
+
+  .sorteo-slot-machine {
+    padding: 9px;
+  }
+
+  .sorteo-slot-viewport {
+    height: 520px;
+  }
+
+  .sorteo-slot-ticket-stack {
+    gap: 7px;
+    padding: 10px;
+  }
+
+  .sorteo-slot-ticket {
+    flex-basis: 74px;
+    padding: 10px 14px;
+  }
+
+  .sorteo-slot-ticket-actual {
+    flex-basis: 130px;
+    padding: 16px;
+  }
+
+  .sorteo-slot-focus-window {
+    right: 10px;
+    left: 10px;
+    height: 130px;
+  }
+
+  .sorteo-slot-ticket-number {
+    font-size: 0.76rem;
+  }
+
+  .sorteo-slot-ticket-name {
+    font-size: 0.94rem;
+  }
+
+  .sorteo-slot-ticket-actual .sorteo-slot-ticket-name {
+    font-size: 1.5rem;
+  }
+
+  .sorteo-slot-ticket-winner-label {
+    position: static;
+    align-self: flex-start;
+    margin-top: 4px;
+  }
+
+  .sorteo-primary-action {
+    width: 100%;
+  }
+
+  .sorteo-secondary-action {
+    flex: 1;
+  }
+
+  .sorteo-table-wrapper {
+    padding: 14px 12px 4px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sorteo-slot-machine-girando .sorteo-slot-ticket-stack,
+  .sorteo-slot-machine-girando .sorteo-slot-light,
+  .sorteo-slot-ticket-ganador,
+  .sorteo-winner-card {
+    animation: none;
+  }
+}

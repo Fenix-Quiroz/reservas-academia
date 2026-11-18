@@ -11,8 +11,8 @@ import {
   Trophy,
   Users,
 } from 'lucide-react'
-import datosDemo from '../../data/clientes-frecuentes-demo.json'
 import type { ClienteFrecuente } from '../../clientesFrecuentes'
+import { DATOS_SORTEO_DEMO } from '../../sorteoDemo'
 
 export interface AdminHistorialClientesProps {
   clientes?: readonly ClienteFrecuente[]
@@ -22,7 +22,7 @@ type CriterioOrden = 'total-desc' | 'mes-desc' | 'nombre-asc' | 'horas-desc' | '
 
 const CLIENTES_POR_PAGINA = 10
 
-export default function AdminHistorialClientes({ clientes = datosDemo }: AdminHistorialClientesProps) {
+export default function AdminHistorialClientes({ clientes = DATOS_SORTEO_DEMO }: AdminHistorialClientesProps) {
   const [busqueda, setBusqueda] = useState('')
   const [orden, setOrden] = useState<CriterioOrden>('total-desc')
   const [paginaActual, setPaginaActual] = useState(1)
