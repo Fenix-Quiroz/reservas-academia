@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react'
+import { useRef, useState, type ReactNode } from 'react'
 import AdminMarca from './AdminMarca'
 import { crearBloqueoAccion } from '../../accionUnica'
 
@@ -13,6 +13,7 @@ export interface AdminCabeceraProps {
   onRefresh: () => void | Promise<void>
   onLogout: () => void | Promise<void>
   onIrASorteos?: () => void
+  notificacionesPush?: ReactNode
 }
 
 export default function AdminCabecera({
@@ -26,6 +27,7 @@ export default function AdminCabecera({
   onRefresh,
   onLogout,
   onIrASorteos,
+  notificacionesPush,
 }: AdminCabeceraProps) {
   const [cerrandoSesion, setCerrandoSesion] = useState(false)
   const bloqueoLogout = useRef(crearBloqueoAccion())
@@ -50,6 +52,7 @@ export default function AdminCabecera({
         <p className="subtitulo">Gestiona las reservas del polideportivo.</p>
       </div>
       <div className="admin-acciones">
+        {notificacionesPush}
         {(!supabaseConfigurado || import.meta.env.DEV) && (porLimpiar ? (
           <div className="admin-reset-confirmar">
             <span>{supabaseConfigurado ? '¿Borrar todos los datos de prueba?' : '¿Borrar reservas y clientes?'}</span>

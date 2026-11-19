@@ -61,6 +61,7 @@ import AdminNavegacion from './components/admin/AdminNavegacion'
 import AdminModalComprobante from './components/admin/AdminModalComprobante'
 import AdminModalEditarReserva from './components/admin/AdminModalEditarReserva'
 import AdminLoadingSplash from './components/admin/AdminLoadingSplash'
+import AdminNotificaciones from './components/admin/AdminNotificaciones'
 import { crearBloqueoAccion } from './accionUnica'
 
 type EstadoConexion = 'sincronizando' | 'demo' | 'error' | 'sincronizado'
@@ -668,6 +669,7 @@ export default function AdminApp() {
         onRefresh={actualizar}
         onLogout={cerrarSesion}
         onIrASorteos={irASorteos}
+        notificacionesPush={<AdminNotificaciones supabaseConfigurado={supabaseConfigurado} />}
       />
 
       <div className={`demo-aviso${estadoConexion === 'error' ? ' sin-conexion' : ''}${estadoConexion === 'sincronizado' ? ' sincronizado-discreto' : ''}`} role={estadoConexion === 'error' ? 'alert' : 'status'}>
