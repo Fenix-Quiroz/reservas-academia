@@ -247,6 +247,7 @@ begin
     from public.admin_push_deliveries as entrega
     where entrega.reserva_id = p_reserva_id
       and entrega.estado = 'enviando'
+      and entrega.updated_at > now() - interval '15 minutes'
   ) then return 'ocupado'; end if;
 
   update public.admin_push_events
@@ -430,12 +431,14 @@ begin
     where (evento.estado = 'pendiente' and evento.proximo_intento_at <= now())
        or (
          evento.estado in ('programado', 'enviando')
+         and evento.proximo_intento_at <= now()
          and evento.updated_at <= now() - interval '5 minutes'
          and not exists (
            select 1
            from public.admin_push_deliveries as entrega
            where entrega.reserva_id = evento.reserva_id
              and entrega.estado = 'enviando'
+             and entrega.updated_at > now() - interval '15 minutes'
          )
        )
     order by evento.proximo_intento_at, evento.created_at
@@ -446,7 +449,14 @@ begin
     set estado = 'programado',
         intento_id = gen_random_uuid(),
         intentos = intentos + 1,
-        proximo_intento_at = now() + interval '5 minutes',
+        proximo_intento_at = now() + case least(intentos + 1, 5)
+          when 1 then interval '30 seconds'
+          when 2 then interval '1 minute'
+          when 3 then interval '2 minutes'
+          when 4 then interval '4 minutes'
+          else interval '15 minutes'
+        end,
+        ultimo_error = 'stale_recovery',
         updated_at = now()
     where reserva_id = v_reserva_id;
 
