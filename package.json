@@ -37,6 +37,7 @@
     "check:excel-txt": "tsx src/verificarExcelTxt.check.ts",
     "check:typescript": "tsx src/typescript.check.ts",
     "check:accion": "tsx src/accionUnica.check.ts",
+    "check:notificaciones": "tsx src/notificacionesPush.check.ts",
     "check:simulacion": "tsx src/simulacionReservas.test.ts && tsx src/simulacionClienteReservas.check.ts && tsx src/simulacionCrucesTurnos.test.ts"
   },
   "dependencies": {
