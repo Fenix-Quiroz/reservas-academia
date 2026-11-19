@@ -27,15 +27,22 @@ self.addEventListener('notificationclick', (evento) => {
   evento.notification.close()
   const destino = evento.notification.data?.url || '/admin'
 
-  evento.waitUntil(self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientes) => {
-    for (const cliente of clientes) {
-      if ('focus' in cliente) {
-        void cliente.focus()
-        if ('navigate' in cliente && new URL(cliente.url).pathname !== destino) void cliente.navigate(destino)
-        return
+  evento.waitUntil((async () => {
+    const clientes = await self.clients.matchAll({ type: 'window', includeUncontrolled: true })
+    const clienteAdmin = clientes.find((cliente) => {
+      try {
+        return new URL(cliente.url).pathname.startsWith('/admin')
+      } catch {
+        return false
       }
+    })
+
+    if (clienteAdmin && 'focus' in clienteAdmin) {
+      await clienteAdmin.focus()
+      if ('navigate' in clienteAdmin && new URL(clienteAdmin.url).pathname !== destino) await clienteAdmin.navigate(destino)
+      return
     }
-    if (self.clients.openWindow) return self.clients.openWindow(destino)
-    return undefined
-  }))
+
+    if (self.clients.openWindow) await self.clients.openWindow(destino)
+  })())
 })

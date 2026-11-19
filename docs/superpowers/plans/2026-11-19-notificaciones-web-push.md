@@ -77,13 +77,13 @@
 
 **Interfaces:**
 - SQL creates `public.admin_push_subscriptions` with unique `endpoint`, `user_id`, Web Push keys, timestamps, RLS and admin-only policies; authenticated admins may upsert their own device subscription.
-- The Edge Function accepts a Supabase Database Webhook payload, validates `NOTIFICACIONES_WEBHOOK_SECRET`, ignores non-`INSERT`/non-`reservas` events, sends `{ title: 'Nueva reserva', body: 'Ingresa al panel para revisar el comprobante.', url: '/admin' }`, and removes endpoints returning HTTP 404/410.
+- The Edge Function accepts an asynchronous `pg_net` trigger payload, validates `NOTIFICACIONES_WEBHOOK_SECRET`, ignores non-`INSERT`/non-`reservas` events, sends `{ title: 'Nueva reserva', body: 'Ingresa al panel para revisar el comprobante.', url: '/admin' }`, deduplicates by reservation/device, and removes invalid endpoints.
 - Required server secrets: `VAPID_SUBJECT`, `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `NOTIFICACIONES_WEBHOOK_SECRET`.
 
-- [ ] **Step 1: Add failing static/invariant checks** for table/RLS/unique endpoint, no public access, function secret validation, generic payload, stale endpoint cleanup and `verify_jwt = false`; run `npm run check:notificaciones` to observe the expected failure.
+- [ ] **Step 1: Add failing static/invariant checks** for table/RLS/unique endpoint, delivery deduplication, no public access, function secret validation, generic payload, stale endpoint cleanup and `verify_jwt = false`; run `npm run check:notificaciones` to observe the expected failure.
 - [ ] **Step 2: Implement the SQL migration** without touching reservation/payment functions and with an idempotent `updated_at` trigger.
 - [ ] **Step 3: Implement the Edge Function** with `npm:web-push`, service-role Supabase access, controlled response codes and per-subscription error isolation.
-- [ ] **Step 4: Add the function configuration and run the checks**; use `deno check` or `supabase functions serve` if the installed CLI/runtime supports it, otherwise record the unavailable external check and rely on TypeScript/static invariants.
+- [ ] **Step 4: Add the function configuration and async `pg_net`/Vault trigger; run the checks**; use `deno check` or `supabase functions serve` if the installed CLI/runtime supports it, otherwise record the unavailable external check and rely on TypeScript/static invariants.
 - [ ] **Step 5: Commit** with `git add supabase/fix-notificaciones-web-push.sql supabase/functions/notificar-nueva-reserva/index.ts supabase/config.toml src/notificacionesPush.check.ts && git commit -m "feat: send push alerts for new reservations"`.
 
 ### Task 4: Deployment instructions and regression verification

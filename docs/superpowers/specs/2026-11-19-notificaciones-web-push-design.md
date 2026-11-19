@@ -30,8 +30,8 @@ Avisar al encargado en su celular Android cuando se cree una nueva reserva. La n
 - `public/service-worker.js` recibirá el evento push y mostrará título, texto y enlace a `/admin`.
 - El panel registrará la suscripción solo después de que el administrador pulse el botón y el navegador conceda permiso.
 - `admin_push_subscriptions` guardará una suscripción por dispositivo/usuario, con RLS limitada al administrador autenticado.
-- Una Edge Function pública para webhooks validará un secreto configurado y enviará el aviso a las suscripciones activas con VAPID. Las suscripciones inválidas se eliminarán; los errores se registrarán sin fallar la reserva.
-- El webhook se configurará para `INSERT` de `public.reservas`. No se agregará lógica de notificación dentro de `crear_reserva_publica`.
+- Una Edge Function pública para el evento asíncrono validará un secreto configurado y enviará el aviso a las suscripciones activas con VAPID. Las suscripciones inválidas se eliminarán; los errores se registrarán sin fallar la reserva.
+- Un trigger `AFTER INSERT` sobre `public.reservas` usará `pg_net` y Supabase Vault para invocar la Edge Function sin guardar el secreto en la definición del trigger. No se agregará lógica de notificación dentro de `crear_reserva_publica`.
 - Las claves VAPID y el secreto del webhook vivirán solo en secretos de Supabase; la aplicación recibirá únicamente la clave pública.
 
 ## Restricciones y verificación

@@ -31,7 +31,7 @@ El panel puede avisar al encargado en Chrome cuando se crea una nueva reserva. L
 Para habilitarlo en una base existente:
 
 1. Ejecuta `supabase/fix-notificaciones-web-push.sql` en el SQL Editor.
-2. Genera un par de claves VAPID y coloca la pública en `VITE_VAPID_PUBLIC_KEY` tanto en `.env.local` como en las variables de Vercel. La clave privada nunca debe ir en `VITE_*`, `.env.example` ni código del navegador.
+2. Genera un par de claves VAPID y coloca la pública en `VITE_VAPID_PUBLIC_KEY` tanto en `.env.local` como en las variables de Vercel. Después vuelve a desplegar el frontend para que la clave llegue al navegador. La clave privada nunca debe ir en `VITE_*`, `.env.example` ni código del navegador.
 3. Configura los secretos de Supabase para la Edge Function:
 
        supabase secrets set VAPID_SUBJECT=mailto:encargado@tu-dominio.com VAPID_PUBLIC_KEY=tu_clave_publica_vapid VAPID_PRIVATE_KEY=tu_clave_privada_vapid NOTIFICACIONES_WEBHOOK_SECRET=un_secreto_largo
@@ -40,7 +40,12 @@ Para habilitarlo en una base existente:
 
        supabase functions deploy notificar-nueva-reserva
 
-5. En Supabase crea un Database Webhook para `public.reservas` en el evento `INSERT`, apuntando a `https://tu-proyecto.supabase.co/functions/v1/notificar-nueva-reserva`. Agrega el header `x-notificaciones-secret` con el mismo valor de `NOTIFICACIONES_WEBHOOK_SECRET`.
+5. Habilita la extensión `pg_net` en Database > Extensions y guarda en Supabase Vault la URL y el secreto que usará el trigger:
+
+       select vault.create_secret('https://tu-proyecto.supabase.co/functions/v1/notificar-nueva-reserva', 'notificaciones_push_url');
+       select vault.create_secret('un_secreto_largo', 'notificaciones_push_secret');
+
+   La migración crea un trigger asíncrono sobre `public.reservas` en `INSERT`; no es necesario crear otro Database Webhook en el Dashboard.
 6. Entra al panel desde Chrome en el Android del encargado y pulsa **Activar notificaciones**. Debe permitir las notificaciones del sitio.
 
 El webhook se ejecuta después de la inserción y el envío push es independiente: si una notificación falla, la reserva y su comprobante permanecen guardados. Las suscripciones vencidas se limpian automáticamente.

@@ -89,14 +89,36 @@ function resultadoFallido(estado: Exclude<EstadoNotificacionesPush, 'activadas'>
   return { ok: false, estado, mensaje: mensajeEstadoNotificaciones(estado) }
 }
 
+async function suscripcionRegistrada(usuarioId: string, endpoint: string): Promise<boolean> {
+  if (!supabase) return false
+  const { data, error } = await supabase
+    .from('admin_push_subscriptions')
+    .select('id')
+    .eq('user_id', usuarioId)
+    .eq('endpoint', endpoint)
+    .eq('vapid_public_key', VAPID_PUBLIC_KEY)
+    .maybeSingle()
+  if (error) throw error
+  return Boolean(data)
+}
+
 export async function leerEstadoNotificacionesPush(): Promise<EstadoNotificacionesPush> {
   if (!supabaseConfigurado || !supabase) return 'sin-configurar'
   if (!soportaNotificacionesPush()) return 'no-disponibles'
+  if (!VAPID_PUBLIC_KEY) return 'sin-configurar'
 
   try {
+    if (Notification.permission !== 'granted') {
+      return estadoNotificacionesPush(Notification.permission, false, true)
+    }
+    const { data: usuario, error: errorUsuario } = await supabase.auth.getUser()
+    if (errorUsuario || !usuario.user) return 'error'
     const registration = await navigator.serviceWorker.getRegistration('/service-worker.js')
     const subscription = await registration?.pushManager.getSubscription()
-    return estadoNotificacionesPush(Notification.permission, Boolean(subscription), Boolean(VAPID_PUBLIC_KEY))
+    const registrada = subscription
+      ? await suscripcionRegistrada(usuario.user.id, subscription.endpoint)
+      : false
+    return estadoNotificacionesPush('granted', registrada, true)
   } catch {
     return 'error'
   }
@@ -119,8 +141,13 @@ export async function activarNotificacionesPush(): Promise<ResultadoActivarNotif
     const { data: usuario, error: errorUsuario } = await supabase.auth.getUser()
     if (errorUsuario || !usuario.user) return resultadoFallido('error')
 
-    const registration = await navigator.serviceWorker.register('/service-worker.js', { scope: '/' })
+    await navigator.serviceWorker.register('/service-worker.js', { scope: '/' })
+    const registration = await navigator.serviceWorker.ready
     let subscription = await registration.pushManager.getSubscription()
+    if (subscription && !(await suscripcionRegistrada(usuario.user.id, subscription.endpoint))) {
+      await subscription.unsubscribe()
+      subscription = null
+    }
     if (!subscription) {
       subscription = await registration.pushManager.subscribe({
         userVisibleOnly: true,
@@ -137,6 +164,7 @@ export async function activarNotificacionesPush(): Promise<ResultadoActivarNotif
       endpoint: subscription.endpoint,
       p256dh: codificarBase64Url(p256dh),
       auth: codificarBase64Url(auth),
+      vapid_public_key: VAPID_PUBLIC_KEY,
       user_agent: navigator.userAgent,
     }, { onConflict: 'endpoint' })
     if (error) return resultadoFallido('error')
