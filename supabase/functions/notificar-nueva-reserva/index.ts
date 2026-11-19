@@ -61,7 +61,9 @@ function endpointPermitido(endpoint: string): boolean {
     const host = url.hostname
     return url.protocol === 'https:' && (host === 'fcm.googleapis.com'
       || host === 'web.push.apple.com'
+      || host === 'push.services.mozilla.com'
       || host.endsWith('.push.services.mozilla.com')
+      || host === 'notify.windows.com'
       || host.endsWith('.notify.windows.com'))
   } catch {
     return false

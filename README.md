@@ -48,7 +48,7 @@ Para habilitarlo en una base existente:
    La migración crea un trigger asíncrono sobre `public.reservas` en `INSERT` y un job de `pg_cron` que reintenta eventos pendientes con backoff; no es necesario crear otro Database Webhook en el Dashboard.
 6. Entra al panel desde Chrome en el Android del encargado y pulsa **Activar notificaciones**. Debe permitir las notificaciones del sitio.
 
-El trigger se ejecuta después de la inserción y el envío push es independiente: si una notificación falla, la reserva y su comprobante permanecen guardados. Las suscripciones vencidas se limpian automáticamente. Si el proveedor responde con un timeout ambiguo, el evento queda marcado como incierto y no se reenvía automáticamente para evitar duplicados.
+El trigger se ejecuta después de la inserción y el envío push es independiente: si una notificación falla, la reserva y su comprobante permanecen guardados. Las suscripciones vencidas se limpian automáticamente. Si el proveedor responde con un timeout ambiguo, el evento queda marcado como incierto para revisión manual y no se reenvía automáticamente para evitar duplicados.
 
 ### Adelanto Yape y comprobantes
 

@@ -167,13 +167,7 @@ begin
   for update;
 
   if v_estado = 'enviado' then return 'enviada'; end if;
-  if v_updated_at > now() - interval '15 minutes' then return 'incierta'; end if;
-
-  update public.admin_push_deliveries
-  set estado = 'enviando', intento_id = gen_random_uuid(), updated_at = now(), enviado_at = null
-  where reserva_id = p_reserva_id and subscription_id = p_subscription_id
-  returning intento_id into v_intento_id;
-  return v_intento_id::text;
+  if v_estado = 'enviando' then return 'incierta'; end if;
 end;
 $function$;
 
@@ -247,7 +241,6 @@ begin
     from public.admin_push_deliveries as entrega
     where entrega.reserva_id = p_reserva_id
       and entrega.estado = 'enviando'
-      and entrega.updated_at > now() - interval '15 minutes'
   ) then return 'ocupado'; end if;
 
   update public.admin_push_events
@@ -438,7 +431,6 @@ begin
            from public.admin_push_deliveries as entrega
            where entrega.reserva_id = evento.reserva_id
              and entrega.estado = 'enviando'
-             and entrega.updated_at > now() - interval '15 minutes'
          )
        )
     order by evento.proximo_intento_at, evento.created_at
