@@ -26,3 +26,4 @@ dist-ssr
 # Local development artifacts
 supabase/.temp/
 outputs/
+.worktrees/
