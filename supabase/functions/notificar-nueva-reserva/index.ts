@@ -77,9 +77,13 @@ async function conTiempoLimite<T>(promesa: Promise<T>, milisegundos: number): Pr
   }
 }
 
-async function borrarSuscripcion(supabase: ReturnType<typeof createClient>, id: string): Promise<void> {
+async function borrarSuscripcion(supabase: ReturnType<typeof createClient>, id: string): Promise<boolean> {
   const { error } = await supabase.from('admin_push_subscriptions').delete().eq('id', id)
-  if (error) console.error('No se pudo borrar la suscripción push.', { subscriptionId: id })
+  if (error) {
+    console.error('No se pudo borrar la suscripción push.', { subscriptionId: id })
+    return false
+  }
+  return true
 }
 
 async function reprogramarEvento(supabase: ReturnType<typeof createClient>, reservaId: string, error: string): Promise<void> {
@@ -98,8 +102,7 @@ async function procesarSuscripcion(
   mensaje: string,
 ): Promise<ResultadoEnvio> {
   if (suscripcion.vapid_public_key !== vapidPublicKey || !endpointPermitido(suscripcion.endpoint)) {
-    await borrarSuscripcion(supabase, suscripcion.id)
-    return 'eliminado'
+    return (await borrarSuscripcion(supabase, suscripcion.id)) ? 'eliminado' : 'fallido'
   }
 
   const { data: reclamada, error: errorReclamo } = await supabase.rpc('reclamar_entrega_push', {
@@ -111,7 +114,9 @@ async function procesarSuscripcion(
     return 'fallido'
   }
   if (reclamada === 'incierta') return 'incierto'
-  if (reclamada !== 'reclamada') return 'omitido'
+  if (reclamada === 'enviada') return 'omitido'
+  if (typeof reclamada !== 'string' || !reclamada) return 'fallido'
+  const intentoId = reclamada
 
   try {
     await conTiempoLimite(webpush.sendNotification({
@@ -119,25 +124,32 @@ async function procesarSuscripcion(
       keys: { p256dh: suscripcion.p256dh, auth: suscripcion.auth },
     }, mensaje), TIEMPO_MAXIMO_ENVIO_MS)
 
-    const { error: errorMarcado } = await supabase
+    const { data: dataMarcada, error: errorMarcado } = await supabase
       .from('admin_push_deliveries')
       .update({ estado: 'enviado', enviado_at: new Date().toISOString(), updated_at: new Date().toISOString() })
       .eq('reserva_id', reservaId)
       .eq('subscription_id', suscripcion.id)
-    if (!errorMarcado) return 'enviado'
+      .eq('intento_id', intentoId)
+      .select('subscription_id')
+    if (!errorMarcado && dataMarcada?.length === 1) return 'enviado'
+
+    if (!errorMarcado && dataMarcada?.length !== 1) {
+      console.error('La entrega push cambió mientras se enviaba.', { subscriptionId: suscripcion.id })
+      return 'incierto'
+    }
 
     await supabase
       .from('admin_push_deliveries')
       .delete()
       .eq('reserva_id', reservaId)
       .eq('subscription_id', suscripcion.id)
+      .eq('intento_id', intentoId)
     console.error('No se pudo marcar la entrega push.', { subscriptionId: suscripcion.id })
     return 'fallido'
   } catch (error) {
     const codigo = codigoError(error)
     if (codigo === 404 || codigo === 410) {
-      await borrarSuscripcion(supabase, suscripcion.id)
-      return 'eliminado'
+      return (await borrarSuscripcion(supabase, suscripcion.id)) ? 'eliminado' : 'fallido'
     }
     if (error instanceof Error && error.message === 'push_timeout') {
       console.error('El envío push quedó incierto por timeout.', { subscriptionId: suscripcion.id })
@@ -149,6 +161,7 @@ async function procesarSuscripcion(
       .delete()
       .eq('reserva_id', reservaId)
       .eq('subscription_id', suscripcion.id)
+      .eq('intento_id', intentoId)
     console.error('Falló el envío de una notificación push.', { subscriptionId: suscripcion.id, codigo })
     return 'fallido'
   }

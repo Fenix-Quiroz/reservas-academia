@@ -43,7 +43,8 @@ self.addEventListener('notificationclick', (evento) => {
     const clientes = await self.clients.matchAll({ type: 'window', includeUncontrolled: true })
     const clienteAdmin = clientes.find((cliente) => {
       try {
-        return new URL(cliente.url).pathname.startsWith('/admin')
+        const ruta = new URL(cliente.url).pathname
+        return ruta === '/admin' || ruta.startsWith('/admin/')
       } catch {
         return false
       }

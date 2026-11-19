@@ -81,10 +81,14 @@ create table if not exists public.admin_push_deliveries (
   reserva_id uuid not null references public.reservas(id) on delete cascade,
   subscription_id uuid not null references public.admin_push_subscriptions(id) on delete cascade,
   estado text not null default 'enviando' check (estado in ('enviando', 'enviado')),
+  intento_id uuid,
   updated_at timestamptz not null default now(),
   enviado_at timestamptz,
   primary key (reserva_id, subscription_id)
 );
+
+alter table public.admin_push_deliveries
+  add column if not exists intento_id uuid;
 
 create index if not exists admin_push_deliveries_updated_idx
   on public.admin_push_deliveries (updated_at desc);
@@ -137,32 +141,35 @@ set search_path = public, pg_temp
 as $function$
 declare
   v_estado text;
+  v_intento_id uuid;
   v_updated_at timestamptz;
 begin
   if coalesce(auth.jwt() ->> 'role', '') <> 'service_role' then
     raise exception using errcode = '42501', message = 'service_role_requerido';
   end if;
 
-  insert into public.admin_push_deliveries (reserva_id, subscription_id, estado, updated_at)
-  values (p_reserva_id, p_subscription_id, 'enviando', now())
-  on conflict (reserva_id, subscription_id) do nothing;
+  insert into public.admin_push_deliveries (reserva_id, subscription_id, estado, intento_id, updated_at)
+  values (p_reserva_id, p_subscription_id, 'enviando', gen_random_uuid(), now())
+  on conflict (reserva_id, subscription_id) do nothing
+  returning intento_id into v_intento_id;
 
-  if found then return 'reclamada'; end if;
+  if found then return v_intento_id::text; end if;
 
-  select entrega.estado, entrega.updated_at
-  into v_estado, v_updated_at
+  select entrega.estado, entrega.intento_id, entrega.updated_at
+  into v_estado, v_intento_id, v_updated_at
   from public.admin_push_deliveries as entrega
   where entrega.reserva_id = p_reserva_id
     and entrega.subscription_id = p_subscription_id
   for update;
 
   if v_estado = 'enviado' then return 'enviada'; end if;
-  if v_updated_at > now() - interval '5 minutes' then return 'incierta'; end if;
+  if v_updated_at > now() - interval '15 minutes' then return 'incierta'; end if;
 
   update public.admin_push_deliveries
-  set estado = 'enviando', updated_at = now(), enviado_at = null
-  where reserva_id = p_reserva_id and subscription_id = p_subscription_id;
-  return 'reclamada';
+  set estado = 'enviando', intento_id = gen_random_uuid(), updated_at = now(), enviado_at = null
+  where reserva_id = p_reserva_id and subscription_id = p_subscription_id
+  returning intento_id into v_intento_id;
+  return v_intento_id::text;
 end;
 $function$;
 
@@ -379,7 +386,7 @@ begin
     select evento.reserva_id
     from public.admin_push_events as evento
     where (evento.estado = 'pendiente' and evento.proximo_intento_at <= now())
-       or (evento.estado = 'programado' and evento.updated_at <= now() - interval '5 minutes')
+       or (evento.estado in ('programado', 'enviando') and evento.updated_at <= now() - interval '5 minutes')
     order by evento.proximo_intento_at, evento.created_at
     limit 50
     for update skip locked
@@ -427,13 +434,21 @@ revoke all on function public.invocar_notificador_nuevas_reservas_pendientes() f
 create extension if not exists pg_cron with schema pg_catalog;
 
 do $schedule$
+declare
+  v_jobid bigint;
 begin
-  if not exists (select 1 from cron.job where jobname = 'notificar-push-pendientes') then
-    perform cron.schedule(
-      'notificar-push-pendientes',
-      '* * * * *',
-      'select public.invocar_notificador_nuevas_reservas_pendientes();'
-    );
+  select jobid into v_jobid
+  from cron.job
+  where jobname = 'notificar-push-pendientes';
+
+  if v_jobid is not null then
+    perform cron.unschedule(v_jobid);
   end if;
+
+  perform cron.schedule(
+    'notificar-push-pendientes',
+    '* * * * *',
+    'select public.invocar_notificador_nuevas_reservas_pendientes();'
+  );
 end;
 $schedule$;
