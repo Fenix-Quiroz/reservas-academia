@@ -3,3 +3,6 @@ verify_jwt = false
 
 [functions.limpiar-datos-prueba]
 verify_jwt = true
+
+[functions.notificar-nueva-reserva]
+verify_jwt = false
