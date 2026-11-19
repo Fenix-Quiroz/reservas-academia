@@ -2,7 +2,12 @@ const TITULO_POR_DEFECTO = 'Nueva reserva recibida'
 const CUERPO_POR_DEFECTO = 'Ingresa al panel para revisar el comprobante.'
 
 function urlInterna(valor) {
-  return typeof valor === 'string' && valor.startsWith('/') && !valor.startsWith('//') ? valor : '/admin'
+  return typeof valor === 'string'
+    && valor.startsWith('/')
+    && !valor.startsWith('//')
+    && !valor.includes('\\')
+    ? valor
+    : '/admin'
 }
 
 self.addEventListener('push', (evento) => {

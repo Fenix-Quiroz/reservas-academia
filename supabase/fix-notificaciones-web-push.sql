@@ -20,6 +20,11 @@ alter table public.admin_push_subscriptions
 alter table public.admin_push_subscriptions
   drop constraint if exists admin_push_subscriptions_endpoint_check;
 
+-- Las suscripciones antiguas que no pertenecen a un proveedor Web Push
+-- permitido se descartan; el administrador puede registrarlas de nuevo.
+delete from public.admin_push_subscriptions
+where endpoint !~ '^https://(fcm\.googleapis\.com|web\.push\.apple\.com|([a-z0-9-]+\.)?push\.services\.mozilla\.com|([a-z0-9-]+\.)?notify\.windows\.com)(/|$)';
+
 alter table public.admin_push_subscriptions
   add constraint admin_push_subscriptions_endpoint_check check (
     char_length(endpoint) between 32 and 2048
@@ -97,13 +102,19 @@ for each row execute function public.actualizar_updated_at_admin_push_subscripti
 -- incluso si la llamada inicial a pg_net falla o la Edge Function responde 5xx.
 create table if not exists public.admin_push_events (
   reserva_id uuid primary key references public.reservas(id) on delete cascade,
-  estado text not null default 'pendiente' check (estado in ('pendiente', 'enviando', 'enviado')),
+  estado text not null default 'pendiente' check (estado in ('pendiente', 'programado', 'enviando', 'enviado')),
   intentos integer not null default 0 check (intentos >= 0),
   proximo_intento_at timestamptz not null default now(),
   ultimo_error text,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
+
+alter table public.admin_push_events
+  drop constraint if exists admin_push_events_estado_check;
+
+alter table public.admin_push_events
+  add constraint admin_push_events_estado_check check (estado in ('pendiente', 'programado', 'enviando', 'enviado'));
 
 create index if not exists admin_push_events_pending_idx
   on public.admin_push_events (proximo_intento_at, updated_at)
@@ -113,11 +124,13 @@ alter table public.admin_push_events enable row level security;
 revoke all on table public.admin_push_events from public, anon, authenticated;
 grant select, insert, update, delete on table public.admin_push_events to service_role;
 
+drop function if exists public.reclamar_entrega_push(uuid, uuid);
+
 create or replace function public.reclamar_entrega_push(
   p_reserva_id uuid,
   p_subscription_id uuid
 )
-returns boolean
+returns text
 language plpgsql
 security definer
 set search_path = public, pg_temp
@@ -134,7 +147,7 @@ begin
   values (p_reserva_id, p_subscription_id, 'enviando', now())
   on conflict (reserva_id, subscription_id) do nothing;
 
-  if found then return true; end if;
+  if found then return 'reclamada'; end if;
 
   select entrega.estado, entrega.updated_at
   into v_estado, v_updated_at
@@ -143,13 +156,13 @@ begin
     and entrega.subscription_id = p_subscription_id
   for update;
 
-  if v_estado = 'enviado' then return false; end if;
-  if v_updated_at > now() - interval '5 minutes' then return false; end if;
+  if v_estado = 'enviado' then return 'enviada'; end if;
+  if v_updated_at > now() - interval '5 minutes' then return 'incierta'; end if;
 
   update public.admin_push_deliveries
   set estado = 'enviando', updated_at = now(), enviado_at = null
   where reserva_id = p_reserva_id and subscription_id = p_subscription_id;
-  return true;
+  return 'reclamada';
 end;
 $function$;
 
@@ -205,6 +218,12 @@ begin
   for update;
 
   if v_estado = 'enviado' then return 0; end if;
+  if v_estado = 'programado' then
+    update public.admin_push_events
+    set estado = 'enviando', updated_at = now()
+    where reserva_id = p_reserva_id;
+    return v_intentos;
+  end if;
   if v_proximo_intento_at > now() then return 0; end if;
   if v_estado = 'enviando' and v_updated_at > now() - interval '5 minutes' then return 0; end if;
 
@@ -359,12 +378,19 @@ begin
   for v_reserva_id in
     select evento.reserva_id
     from public.admin_push_events as evento
-    where evento.estado <> 'enviado'
-      and evento.proximo_intento_at <= now()
-      and (evento.estado <> 'enviando' or evento.updated_at <= now() - interval '5 minutes')
+    where (evento.estado = 'pendiente' and evento.proximo_intento_at <= now())
+       or (evento.estado = 'programado' and evento.updated_at <= now() - interval '5 minutes')
     order by evento.proximo_intento_at, evento.created_at
     limit 50
+    for update skip locked
   loop
+    update public.admin_push_events
+    set estado = 'programado',
+        intentos = intentos + 1,
+        proximo_intento_at = now() + interval '5 minutes',
+        updated_at = now()
+    where reserva_id = v_reserva_id;
+
     begin
       perform net.http_post(
         url := v_url,
@@ -382,6 +408,12 @@ begin
         timeout_milliseconds := 10000
       );
     exception when others then
+      update public.admin_push_events
+      set estado = 'pendiente',
+          proximo_intento_at = now() + interval '30 seconds',
+          ultimo_error = 'pg_net_enqueue_failed',
+          updated_at = now()
+      where reserva_id = v_reserva_id;
       raise warning 'No se pudo programar el reintento push para %: %', v_reserva_id, SQLERRM;
     end;
   end loop;

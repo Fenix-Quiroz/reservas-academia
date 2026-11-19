@@ -22,7 +22,7 @@ interface SuscripcionPush {
   vapid_public_key: string | null
 }
 
-type ResultadoEnvio = 'enviado' | 'omitido' | 'eliminado' | 'fallido'
+type ResultadoEnvio = 'enviado' | 'omitido' | 'eliminado' | 'fallido' | 'incierto'
 
 function json(body: Record<string, unknown>, status = 200): Response {
   return new Response(JSON.stringify(body), {
@@ -110,7 +110,8 @@ async function procesarSuscripcion(
     console.error('No se pudo reclamar una entrega push.', { subscriptionId: suscripcion.id })
     return 'fallido'
   }
-  if (reclamada !== true) return 'omitido'
+  if (reclamada === 'incierta') return 'incierto'
+  if (reclamada !== 'reclamada') return 'omitido'
 
   try {
     await conTiempoLimite(webpush.sendNotification({
@@ -137,6 +138,10 @@ async function procesarSuscripcion(
     if (codigo === 404 || codigo === 410) {
       await borrarSuscripcion(supabase, suscripcion.id)
       return 'eliminado'
+    }
+    if (error instanceof Error && error.message === 'push_timeout') {
+      console.error('El envío push quedó incierto por timeout.', { subscriptionId: suscripcion.id })
+      return 'incierto'
     }
 
     await supabase
@@ -217,13 +222,13 @@ Deno.serve(async (request) => {
       mensaje,
     )),
   )
-  const resumen = { enviados: 0, omitidos: 0, eliminados: 0, fallidos: 0 }
+  const resumen = { enviados: 0, omitidos: 0, eliminados: 0, fallidos: 0, inciertos: 0 }
   for (const resultado of resultados) {
     const estado: ResultadoEnvio = resultado.status === 'fulfilled' ? resultado.value : 'fallido'
     resumen[`${estado}s` as keyof typeof resumen] += 1
   }
 
-  if (resumen.fallidos > 0) {
+  if (resumen.fallidos > 0 || resumen.inciertos > 0) {
     await reprogramarEvento(supabase, payload.record.id as string, 'push_delivery_failed')
     return json({ ok: false, total: resultados.length, ...resumen }, 500)
   }

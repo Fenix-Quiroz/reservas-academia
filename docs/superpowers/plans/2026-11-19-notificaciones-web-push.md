@@ -4,7 +4,7 @@
 
 **Goal:** Permitir que el administrador active notificaciones Web Push en su Android y reciba un aviso genérico cuando se cree una nueva reserva, sin modificar la confirmación existente de comprobantes.
 
-**Architecture:** El panel registra la suscripción del navegador en Supabase después de una acción explícita del administrador. Un Service Worker muestra la notificación y abre `/admin`; un webhook asíncrono de `public.reservas` invoca una Edge Function que envía el push con VAPID. La creación de reservas no espera ni depende del envío.
+**Architecture:** El panel registra la suscripción del navegador en Supabase después de una acción explícita del administrador. Un Service Worker muestra la notificación y abre `/admin`; un trigger `pg_net` encola un evento de `public.reservas`, una Edge Function envía el push con VAPID y `pg_cron` reintenta el outbox con backoff. La creación de reservas no espera ni depende del envío.
 
 **Tech Stack:** React 19, TypeScript, Vite, Supabase Auth/Postgres/Edge Functions, Deno npm imports, Web Push API y Service Worker.
 
@@ -15,7 +15,7 @@
 - La notificación debe decir que llegó una nueva reserva y dirigir al administrador al panel; no debe aprobar ni rechazar el comprobante.
 - No se deben modificar `crear_reserva_publica`, la carga de comprobantes ni `confirmar_pago_admin`.
 - No se deben incluir datos personales del cliente en el payload push.
-- Las credenciales privadas VAPID y el secreto del webhook solo pueden vivir en secretos de Supabase; el navegador recibe únicamente la clave pública.
+- Las credenciales privadas VAPID y el secreto de notificación solo pueden vivir en secretos de Supabase; el navegador recibe únicamente la clave pública.
 - Un fallo del push no puede hacer fallar ni retrasar la creación de una reserva.
 - El registro debe ser explícito mediante el botón del administrador y debe tolerar permisos denegados y suscripciones repetidas.
 
@@ -24,8 +24,8 @@
 - Permiso de notificaciones denegado: el panel debe seguir funcionando y explicar cómo reintentarlo desde Chrome.
 - Dos clics o dos dispositivos del mismo administrador: la suscripción debe actualizarse sin duplicar el endpoint.
 - Suscripción expirada o inválida: el envío debe eliminarla y continuar con las demás suscripciones.
-- Webhook repetido o payload que no sea un `INSERT` de `reservas`: la función no debe enviar avisos duplicados ni procesar eventos ajenos.
-- Error de VAPID, Supabase o red durante el envío: la reserva ya creada debe conservarse y el webhook debe responder de forma controlada.
+- Evento repetido o payload que no sea un `INSERT` de `reservas`: la función no debe enviar avisos duplicados ni procesar eventos ajenos.
+- Error de VAPID, Supabase o red durante el envío: la reserva ya creada debe conservarse y el outbox debe reprogramar el evento de forma controlada.
 
 ### Task 1: Contrato de notificaciones y conversión de claves
 
@@ -94,7 +94,7 @@
 - Modify: `src/supabase.check.ts`
 - Test: existing reservation, payment and admin checks
 
-- [ ] **Step 1: Add deployment instructions** for `VITE_VAPID_PUBLIC_KEY`, Supabase secrets, Edge Function deployment and a Database Webhook on `public.reservas` `INSERT`; document that push failure does not affect reservations.
+- [ ] **Step 1: Add deployment instructions** for `VITE_VAPID_PUBLIC_KEY`, Supabase secrets, Edge Function deployment and Vault/`pg_net`/`pg_cron` on `public.reservas` `INSERT`; document that push failure does not affect reservations.
 - [ ] **Step 2: Add regression assertions** that the public reservation RPC, payment-upload flow and admin confirmation RPC remain present and unchanged in their integration points.
 - [ ] **Step 3: Run the focused checks**: `npm run check:notificaciones`, `npm run check`, `npm run check:pago`, `npm run check:pago-admin`, `npm run check:supabase`, `npm run typecheck`, `npm run lint` and `npm run build`.
 - [ ] **Step 4: Run the complete available check suite** from `package.json`; expected result is exit code 0, with any pre-existing failure reported explicitly.

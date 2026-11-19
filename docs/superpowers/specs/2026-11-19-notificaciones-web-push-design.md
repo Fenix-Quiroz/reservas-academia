@@ -21,7 +21,7 @@ Avisar al encargado en su celular Android cuando se cree una nueva reserva. La n
 
 ## Enfoques considerados
 
-1. **Web Push + Service Worker + función asíncrona de Supabase (elegido).** Funciona con Chrome en Android aunque el panel no esté visible. Añade una tabla de suscripciones, un Service Worker y una Edge Function activada por un webhook de inserción; el envío no participa de la transacción de reserva.
+1. **Web Push + Service Worker + función asíncrona de Supabase (elegido).** Funciona con Chrome en Android aunque el panel no esté visible. Añade una tabla de suscripciones, un Service Worker, un outbox de eventos y una Edge Function activada por `pg_net`/`pg_cron`; el envío no participa de la transacción de reserva.
 2. **Notificación con Supabase Realtime desde React.** Es menor cambio, pero solo funciona con el panel abierto y no cumple el objetivo del encargado cuando Chrome está minimizado o cerrado.
 3. **WhatsApp Business API.** Tiene buena entrega, pero agrega proveedor, credenciales y costos por mensaje; se deja fuera de esta entrega.
 
@@ -30,12 +30,12 @@ Avisar al encargado en su celular Android cuando se cree una nueva reserva. La n
 - `public/service-worker.js` recibirá el evento push y mostrará título, texto y enlace a `/admin`.
 - El panel registrará la suscripción solo después de que el administrador pulse el botón y el navegador conceda permiso.
 - `admin_push_subscriptions` guardará una suscripción por dispositivo/usuario, con RLS limitada al administrador autenticado.
-- Una Edge Function pública para el evento asíncrono validará un secreto configurado y enviará el aviso a las suscripciones activas con VAPID. Las suscripciones inválidas se eliminarán; los errores se registrarán sin fallar la reserva.
+- Una Edge Function pública para el evento asíncrono validará un secreto configurado y enviará el aviso a las suscripciones activas con VAPID. Las suscripciones inválidas se eliminarán; los errores se registrarán y el outbox reintentará sin fallar la reserva.
 - Un trigger `AFTER INSERT` sobre `public.reservas` usará `pg_net` y Supabase Vault para invocar la Edge Function sin guardar el secreto en la definición del trigger. No se agregará lógica de notificación dentro de `crear_reserva_publica`.
-- Las claves VAPID y el secreto del webhook vivirán solo en secretos de Supabase; la aplicación recibirá únicamente la clave pública.
+- Las claves VAPID y el secreto de notificación vivirán solo en secretos de Supabase; la aplicación recibirá únicamente la clave pública.
 
 ## Restricciones y verificación
 
 - La funcionalidad requiere HTTPS, permisos del navegador y claves VAPID configuradas.
 - Se probará que el botón funciona sin Supabase configurado, que una denegación de permiso no rompe el panel, que una suscripción duplicada se actualiza, y que el flujo actual de reserva y confirmación de comprobantes conserva sus pruebas existentes.
-- La recepción en un Android real requiere una prueba manual después de desplegar la Edge Function y configurar el webhook; el repositorio cubrirá la lógica verificable localmente.
+- La recepción en un Android real requiere una prueba manual después de desplegar la Edge Function y configurar Vault/`pg_net`/`pg_cron`; el repositorio cubrirá la lógica verificable localmente.
