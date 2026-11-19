@@ -80,7 +80,7 @@ revoke all on function public.actualizar_updated_at_admin_push_subscriptions() f
 create table if not exists public.admin_push_deliveries (
   reserva_id uuid not null references public.reservas(id) on delete cascade,
   subscription_id uuid not null references public.admin_push_subscriptions(id) on delete cascade,
-  estado text not null default 'enviando' check (estado in ('enviando', 'enviado')),
+  estado text not null default 'enviando' check (estado in ('enviando', 'incierto', 'enviado')),
   intento_id uuid,
   updated_at timestamptz not null default now(),
   enviado_at timestamptz,
@@ -89,6 +89,12 @@ create table if not exists public.admin_push_deliveries (
 
 alter table public.admin_push_deliveries
   add column if not exists intento_id uuid;
+
+alter table public.admin_push_deliveries
+  drop constraint if exists admin_push_deliveries_estado_check;
+
+alter table public.admin_push_deliveries
+  add constraint admin_push_deliveries_estado_check check (estado in ('enviando', 'incierto', 'enviado'));
 
 create index if not exists admin_push_deliveries_updated_idx
   on public.admin_push_deliveries (updated_at desc);
@@ -167,7 +173,18 @@ begin
   for update;
 
   if v_estado = 'enviado' then return 'enviada'; end if;
-  if v_estado = 'enviando' then return 'incierta'; end if;
+  if v_estado = 'incierto' then return 'incierta'; end if;
+  if v_estado = 'enviando' then
+    if v_updated_at <= now() - interval '15 minutes' then
+      update public.admin_push_deliveries
+      set estado = 'incierto', updated_at = now()
+      where reserva_id = p_reserva_id
+        and subscription_id = p_subscription_id
+        and intento_id = v_intento_id
+        and estado = 'enviando';
+    end if;
+    return 'incierta';
+  end if;
 end;
 $function$;
 
@@ -240,7 +257,7 @@ begin
     select 1
     from public.admin_push_deliveries as entrega
     where entrega.reserva_id = p_reserva_id
-      and entrega.estado = 'enviando'
+      and entrega.estado in ('enviando', 'incierto')
   ) then return 'ocupado'; end if;
 
   update public.admin_push_events
@@ -409,6 +426,11 @@ declare
   v_secret text;
   v_reserva_id uuid;
 begin
+  update public.admin_push_deliveries
+  set estado = 'incierto', updated_at = now()
+  where estado = 'enviando'
+    and updated_at <= now() - interval '15 minutes';
+
   select decrypted_secret into v_url
   from vault.decrypted_secrets
   where name = 'notificaciones_push_url';
@@ -430,7 +452,7 @@ begin
            select 1
            from public.admin_push_deliveries as entrega
            where entrega.reserva_id = evento.reserva_id
-             and entrega.estado = 'enviando'
+             and entrega.estado in ('enviando', 'incierto')
          )
        )
     order by evento.proximo_intento_at, evento.created_at
@@ -471,7 +493,13 @@ begin
     exception when others then
       update public.admin_push_events
       set estado = 'pendiente',
-          proximo_intento_at = now() + interval '30 seconds',
+          proximo_intento_at = now() + case least(intentos, 5)
+            when 1 then interval '30 seconds'
+            when 2 then interval '1 minute'
+            when 3 then interval '2 minutes'
+            when 4 then interval '4 minutes'
+            else interval '15 minutes'
+          end,
           ultimo_error = 'pg_net_enqueue_failed',
           updated_at = now()
       where reserva_id = v_reserva_id;
