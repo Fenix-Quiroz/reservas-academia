@@ -65,6 +65,8 @@ assert.match(notificacionesSql, /estado in \('pendiente', 'programado', 'enviand
 assert.match(notificacionesSql, /reclamar_evento_push/)
 assert.match(notificacionesSql, /reprogramar_evento_push/)
 assert.match(notificacionesSql, /marcar_evento_push_incierto/)
+assert.match(notificacionesSql, /proximo_intento_at = now\(\) \+ interval '5 minutes'/)
+assert.match(notificacionesSql, /entrega\.estado = 'enviando'/)
 assert.match(notificacionesSql, /enable row level security/)
 assert.match(notificacionesSql, /app_metadata.*role.*admin/)
 assert.doesNotMatch(notificacionesSql, /grant .* to anon/)

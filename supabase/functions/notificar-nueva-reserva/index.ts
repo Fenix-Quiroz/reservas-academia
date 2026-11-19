@@ -147,14 +147,8 @@ async function procesarSuscripcion(
       return 'incierto'
     }
 
-    await supabase
-      .from('admin_push_deliveries')
-      .delete()
-      .eq('reserva_id', reservaId)
-      .eq('subscription_id', suscripcion.id)
-      .eq('intento_id', intentoId)
-    console.error('No se pudo marcar la entrega push.', { subscriptionId: suscripcion.id })
-    return 'fallido'
+    console.error('No se pudo marcar la entrega push después del envío.', { subscriptionId: suscripcion.id })
+    return 'incierto'
   } catch (error) {
     const codigo = codigoError(error)
     if (codigo === 404 || codigo === 410) {

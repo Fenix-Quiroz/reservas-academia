@@ -219,8 +219,8 @@ begin
     raise exception using errcode = '42501', message = 'service_role_requerido';
   end if;
 
-  insert into public.admin_push_events (reserva_id, intento_id)
-  values (p_reserva_id, gen_random_uuid())
+  insert into public.admin_push_events (reserva_id, estado, intento_id, proximo_intento_at, updated_at)
+  values (p_reserva_id, 'enviando', gen_random_uuid(), now() + interval '5 minutes', now())
   on conflict (reserva_id) do nothing
   returning intento_id into v_intento_id;
 
@@ -236,17 +236,24 @@ begin
   if v_estado = 'incierto' then return 'incierto'; end if;
   if v_estado = 'programado' then
     update public.admin_push_events
-    set estado = 'enviando', updated_at = now()
+    set estado = 'enviando', proximo_intento_at = now() + interval '5 minutes', updated_at = now()
     where reserva_id = p_reserva_id and intento_id = v_intento_id;
     return v_intento_id::text;
   end if;
   if v_proximo_intento_at > now() then return 'ocupado'; end if;
   if v_estado = 'enviando' and v_updated_at > now() - interval '5 minutes' then return 'ocupado'; end if;
+  if exists (
+    select 1
+    from public.admin_push_deliveries as entrega
+    where entrega.reserva_id = p_reserva_id
+      and entrega.estado = 'enviando'
+  ) then return 'ocupado'; end if;
 
   update public.admin_push_events
   set estado = 'enviando',
       intento_id = gen_random_uuid(),
       intentos = v_intentos + 1,
+      proximo_intento_at = now() + interval '5 minutes',
       updated_at = now()
   where reserva_id = p_reserva_id
   returning intento_id into v_intento_id;
@@ -421,7 +428,16 @@ begin
     select evento.reserva_id
     from public.admin_push_events as evento
     where (evento.estado = 'pendiente' and evento.proximo_intento_at <= now())
-       or (evento.estado in ('programado', 'enviando') and evento.updated_at <= now() - interval '5 minutes')
+       or (
+         evento.estado in ('programado', 'enviando')
+         and evento.updated_at <= now() - interval '5 minutes'
+         and not exists (
+           select 1
+           from public.admin_push_deliveries as entrega
+           where entrega.reserva_id = evento.reserva_id
+             and entrega.estado = 'enviando'
+         )
+       )
     order by evento.proximo_intento_at, evento.created_at
     limit 50
     for update skip locked
