@@ -27,3 +27,4 @@ dist-ssr
 supabase/.temp/
 outputs/
 .worktrees/
+.superpowers/

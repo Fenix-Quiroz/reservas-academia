@@ -24,6 +24,27 @@ Sin esas variables, la aplicación funciona con el modo demo local. Con Supabase
 8. En Authentication, crea el usuario del encargado y asígnale `app_metadata.role = admin`.
 9. Reinicia Vite con `npm run dev`.
 
+### Notificaciones del encargado en Android
+
+El panel puede avisar al encargado en Chrome cuando se crea una nueva reserva. La alerta solo le indica que debe entrar a `/admin` para revisar y confirmar el comprobante; no cambia automáticamente el estado del pago.
+
+Para habilitarlo en una base existente:
+
+1. Ejecuta `supabase/fix-notificaciones-web-push.sql` en el SQL Editor.
+2. Genera un par de claves VAPID y coloca la pública en `VITE_VAPID_PUBLIC_KEY` tanto en `.env.local` como en las variables de Vercel. La clave privada nunca debe ir en `VITE_*`, `.env.example` ni código del navegador.
+3. Configura los secretos de Supabase para la Edge Function:
+
+       supabase secrets set VAPID_SUBJECT=mailto:encargado@tu-dominio.com VAPID_PUBLIC_KEY=tu_clave_publica_vapid VAPID_PRIVATE_KEY=tu_clave_privada_vapid NOTIFICACIONES_WEBHOOK_SECRET=un_secreto_largo
+
+4. Publica la función:
+
+       supabase functions deploy notificar-nueva-reserva
+
+5. En Supabase crea un Database Webhook para `public.reservas` en el evento `INSERT`, apuntando a `https://tu-proyecto.supabase.co/functions/v1/notificar-nueva-reserva`. Agrega el header `x-notificaciones-secret` con el mismo valor de `NOTIFICACIONES_WEBHOOK_SECRET`.
+6. Entra al panel desde Chrome en el Android del encargado y pulsa **Activar notificaciones**. Debe permitir las notificaciones del sitio.
+
+El webhook se ejecuta después de la inserción y el envío push es independiente: si una notificación falla, la reserva y su comprobante permanecen guardados. Las suscripciones vencidas se limpian automáticamente.
+
 ### Adelanto Yape y comprobantes
 
 El paso final de reserva solicita un adelanto mínimo de S/ 10 por Yape al número `995933438` (Jesús Leg*), y permite cargar una captura JPG, PNG o WEBP de hasta 5 MB. El comprobante se guarda en el bucket privado `comprobantes-pago` y queda vinculado a `reserva_id`; la carga no aprueba automáticamente el pago.
