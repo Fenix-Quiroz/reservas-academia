@@ -82,6 +82,14 @@ async function borrarSuscripcion(supabase: ReturnType<typeof createClient>, id: 
   if (error) console.error('No se pudo borrar la suscripción push.', { subscriptionId: id })
 }
 
+async function reprogramarEvento(supabase: ReturnType<typeof createClient>, reservaId: string, error: string): Promise<void> {
+  const { error: errorReprogramacion } = await supabase.rpc('reprogramar_evento_push', {
+    p_reserva_id: reservaId,
+    p_error: error,
+  })
+  if (errorReprogramacion) console.error('No se pudo reprogramar el evento push.', { reservaId })
+}
+
 async function procesarSuscripcion(
   supabase: ReturnType<typeof createClient>,
   reservaId: string,
@@ -115,8 +123,15 @@ async function procesarSuscripcion(
       .update({ estado: 'enviado', enviado_at: new Date().toISOString(), updated_at: new Date().toISOString() })
       .eq('reserva_id', reservaId)
       .eq('subscription_id', suscripcion.id)
-    if (errorMarcado) console.error('No se pudo marcar la entrega push.', { subscriptionId: suscripcion.id })
-    return 'enviado'
+    if (!errorMarcado) return 'enviado'
+
+    await supabase
+      .from('admin_push_deliveries')
+      .delete()
+      .eq('reserva_id', reservaId)
+      .eq('subscription_id', suscripcion.id)
+    console.error('No se pudo marcar la entrega push.', { subscriptionId: suscripcion.id })
+    return 'fallido'
   } catch (error) {
     const codigo = codigoError(error)
     if (codigo === 404 || codigo === 410) {
@@ -162,10 +177,20 @@ Deno.serve(async (request) => {
   }
 
   const supabase = createClient(supabaseUrl, serviceRoleKey)
+  const { data: intento, error: errorReclamo } = await supabase.rpc('reclamar_evento_push', {
+    p_reserva_id: payload.record.id as string,
+  })
+  if (errorReclamo) {
+    console.error('No se pudo reclamar el evento push.')
+    return json({ error: 'event_unavailable' }, 500)
+  }
+  if (Number(intento) <= 0) return json({ ok: true, ignored: true }, 202)
+
   const { data: suscripciones, error: errorLectura } = await supabase
     .rpc('obtener_suscripciones_push_admin')
 
   if (errorLectura) {
+    await reprogramarEvento(supabase, payload.record.id as string, 'subscriptions_unavailable')
     console.error('No se pudieron leer las suscripciones push.')
     return json({ error: 'subscriptions_unavailable' }, 500)
   }
@@ -173,6 +198,7 @@ Deno.serve(async (request) => {
   try {
     webpush.setVapidDetails(vapidSubject, vapidPublicKey, vapidPrivateKey)
   } catch {
+    await reprogramarEvento(supabase, payload.record.id as string, 'vapid_invalid')
     console.error('Las claves VAPID no son válidas.')
     return json({ error: 'vapid_invalid' }, 500)
   }
@@ -197,5 +223,18 @@ Deno.serve(async (request) => {
     resumen[`${estado}s` as keyof typeof resumen] += 1
   }
 
-  return json({ ok: resumen.fallidos === 0, total: resultados.length, ...resumen }, resumen.fallidos === 0 ? 200 : 500)
+  if (resumen.fallidos > 0) {
+    await reprogramarEvento(supabase, payload.record.id as string, 'push_delivery_failed')
+    return json({ ok: false, total: resultados.length, ...resumen }, 500)
+  }
+
+  const { error: errorMarcado } = await supabase.rpc('marcar_evento_push_enviado', {
+    p_reserva_id: payload.record.id as string,
+  })
+  if (errorMarcado) {
+    console.error('No se pudo marcar el evento push como enviado.')
+    return json({ error: 'event_update_failed' }, 500)
+  }
+
+  return json({ ok: true, total: resultados.length, ...resumen })
 })

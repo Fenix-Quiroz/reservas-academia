@@ -93,6 +93,26 @@ create trigger actualizar_updated_at_admin_push_deliveries
 before update on public.admin_push_deliveries
 for each row execute function public.actualizar_updated_at_admin_push_subscriptions();
 
+-- Outbox por reserva. Conserva el evento hasta que el notificador lo confirme,
+-- incluso si la llamada inicial a pg_net falla o la Edge Function responde 5xx.
+create table if not exists public.admin_push_events (
+  reserva_id uuid primary key references public.reservas(id) on delete cascade,
+  estado text not null default 'pendiente' check (estado in ('pendiente', 'enviando', 'enviado')),
+  intentos integer not null default 0 check (intentos >= 0),
+  proximo_intento_at timestamptz not null default now(),
+  ultimo_error text,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+create index if not exists admin_push_events_pending_idx
+  on public.admin_push_events (proximo_intento_at, updated_at)
+  where estado <> 'enviado';
+
+alter table public.admin_push_events enable row level security;
+revoke all on table public.admin_push_events from public, anon, authenticated;
+grant select, insert, update, delete on table public.admin_push_events to service_role;
+
 create or replace function public.reclamar_entrega_push(
   p_reserva_id uuid,
   p_subscription_id uuid
@@ -156,6 +176,99 @@ $function$;
 revoke all on function public.obtener_suscripciones_push_admin() from public, anon, authenticated;
 grant execute on function public.obtener_suscripciones_push_admin() to service_role;
 
+create or replace function public.reclamar_evento_push(p_reserva_id uuid)
+returns integer
+language plpgsql
+security definer
+set search_path = public, pg_temp
+as $function$
+declare
+  v_estado text;
+  v_intentos integer;
+  v_proximo_intento_at timestamptz;
+  v_updated_at timestamptz;
+begin
+  if coalesce(auth.jwt() ->> 'role', '') <> 'service_role' then
+    raise exception using errcode = '42501', message = 'service_role_requerido';
+  end if;
+
+  insert into public.admin_push_events (reserva_id)
+  values (p_reserva_id)
+  on conflict (reserva_id) do nothing;
+
+  if found then return 1; end if;
+
+  select evento.estado, evento.intentos, evento.proximo_intento_at, evento.updated_at
+  into v_estado, v_intentos, v_proximo_intento_at, v_updated_at
+  from public.admin_push_events as evento
+  where evento.reserva_id = p_reserva_id
+  for update;
+
+  if v_estado = 'enviado' then return 0; end if;
+  if v_proximo_intento_at > now() then return 0; end if;
+  if v_estado = 'enviando' and v_updated_at > now() - interval '5 minutes' then return 0; end if;
+
+  update public.admin_push_events
+  set estado = 'enviando',
+      intentos = v_intentos + 1,
+      updated_at = now()
+  where reserva_id = p_reserva_id;
+  return v_intentos + 1;
+end;
+$function$;
+
+revoke all on function public.reclamar_evento_push(uuid) from public, anon, authenticated;
+grant execute on function public.reclamar_evento_push(uuid) to service_role;
+
+create or replace function public.marcar_evento_push_enviado(p_reserva_id uuid)
+returns void
+language plpgsql
+security definer
+set search_path = public, pg_temp
+as $function$
+begin
+  if coalesce(auth.jwt() ->> 'role', '') <> 'service_role' then
+    raise exception using errcode = '42501', message = 'service_role_requerido';
+  end if;
+
+  update public.admin_push_events
+  set estado = 'enviado', ultimo_error = null, updated_at = now()
+  where reserva_id = p_reserva_id;
+end;
+$function$;
+
+revoke all on function public.marcar_evento_push_enviado(uuid) from public, anon, authenticated;
+grant execute on function public.marcar_evento_push_enviado(uuid) to service_role;
+
+create or replace function public.reprogramar_evento_push(p_reserva_id uuid, p_error text)
+returns void
+language plpgsql
+security definer
+set search_path = public, pg_temp
+as $function$
+begin
+  if coalesce(auth.jwt() ->> 'role', '') <> 'service_role' then
+    raise exception using errcode = '42501', message = 'service_role_requerido';
+  end if;
+
+  update public.admin_push_events
+  set estado = 'pendiente',
+      proximo_intento_at = now() + case least(intentos, 5)
+        when 1 then interval '30 seconds'
+        when 2 then interval '1 minute'
+        when 3 then interval '2 minutes'
+        when 4 then interval '4 minutes'
+        else interval '15 minutes'
+      end,
+      ultimo_error = left(coalesce(p_error, 'envio_fallido'), 128),
+      updated_at = now()
+  where reserva_id = p_reserva_id;
+end;
+$function$;
+
+revoke all on function public.reprogramar_evento_push(uuid, text) from public, anon, authenticated;
+grant execute on function public.reprogramar_evento_push(uuid, text) to service_role;
+
 -- pg_net ejecuta la llamada en segundo plano y Vault evita dejar el secreto
 -- escrito en la definición del trigger.
 create extension if not exists pg_net with schema extensions;
@@ -170,32 +283,46 @@ declare
   v_url text;
   v_secret text;
 begin
-  select decrypted_secret into v_url
-  from vault.decrypted_secrets
-  where name = 'notificaciones_push_url';
-  select decrypted_secret into v_secret
-  from vault.decrypted_secrets
-  where name = 'notificaciones_push_secret';
-
-  if v_url is null or v_secret is null then
-    raise warning 'Notificaciones push no configuradas: faltan secretos de Vault.';
+  begin
+    insert into public.admin_push_events (reserva_id)
+    values (new.id)
+    on conflict (reserva_id) do nothing;
+  exception when others then
+    raise warning 'No se pudo guardar el evento de notificación push: %', SQLERRM;
     return new;
-  end if;
+  end;
 
-  perform net.http_post(
-    url := v_url,
-    headers := jsonb_build_object(
-      'Content-Type', 'application/json',
-      'x-notificaciones-secret', v_secret
-    ),
-    body := jsonb_build_object(
-      'type', tg_op,
-      'table', tg_table_name,
-      'schema', tg_table_schema,
-      'record', to_jsonb(new),
-      'old_record', null
-    )
-  );
+  begin
+    select decrypted_secret into v_url
+    from vault.decrypted_secrets
+    where name = 'notificaciones_push_url';
+    select decrypted_secret into v_secret
+    from vault.decrypted_secrets
+    where name = 'notificaciones_push_secret';
+
+    if v_url is null or v_secret is null then
+      raise warning 'Notificaciones push no configuradas: faltan secretos de Vault.';
+      return new;
+    end if;
+
+    perform net.http_post(
+      url := v_url,
+      headers := jsonb_build_object(
+        'Content-Type', 'application/json',
+        'x-notificaciones-secret', v_secret
+      ),
+      body := jsonb_build_object(
+        'type', tg_op,
+        'table', tg_table_name,
+        'schema', tg_table_schema,
+        'record', jsonb_build_object('id', new.id),
+        'old_record', null
+      ),
+      timeout_milliseconds := 10000
+    );
+  exception when others then
+    raise warning 'No se pudo programar el notificador push: %', SQLERRM;
+  end;
   return new;
 end;
 $function$;
@@ -206,3 +333,75 @@ after insert on public.reservas
 for each row execute function public.invocar_notificador_nueva_reserva();
 
 revoke all on function public.invocar_notificador_nueva_reserva() from public, anon, authenticated;
+
+-- Reintenta los eventos pendientes con backoff. pg_net no reintenta por sí
+-- solo un POST fallido; este job vuelve a encolar el evento sin tocar reservas.
+create or replace function public.invocar_notificador_nuevas_reservas_pendientes()
+returns void
+language plpgsql
+security definer
+set search_path = public, extensions, vault, pg_catalog, pg_temp
+as $function$
+declare
+  v_url text;
+  v_secret text;
+  v_reserva_id uuid;
+begin
+  select decrypted_secret into v_url
+  from vault.decrypted_secrets
+  where name = 'notificaciones_push_url';
+  select decrypted_secret into v_secret
+  from vault.decrypted_secrets
+  where name = 'notificaciones_push_secret';
+
+  if v_url is null or v_secret is null then return; end if;
+
+  for v_reserva_id in
+    select evento.reserva_id
+    from public.admin_push_events as evento
+    where evento.estado <> 'enviado'
+      and evento.proximo_intento_at <= now()
+      and (evento.estado <> 'enviando' or evento.updated_at <= now() - interval '5 minutes')
+    order by evento.proximo_intento_at, evento.created_at
+    limit 50
+  loop
+    begin
+      perform net.http_post(
+        url := v_url,
+        headers := jsonb_build_object(
+          'Content-Type', 'application/json',
+          'x-notificaciones-secret', v_secret
+        ),
+        body := jsonb_build_object(
+          'type', 'INSERT',
+          'table', 'reservas',
+          'schema', 'public',
+          'record', jsonb_build_object('id', v_reserva_id),
+          'old_record', null
+        ),
+        timeout_milliseconds := 10000
+      );
+    exception when others then
+      raise warning 'No se pudo programar el reintento push para %: %', v_reserva_id, SQLERRM;
+    end;
+  end loop;
+exception when others then
+  raise warning 'No se pudo consultar la cola de reintentos push: %', SQLERRM;
+end;
+$function$;
+
+revoke all on function public.invocar_notificador_nuevas_reservas_pendientes() from public, anon, authenticated;
+
+create extension if not exists pg_cron with schema pg_catalog;
+
+do $schedule$
+begin
+  if not exists (select 1 from cron.job where jobname = 'notificar-push-pendientes') then
+    perform cron.schedule(
+      'notificar-push-pendientes',
+      '* * * * *',
+      'select public.invocar_notificador_nuevas_reservas_pendientes();'
+    );
+  end if;
+end;
+$schedule$;

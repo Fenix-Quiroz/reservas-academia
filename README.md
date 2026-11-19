@@ -40,12 +40,12 @@ Para habilitarlo en una base existente:
 
        supabase functions deploy notificar-nueva-reserva
 
-5. Habilita la extensión `pg_net` en Database > Extensions y guarda en Supabase Vault la URL y el secreto que usará el trigger:
+5. Habilita las extensiones `pg_net` y `pg_cron` en Database > Extensions y guarda en Supabase Vault la URL y el secreto que usará el trigger:
 
        select vault.create_secret('https://tu-proyecto.supabase.co/functions/v1/notificar-nueva-reserva', 'notificaciones_push_url');
        select vault.create_secret('un_secreto_largo', 'notificaciones_push_secret');
 
-   La migración crea un trigger asíncrono sobre `public.reservas` en `INSERT`; no es necesario crear otro Database Webhook en el Dashboard.
+   La migración crea un trigger asíncrono sobre `public.reservas` en `INSERT` y un job de `pg_cron` que reintenta eventos pendientes con backoff; no es necesario crear otro Database Webhook en el Dashboard.
 6. Entra al panel desde Chrome en el Android del encargado y pulsa **Activar notificaciones**. Debe permitir las notificaciones del sitio.
 
 El webhook se ejecuta después de la inserción y el envío push es independiente: si una notificación falla, la reserva y su comprobante permanecen guardados. Las suscripciones vencidas se limpian automáticamente.

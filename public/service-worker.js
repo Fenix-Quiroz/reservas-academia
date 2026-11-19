@@ -1,17 +1,24 @@
 const TITULO_POR_DEFECTO = 'Nueva reserva recibida'
 const CUERPO_POR_DEFECTO = 'Ingresa al panel para revisar el comprobante.'
 
+function urlInterna(valor) {
+  return typeof valor === 'string' && valor.startsWith('/') && !valor.startsWith('//') ? valor : '/admin'
+}
+
 self.addEventListener('push', (evento) => {
   let datos = {}
   try {
-    datos = evento.data ? evento.data.json() : {}
+    const datosRecibidos = evento.data ? evento.data.json() : {}
+    if (typeof datosRecibidos === 'object' && datosRecibidos !== null && !Array.isArray(datosRecibidos)) {
+      datos = datosRecibidos
+    }
   } catch {
     datos = {}
   }
 
   const titulo = typeof datos.title === 'string' && datos.title ? datos.title : TITULO_POR_DEFECTO
   const cuerpo = typeof datos.body === 'string' && datos.body ? datos.body : CUERPO_POR_DEFECTO
-  const url = typeof datos.url === 'string' && datos.url.startsWith('/') ? datos.url : '/admin'
+  const url = urlInterna(datos.url)
 
   evento.waitUntil(self.registration.showNotification(titulo, {
     body: cuerpo,
@@ -25,7 +32,7 @@ self.addEventListener('push', (evento) => {
 
 self.addEventListener('notificationclick', (evento) => {
   evento.notification.close()
-  const destino = evento.notification.data?.url || '/admin'
+  const destino = urlInterna(evento.notification.data?.url)
 
   evento.waitUntil((async () => {
     const clientes = await self.clients.matchAll({ type: 'window', includeUncontrolled: true })
