@@ -91,6 +91,18 @@ async function reprogramarEvento(
   if (errorReprogramacion) console.error('No se pudo reprogramar el evento push.', { reservaId })
 }
 
+async function marcarEventoIncierto(
+  supabase: ReturnType<typeof createClient>,
+  reservaId: string,
+  intentoId: string,
+): Promise<void> {
+  const { error } = await supabase.rpc('marcar_evento_push_incierto', {
+    p_reserva_id: reservaId,
+    p_intento_id: intentoId,
+  })
+  if (error) console.error('No se pudo conservar el evento push incierto.', { reservaId })
+}
+
 async function procesarSuscripcion(
   supabase: ReturnType<typeof createClient>,
   reservaId: string,
@@ -199,7 +211,7 @@ Deno.serve(async (request) => {
     console.error('No se pudo reclamar el evento push.')
     return json({ error: 'event_unavailable' }, 500)
   }
-  if (intento === 'enviado' || intento === 'ocupado') return json({ ok: true, ignored: true }, 202)
+  if (intento === 'enviado' || intento === 'ocupado' || intento === 'incierto') return json({ ok: true, ignored: true }, 202)
   if (typeof intento !== 'string' || !intento) return json({ error: 'event_unavailable' }, 500)
   const intentoId = intento
 
@@ -240,7 +252,12 @@ Deno.serve(async (request) => {
     resumen[`${estado}s` as keyof typeof resumen] += 1
   }
 
-  if (resumen.fallidos > 0 || resumen.inciertos > 0) {
+  if (resumen.inciertos > 0) {
+    await marcarEventoIncierto(supabase, payload.record.id as string, intentoId)
+    return json({ ok: false, total: resultados.length, ...resumen, uncertain: true }, 202)
+  }
+
+  if (resumen.fallidos > 0) {
     await reprogramarEvento(supabase, payload.record.id as string, intentoId, 'push_delivery_failed')
     return json({ ok: false, total: resultados.length, ...resumen }, 500)
   }

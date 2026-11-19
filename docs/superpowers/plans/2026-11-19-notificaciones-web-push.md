@@ -26,6 +26,7 @@
 - Suscripción expirada o inválida: el envío debe eliminarla y continuar con las demás suscripciones.
 - Evento repetido o payload que no sea un `INSERT` de `reservas`: la función no debe enviar avisos duplicados ni procesar eventos ajenos.
 - Error de VAPID, Supabase o red durante el envío: la reserva ya creada debe conservarse y el outbox debe reprogramar el evento de forma controlada.
+- Timeout ambiguo del proveedor: la entrega se conserva como incierta y no se reintenta automáticamente, para no duplicar una notificación que pudo haber sido aceptada.
 
 ### Task 1: Contrato de notificaciones y conversión de claves
 

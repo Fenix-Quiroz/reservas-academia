@@ -106,7 +106,7 @@ for each row execute function public.actualizar_updated_at_admin_push_subscripti
 -- incluso si la llamada inicial a pg_net falla o la Edge Function responde 5xx.
 create table if not exists public.admin_push_events (
   reserva_id uuid primary key references public.reservas(id) on delete cascade,
-  estado text not null default 'pendiente' check (estado in ('pendiente', 'programado', 'enviando', 'enviado')),
+  estado text not null default 'pendiente' check (estado in ('pendiente', 'programado', 'enviando', 'incierto', 'enviado')),
   intento_id uuid,
   intentos integer not null default 0 check (intentos >= 0),
   proximo_intento_at timestamptz not null default now(),
@@ -119,7 +119,7 @@ alter table public.admin_push_events
   drop constraint if exists admin_push_events_estado_check;
 
 alter table public.admin_push_events
-  add constraint admin_push_events_estado_check check (estado in ('pendiente', 'programado', 'enviando', 'enviado'));
+  add constraint admin_push_events_estado_check check (estado in ('pendiente', 'programado', 'enviando', 'incierto', 'enviado'));
 
 alter table public.admin_push_events
   add column if not exists intento_id uuid;
@@ -233,6 +233,7 @@ begin
   for update;
 
   if v_estado = 'enviado' then return 'enviado'; end if;
+  if v_estado = 'incierto' then return 'incierto'; end if;
   if v_estado = 'programado' then
     update public.admin_push_events
     set estado = 'enviando', updated_at = now()
@@ -277,6 +278,26 @@ $function$;
 
 revoke all on function public.marcar_evento_push_enviado(uuid, uuid) from public, anon, authenticated;
 grant execute on function public.marcar_evento_push_enviado(uuid, uuid) to service_role;
+
+create or replace function public.marcar_evento_push_incierto(p_reserva_id uuid, p_intento_id uuid)
+returns void
+language plpgsql
+security definer
+set search_path = public, pg_temp
+as $function$
+begin
+  if coalesce(auth.jwt() ->> 'role', '') <> 'service_role' then
+    raise exception using errcode = '42501', message = 'service_role_requerido';
+  end if;
+
+  update public.admin_push_events
+  set estado = 'incierto', ultimo_error = 'push_timeout_incierto', updated_at = now()
+  where reserva_id = p_reserva_id and intento_id = p_intento_id and estado = 'enviando';
+end;
+$function$;
+
+revoke all on function public.marcar_evento_push_incierto(uuid, uuid) from public, anon, authenticated;
+grant execute on function public.marcar_evento_push_incierto(uuid, uuid) to service_role;
 
 drop function if exists public.reprogramar_evento_push(uuid, text);
 
