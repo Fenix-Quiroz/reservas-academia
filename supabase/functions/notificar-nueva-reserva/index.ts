@@ -51,29 +51,20 @@ function codigoError(error: unknown): number | null {
   return typeof valor === 'number' ? valor : null
 }
 
-function endpointPermitido(endpoint: string): boolean {
-  try {
-    const host = new URL(endpoint).hostname
-    return host === 'fcm.googleapis.com'
-      || host === 'web.push.apple.com'
-      || host.endsWith('.push.services.mozilla.com')
-      || host.endsWith('.notify.windows.com')
-  } catch {
-    return false
-  }
+function esTimeout(error: unknown): boolean {
+  return error instanceof Error && /timeout|timed out/i.test(error.message)
 }
 
-async function conTiempoLimite<T>(promesa: Promise<T>, milisegundos: number): Promise<T> {
-  let temporizador: number | undefined
+function endpointPermitido(endpoint: string): boolean {
   try {
-    return await Promise.race([
-      promesa,
-      new Promise<T>((_, reject) => {
-        temporizador = setTimeout(() => reject(new Error('push_timeout')), milisegundos)
-      }),
-    ])
-  } finally {
-    if (temporizador !== undefined) clearTimeout(temporizador)
+    const url = new URL(endpoint)
+    const host = url.hostname
+    return url.protocol === 'https:' && (host === 'fcm.googleapis.com'
+      || host === 'web.push.apple.com'
+      || host.endsWith('.push.services.mozilla.com')
+      || host.endsWith('.notify.windows.com'))
+  } catch {
+    return false
   }
 }
 
@@ -86,9 +77,15 @@ async function borrarSuscripcion(supabase: ReturnType<typeof createClient>, id: 
   return true
 }
 
-async function reprogramarEvento(supabase: ReturnType<typeof createClient>, reservaId: string, error: string): Promise<void> {
+async function reprogramarEvento(
+  supabase: ReturnType<typeof createClient>,
+  reservaId: string,
+  intentoId: string,
+  error: string,
+): Promise<void> {
   const { error: errorReprogramacion } = await supabase.rpc('reprogramar_evento_push', {
     p_reserva_id: reservaId,
+    p_intento_id: intentoId,
     p_error: error,
   })
   if (errorReprogramacion) console.error('No se pudo reprogramar el evento push.', { reservaId })
@@ -119,10 +116,10 @@ async function procesarSuscripcion(
   const intentoId = reclamada
 
   try {
-    await conTiempoLimite(webpush.sendNotification({
+    await webpush.sendNotification({
       endpoint: suscripcion.endpoint,
       keys: { p256dh: suscripcion.p256dh, auth: suscripcion.auth },
-    }, mensaje), TIEMPO_MAXIMO_ENVIO_MS)
+    }, mensaje, { timeout: TIEMPO_MAXIMO_ENVIO_MS, TTL: 60, urgency: 'high' })
 
     const { data: dataMarcada, error: errorMarcado } = await supabase
       .from('admin_push_deliveries')
@@ -151,7 +148,7 @@ async function procesarSuscripcion(
     if (codigo === 404 || codigo === 410) {
       return (await borrarSuscripcion(supabase, suscripcion.id)) ? 'eliminado' : 'fallido'
     }
-    if (error instanceof Error && error.message === 'push_timeout') {
+    if (esTimeout(error)) {
       console.error('El envío push quedó incierto por timeout.', { subscriptionId: suscripcion.id })
       return 'incierto'
     }
@@ -202,13 +199,15 @@ Deno.serve(async (request) => {
     console.error('No se pudo reclamar el evento push.')
     return json({ error: 'event_unavailable' }, 500)
   }
-  if (Number(intento) <= 0) return json({ ok: true, ignored: true }, 202)
+  if (intento === 'enviado' || intento === 'ocupado') return json({ ok: true, ignored: true }, 202)
+  if (typeof intento !== 'string' || !intento) return json({ error: 'event_unavailable' }, 500)
+  const intentoId = intento
 
   const { data: suscripciones, error: errorLectura } = await supabase
     .rpc('obtener_suscripciones_push_admin')
 
   if (errorLectura) {
-    await reprogramarEvento(supabase, payload.record.id as string, 'subscriptions_unavailable')
+    await reprogramarEvento(supabase, payload.record.id as string, intentoId, 'subscriptions_unavailable')
     console.error('No se pudieron leer las suscripciones push.')
     return json({ error: 'subscriptions_unavailable' }, 500)
   }
@@ -216,7 +215,7 @@ Deno.serve(async (request) => {
   try {
     webpush.setVapidDetails(vapidSubject, vapidPublicKey, vapidPrivateKey)
   } catch {
-    await reprogramarEvento(supabase, payload.record.id as string, 'vapid_invalid')
+    await reprogramarEvento(supabase, payload.record.id as string, intentoId, 'vapid_invalid')
     console.error('Las claves VAPID no son válidas.')
     return json({ error: 'vapid_invalid' }, 500)
   }
@@ -242,12 +241,13 @@ Deno.serve(async (request) => {
   }
 
   if (resumen.fallidos > 0 || resumen.inciertos > 0) {
-    await reprogramarEvento(supabase, payload.record.id as string, 'push_delivery_failed')
+    await reprogramarEvento(supabase, payload.record.id as string, intentoId, 'push_delivery_failed')
     return json({ ok: false, total: resultados.length, ...resumen }, 500)
   }
 
   const { error: errorMarcado } = await supabase.rpc('marcar_evento_push_enviado', {
     p_reserva_id: payload.record.id as string,
+    p_intento_id: intentoId,
   })
   if (errorMarcado) {
     console.error('No se pudo marcar el evento push como enviado.')

@@ -107,6 +107,7 @@ for each row execute function public.actualizar_updated_at_admin_push_subscripti
 create table if not exists public.admin_push_events (
   reserva_id uuid primary key references public.reservas(id) on delete cascade,
   estado text not null default 'pendiente' check (estado in ('pendiente', 'programado', 'enviando', 'enviado')),
+  intento_id uuid,
   intentos integer not null default 0 check (intentos >= 0),
   proximo_intento_at timestamptz not null default now(),
   ultimo_error text,
@@ -119,6 +120,9 @@ alter table public.admin_push_events
 
 alter table public.admin_push_events
   add constraint admin_push_events_estado_check check (estado in ('pendiente', 'programado', 'enviando', 'enviado'));
+
+alter table public.admin_push_events
+  add column if not exists intento_id uuid;
 
 create index if not exists admin_push_events_pending_idx
   on public.admin_push_events (proximo_intento_at, updated_at)
@@ -196,14 +200,17 @@ $function$;
 revoke all on function public.obtener_suscripciones_push_admin() from public, anon, authenticated;
 grant execute on function public.obtener_suscripciones_push_admin() to service_role;
 
+drop function if exists public.reclamar_evento_push(uuid);
+
 create or replace function public.reclamar_evento_push(p_reserva_id uuid)
-returns integer
+returns text
 language plpgsql
 security definer
 set search_path = public, pg_temp
 as $function$
 declare
   v_estado text;
+  v_intento_id uuid;
   v_intentos integer;
   v_proximo_intento_at timestamptz;
   v_updated_at timestamptz;
@@ -212,41 +219,46 @@ begin
     raise exception using errcode = '42501', message = 'service_role_requerido';
   end if;
 
-  insert into public.admin_push_events (reserva_id)
-  values (p_reserva_id)
-  on conflict (reserva_id) do nothing;
+  insert into public.admin_push_events (reserva_id, intento_id)
+  values (p_reserva_id, gen_random_uuid())
+  on conflict (reserva_id) do nothing
+  returning intento_id into v_intento_id;
 
-  if found then return 1; end if;
+  if found then return v_intento_id::text; end if;
 
-  select evento.estado, evento.intentos, evento.proximo_intento_at, evento.updated_at
-  into v_estado, v_intentos, v_proximo_intento_at, v_updated_at
+  select evento.estado, evento.intento_id, evento.intentos, evento.proximo_intento_at, evento.updated_at
+  into v_estado, v_intento_id, v_intentos, v_proximo_intento_at, v_updated_at
   from public.admin_push_events as evento
   where evento.reserva_id = p_reserva_id
   for update;
 
-  if v_estado = 'enviado' then return 0; end if;
+  if v_estado = 'enviado' then return 'enviado'; end if;
   if v_estado = 'programado' then
     update public.admin_push_events
     set estado = 'enviando', updated_at = now()
-    where reserva_id = p_reserva_id;
-    return v_intentos;
+    where reserva_id = p_reserva_id and intento_id = v_intento_id;
+    return v_intento_id::text;
   end if;
-  if v_proximo_intento_at > now() then return 0; end if;
-  if v_estado = 'enviando' and v_updated_at > now() - interval '5 minutes' then return 0; end if;
+  if v_proximo_intento_at > now() then return 'ocupado'; end if;
+  if v_estado = 'enviando' and v_updated_at > now() - interval '5 minutes' then return 'ocupado'; end if;
 
   update public.admin_push_events
   set estado = 'enviando',
+      intento_id = gen_random_uuid(),
       intentos = v_intentos + 1,
       updated_at = now()
-  where reserva_id = p_reserva_id;
-  return v_intentos + 1;
+  where reserva_id = p_reserva_id
+  returning intento_id into v_intento_id;
+  return v_intento_id::text;
 end;
 $function$;
 
 revoke all on function public.reclamar_evento_push(uuid) from public, anon, authenticated;
 grant execute on function public.reclamar_evento_push(uuid) to service_role;
 
-create or replace function public.marcar_evento_push_enviado(p_reserva_id uuid)
+drop function if exists public.marcar_evento_push_enviado(uuid);
+
+create or replace function public.marcar_evento_push_enviado(p_reserva_id uuid, p_intento_id uuid)
 returns void
 language plpgsql
 security definer
@@ -259,14 +271,16 @@ begin
 
   update public.admin_push_events
   set estado = 'enviado', ultimo_error = null, updated_at = now()
-  where reserva_id = p_reserva_id;
+  where reserva_id = p_reserva_id and intento_id = p_intento_id and estado = 'enviando';
 end;
 $function$;
 
-revoke all on function public.marcar_evento_push_enviado(uuid) from public, anon, authenticated;
-grant execute on function public.marcar_evento_push_enviado(uuid) to service_role;
+revoke all on function public.marcar_evento_push_enviado(uuid, uuid) from public, anon, authenticated;
+grant execute on function public.marcar_evento_push_enviado(uuid, uuid) to service_role;
 
-create or replace function public.reprogramar_evento_push(p_reserva_id uuid, p_error text)
+drop function if exists public.reprogramar_evento_push(uuid, text);
+
+create or replace function public.reprogramar_evento_push(p_reserva_id uuid, p_intento_id uuid, p_error text)
 returns void
 language plpgsql
 security definer
@@ -288,12 +302,12 @@ begin
       end,
       ultimo_error = left(coalesce(p_error, 'envio_fallido'), 128),
       updated_at = now()
-  where reserva_id = p_reserva_id;
+  where reserva_id = p_reserva_id and intento_id = p_intento_id and estado = 'enviando';
 end;
 $function$;
 
-revoke all on function public.reprogramar_evento_push(uuid, text) from public, anon, authenticated;
-grant execute on function public.reprogramar_evento_push(uuid, text) to service_role;
+revoke all on function public.reprogramar_evento_push(uuid, uuid, text) from public, anon, authenticated;
+grant execute on function public.reprogramar_evento_push(uuid, uuid, text) to service_role;
 
 -- pg_net ejecuta la llamada en segundo plano y Vault evita dejar el secreto
 -- escrito en la definición del trigger.
@@ -393,6 +407,7 @@ begin
   loop
     update public.admin_push_events
     set estado = 'programado',
+        intento_id = gen_random_uuid(),
         intentos = intentos + 1,
         proximo_intento_at = now() + interval '5 minutes',
         updated_at = now()
