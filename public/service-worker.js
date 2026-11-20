@@ -52,7 +52,11 @@ self.addEventListener('notificationclick', (evento) => {
 
     if (clienteAdmin && 'focus' in clienteAdmin) {
       await clienteAdmin.focus()
-      if ('navigate' in clienteAdmin && new URL(clienteAdmin.url).pathname !== destino) await clienteAdmin.navigate(destino)
+      if ('postMessage' in clienteAdmin) clienteAdmin.postMessage({ type: 'nueva-reserva' })
+      if ('navigate' in clienteAdmin && new URL(clienteAdmin.url).pathname !== destino) {
+        await clienteAdmin.navigate(destino)
+        return
+      }
       return
     }
 

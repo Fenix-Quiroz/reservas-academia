@@ -242,11 +242,16 @@ export default function AdminApp() {
     }
     void refrescar()
     const actualizar = () => void refrescar()
+    const recibirMensajeServiceWorker = (evento: MessageEvent) => {
+      if (evento.data?.type === 'nueva-reserva') actualizar()
+    }
     window.addEventListener('storage', actualizar)
+    if ('serviceWorker' in navigator) navigator.serviceWorker.addEventListener('message', recibirMensajeServiceWorker)
     const dejarDeEscuchar = suscribirseAReservas(() => void refrescar())
     return () => {
       montado = false
       window.removeEventListener('storage', actualizar)
+      if ('serviceWorker' in navigator) navigator.serviceWorker.removeEventListener('message', recibirMensajeServiceWorker)
       dejarDeEscuchar()
     }
   }, [rolUsuario])
