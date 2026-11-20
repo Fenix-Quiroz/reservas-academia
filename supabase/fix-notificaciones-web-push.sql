@@ -23,7 +23,8 @@ alter table public.admin_push_subscriptions
 -- Las suscripciones antiguas que no pertenecen a un proveedor Web Push
 -- permitido se descartan; el administrador puede registrarlas de nuevo.
 delete from public.admin_push_subscriptions
-where endpoint !~ '^https://(fcm\.googleapis\.com|web\.push\.apple\.com|([a-z0-9-]+\.)?push\.services\.mozilla\.com|([a-z0-9-]+\.)?notify\.windows\.com)(/|$)';
+where char_length(endpoint) not between 32 and 2048
+   or endpoint !~ '^https://(fcm\.googleapis\.com|web\.push\.apple\.com|([a-z0-9-]+\.)?push\.services\.mozilla\.com|([a-z0-9-]+\.)?notify\.windows\.com)(/|$)';
 
 alter table public.admin_push_subscriptions
   add constraint admin_push_subscriptions_endpoint_check check (
@@ -317,6 +318,39 @@ $function$;
 revoke all on function public.marcar_evento_push_incierto(uuid, uuid) from public, anon, authenticated;
 grant execute on function public.marcar_evento_push_incierto(uuid, uuid) to service_role;
 
+-- Reapertura manual después de revisar el proveedor push. Conserva las
+-- entregas confirmadas y solo permite reintentar las que quedaron inciertas.
+create or replace function public.reabrir_evento_push_incierto(p_reserva_id uuid)
+returns void
+language plpgsql
+security definer
+set search_path = public, pg_temp
+as $function$
+begin
+  if coalesce(auth.jwt() ->> 'role', '') <> 'service_role' then
+    raise exception using errcode = '42501', message = 'service_role_requerido';
+  end if;
+
+  if not exists (
+    select 1
+    from public.admin_push_deliveries
+    where reserva_id = p_reserva_id and estado = 'incierto'
+  ) then
+    return;
+  end if;
+
+  delete from public.admin_push_deliveries
+  where reserva_id = p_reserva_id and estado = 'incierto';
+
+  update public.admin_push_events
+  set estado = 'pendiente', intento_id = null, proximo_intento_at = now(), updated_at = now(), ultimo_error = null
+  where reserva_id = p_reserva_id and estado <> 'enviado';
+end;
+$function$;
+
+revoke all on function public.reabrir_evento_push_incierto(uuid) from public, anon, authenticated;
+grant execute on function public.reabrir_evento_push_incierto(uuid) to service_role;
+
 drop function if exists public.reprogramar_evento_push(uuid, text);
 
 create or replace function public.reprogramar_evento_push(p_reserva_id uuid, p_intento_id uuid, p_error text)
@@ -430,6 +464,16 @@ begin
   set estado = 'incierto', updated_at = now()
   where estado = 'enviando'
     and updated_at <= now() - interval '15 minutes';
+
+  update public.admin_push_events as evento
+  set estado = 'incierto', ultimo_error = 'push_delivery_incierta', updated_at = now()
+  where evento.estado <> 'enviado'
+    and exists (
+      select 1
+      from public.admin_push_deliveries as entrega
+      where entrega.reserva_id = evento.reserva_id
+        and entrega.estado = 'incierto'
+    );
 
   select decrypted_secret into v_url
   from vault.decrypted_secrets

@@ -161,6 +161,11 @@ async function procesarSuscripcion(
       return 'incierto'
     }
 
+    if (codigo === null) {
+      console.error('El envío push quedó incierto por un error de transporte.', { subscriptionId: suscripcion.id })
+      return 'incierto'
+    }
+
     await supabase
       .from('admin_push_deliveries')
       .delete()
