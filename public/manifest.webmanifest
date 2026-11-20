@@ -1,0 +1,21 @@
+{
+  "name": "Reservas El Jaguar",
+  "short_name": "Reservas",
+  "lang": "es-PE",
+  "dir": "ltr",
+  "id": "/",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#0b1714",
+  "theme_color": "#197a3c",
+  "description": "Reserva tu campo de fútbol o vóley en el Polideportivo El Jaguar.",
+  "icons": [
+    {
+      "src": "/favicon-jaguar.png",
+      "sizes": "256x256",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ]
+}
