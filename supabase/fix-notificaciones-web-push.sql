@@ -298,7 +298,9 @@ $function$;
 revoke all on function public.marcar_evento_push_enviado(uuid, uuid) from public, anon, authenticated;
 grant execute on function public.marcar_evento_push_enviado(uuid, uuid) to service_role;
 
-create or replace function public.marcar_evento_push_incierto(p_reserva_id uuid, p_intento_id uuid)
+drop function if exists public.marcar_evento_push_incierto(uuid, uuid);
+
+create or replace function public.marcar_evento_push_incierto(p_reserva_id uuid, p_intento_id uuid, p_error text)
 returns void
 language plpgsql
 security definer
@@ -310,13 +312,13 @@ begin
   end if;
 
   update public.admin_push_events
-  set estado = 'incierto', ultimo_error = 'push_timeout_incierto', updated_at = now()
+  set estado = 'incierto', ultimo_error = left(coalesce(p_error, 'push_delivery_incierta'), 128), updated_at = now()
   where reserva_id = p_reserva_id and intento_id = p_intento_id and estado = 'enviando';
 end;
 $function$;
 
-revoke all on function public.marcar_evento_push_incierto(uuid, uuid) from public, anon, authenticated;
-grant execute on function public.marcar_evento_push_incierto(uuid, uuid) to service_role;
+revoke all on function public.marcar_evento_push_incierto(uuid, uuid, text) from public, anon, authenticated;
+grant execute on function public.marcar_evento_push_incierto(uuid, uuid, text) to service_role;
 
 -- Reapertura manual después de revisar el proveedor push. Conserva las
 -- entregas confirmadas y solo permite reintentar las que quedaron inciertas.
@@ -339,12 +341,28 @@ begin
     return;
   end if;
 
+  if exists (
+    select 1
+    from public.admin_push_events
+    where reserva_id = p_reserva_id and estado <> 'incierto'
+  ) then
+    return;
+  end if;
+
+  if exists (
+    select 1
+    from public.admin_push_deliveries
+    where reserva_id = p_reserva_id and estado = 'enviando'
+  ) then
+    return;
+  end if;
+
   delete from public.admin_push_deliveries
   where reserva_id = p_reserva_id and estado = 'incierto';
 
   update public.admin_push_events
   set estado = 'pendiente', intento_id = null, proximo_intento_at = now(), updated_at = now(), ultimo_error = null
-  where reserva_id = p_reserva_id and estado <> 'enviado';
+  where reserva_id = p_reserva_id and estado = 'incierto';
 end;
 $function$;
 
@@ -402,7 +420,6 @@ begin
     on conflict (reserva_id) do nothing;
   exception when others then
     raise warning 'No se pudo guardar el evento de notificación push: %', SQLERRM;
-    return new;
   end;
 
   begin

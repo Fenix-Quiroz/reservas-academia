@@ -97,10 +97,12 @@ async function marcarEventoIncierto(
   supabase: ReturnType<typeof createClient>,
   reservaId: string,
   intentoId: string,
+  motivo: string,
 ): Promise<void> {
   const { error } = await supabase.rpc('marcar_evento_push_incierto', {
     p_reserva_id: reservaId,
     p_intento_id: intentoId,
+    p_error: motivo,
   })
   if (error) console.error('No se pudo conservar el evento push incierto.', { reservaId })
 }
@@ -256,7 +258,7 @@ Deno.serve(async (request) => {
   }
 
   if (resumen.inciertos > 0) {
-    await marcarEventoIncierto(supabase, payload.record.id as string, intentoId)
+    await marcarEventoIncierto(supabase, payload.record.id as string, intentoId, 'push_delivery_incierta')
     return json({ ok: false, total: resultados.length, ...resumen, uncertain: true }, 202)
   }
 
