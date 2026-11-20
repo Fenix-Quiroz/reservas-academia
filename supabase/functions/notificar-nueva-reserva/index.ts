@@ -105,6 +105,22 @@ async function marcarEventoIncierto(
   if (error) console.error('No se pudo conservar el evento push incierto.', { reservaId })
 }
 
+async function marcarEntregaIncierta(
+  supabase: ReturnType<typeof createClient>,
+  reservaId: string,
+  subscriptionId: string,
+  intentoId: string,
+): Promise<void> {
+  const { error } = await supabase
+    .from('admin_push_deliveries')
+    .update({ estado: 'incierto', updated_at: new Date().toISOString() })
+    .eq('reserva_id', reservaId)
+    .eq('subscription_id', subscriptionId)
+    .eq('intento_id', intentoId)
+    .eq('estado', 'enviando')
+  if (error) console.error('No se pudo conservar la entrega push incierta.', { subscriptionId })
+}
+
 async function procesarSuscripcion(
   supabase: ReturnType<typeof createClient>,
   reservaId: string,
@@ -144,36 +160,22 @@ async function procesarSuscripcion(
       .select('subscription_id')
     if (!errorMarcado && dataMarcada?.length === 1) return 'enviado'
 
-    if (!errorMarcado && dataMarcada?.length !== 1) {
-      console.error('La entrega push cambió mientras se enviaba.', { subscriptionId: suscripcion.id })
-      return 'incierto'
-    }
-
-    console.error('No se pudo marcar la entrega push después del envío.', { subscriptionId: suscripcion.id })
+    await marcarEntregaIncierta(supabase, reservaId, suscripcion.id, intentoId)
+    console.error('No se pudo confirmar la entrega push después del envío.', { subscriptionId: suscripcion.id })
     return 'incierto'
   } catch (error) {
     const codigo = codigoError(error)
     if (codigo === 404 || codigo === 410) {
       return (await borrarSuscripcion(supabase, suscripcion.id)) ? 'eliminado' : 'fallido'
     }
+    await marcarEntregaIncierta(supabase, reservaId, suscripcion.id, intentoId)
     if (esTimeout(error)) {
       console.error('El envío push quedó incierto por timeout.', { subscriptionId: suscripcion.id })
       return 'incierto'
     }
 
-    if (codigo === null) {
-      console.error('El envío push quedó incierto por un error de transporte.', { subscriptionId: suscripcion.id })
-      return 'incierto'
-    }
-
-    await supabase
-      .from('admin_push_deliveries')
-      .delete()
-      .eq('reserva_id', reservaId)
-      .eq('subscription_id', suscripcion.id)
-      .eq('intento_id', intentoId)
-    console.error('Falló el envío de una notificación push.', { subscriptionId: suscripcion.id, codigo })
-    return 'fallido'
+    console.error('El envío push quedó incierto por una respuesta del proveedor.', { subscriptionId: suscripcion.id, codigo })
+    return 'incierto'
   }
 }
 
