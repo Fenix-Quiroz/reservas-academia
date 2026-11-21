@@ -62,6 +62,7 @@ import AdminModalComprobante from './components/admin/AdminModalComprobante'
 import AdminModalEditarReserva from './components/admin/AdminModalEditarReserva'
 import AdminLoadingSplash from './components/admin/AdminLoadingSplash'
 import AdminNotificaciones from './components/admin/AdminNotificaciones'
+import AdminHorarios from './components/admin/AdminHorarios'
 import { crearBloqueoAccion } from './accionUnica'
 
 type EstadoConexion = 'sincronizando' | 'demo' | 'error' | 'sincronizado'
@@ -739,6 +740,10 @@ export default function AdminApp() {
           onEdit={(r) => setReservaAEditar(r)}
         />
       </section>
+
+      <div className="admin-seccion-destino">
+        <AdminHorarios canchas={canchas} reservas={reservas} eventos={eventos} />
+      </div>
 
       <div id="admin-reservas-especiales" className="admin-seccion-destino">
         <AdminEventos
