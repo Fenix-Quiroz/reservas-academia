@@ -101,6 +101,14 @@ export function rangoLibre(lista: HorarioDisponible[], inicio: number, horas: nu
     .every((bloque) => lista.find((horario) => horario.inicio === bloque)?.libre === true)
 }
 
+export function horarioSeleccionadoValido(
+  lista: HorarioDisponible[],
+  inicio: number | null,
+  horas: number,
+): boolean {
+  return inicio === null || rangoLibre(lista, inicio, horas)
+}
+
 function fechaHoraLima(ahora: Date): { fecha: string; hora: number } {
   const partes = new Intl.DateTimeFormat('en-CA', {
     timeZone: 'America/Lima',

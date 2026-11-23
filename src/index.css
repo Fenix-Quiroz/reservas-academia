@@ -6560,7 +6560,17 @@ button:disabled {
   align-items: center;
   gap: 7px;
   min-height: 44px;
+  border: 0;
+  border-radius: 999px;
+  box-shadow: none;
   white-space: nowrap;
+}
+
+.admin-horarios-guardar-boton:disabled {
+  background: var(--color-ink-700);
+  color: var(--color-ink-400);
+  cursor: not-allowed;
+  opacity: 1;
 }
 
 .admin-horarios-confirmado {

@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import canchas from './data/canchas.json'
 import {
-  horarios, masCercana, fechaISO, sumarDias, DURACION_BLOQUE,
+  horarios, masCercana, fechaISO, sumarDias, DURACION_BLOQUE, horarioSeleccionadoValido,
   deCliente, activa,
 } from './reservas'
 import type { HorarioDisponible } from './reservas'
@@ -11,7 +11,7 @@ import {
   marcarTokenCancelado, esReservaVisibleCliente,
   leerYo, guardarYo, olvidarYo, leerBloqueosEventos, leerNumerosBloqueados, leerNumerosConfiables,
 } from './almacen'
-import { supabaseFaltaEnProduccion, supabaseConfigurado } from './supabase'
+import { supabaseFaltaEnProduccion, supabaseConfigurado, supabasePublic } from './supabase'
 import {
   cancelarReservaPublicaRemota,
   leerHorariosRemotos,
@@ -120,7 +120,7 @@ export default function App() {
     return suscribirseAReservas(() => {
       sincronizarMiasRef.current?.()
       setIntentoCarga((n) => n + 1)
-    })
+    }, supabasePublic)
   }, [])
 
   useEffect(() => {
@@ -205,7 +205,13 @@ export default function App() {
           : horarios(reservas, cancha.id, fecha, DURACION_BLOQUE, new Date(), bloqueosEventos)
         if (!montado) return
         setHorariosDisponibles(actuales)
-        setErrorConexion('')
+        if (!horarioSeleccionadoValido(actuales, inicio, horas)) {
+          setInicio(null)
+          setHoras(1)
+          setErrorConexion('El horario elegido acaba de ocuparse. Selecciona otra hora.')
+        } else {
+          setErrorConexion('')
+        }
       } catch {
         if (montado) setErrorConexion('No pudimos cargar las horas disponibles. Revisa tu conexión e inténtalo de nuevo.')
       } finally {

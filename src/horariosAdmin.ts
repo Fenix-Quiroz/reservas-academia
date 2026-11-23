@@ -60,6 +60,22 @@ export function crearConfiguracionHorariosAdmin(
   }
 }
 
+/**
+ * Adapta los rangos históricos de 80/85 minutos al grid editable de 30 minutos.
+ * La cobertura de cada celda se conserva y luego se vuelven a unir las celdas
+ * contiguas para enviar un payload compacto a Supabase.
+ */
+export function normalizarConfiguracionHorariosAdmin(
+  configuracion: ConfiguracionHorariosAdmin,
+): ConfiguracionHorariosAdmin {
+  const canchas = [...new Set(configuracion.horarios.map((horario) => horario.canchaId))]
+  const horariosNormalizados = canchas.flatMap((canchaId) => (
+    convertirCeldasARangos(convertirHorariosACeldas(configuracion.horarios, canchaId))
+  ))
+
+  return crearConfiguracionHorariosAdmin(horariosNormalizados)
+}
+
 export function convertirHorariosACeldas(
   horarios: readonly HorarioEntrenamiento[],
   canchaId: number,

@@ -764,8 +764,11 @@ export async function editarReservaAdminRemota(
   return { reserva: deReserva(actualizada as FilaReserva) }
 }
 
-export function suscribirseAReservas(alCambiar: () => void): () => void {
-  if (!supabase) return () => {}
+export function suscribirseAReservas(
+  alCambiar: () => void,
+  cliente: SupabaseClient | null = supabase,
+): () => void {
+  if (!cliente) return () => {}
 
   let temporizador: ReturnType<typeof setTimeout> | null = null
   const notificarCambio = () => {
@@ -776,12 +779,13 @@ export function suscribirseAReservas(alCambiar: () => void): () => void {
     }, 150)
   }
 
-  const canal = supabase
+  const canal = cliente
     .channel('reservas-en-tiempo-real')
     .on('postgres_changes', { event: '*', schema: 'public', table: 'reservas' }, notificarCambio)
     .on('postgres_changes', { event: '*', schema: 'public', table: 'pagos_reserva' }, notificarCambio)
     .on('postgres_changes', { event: '*', schema: 'public', table: 'pago_comprobantes' }, notificarCambio)
     .on('postgres_changes', { event: '*', schema: 'public', table: 'bloqueos_eventos' }, notificarCambio)
+    .on('broadcast', { event: 'horarios_actualizados' }, notificarCambio)
     .subscribe()
 
   return () => {

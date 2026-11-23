@@ -1,4 +1,4 @@
-import { useMemo, useState, type ReactElement } from 'react'
+import { useEffect, useMemo, useState, type ReactElement } from 'react'
 import { AlertTriangle, Check, ChevronDown, Copy, LockKeyhole, RotateCcw, Save, UnlockKeyhole } from 'lucide-react'
 import type { BloqueoEvento, Campo, Reserva } from '../../types'
 import {
@@ -28,6 +28,9 @@ interface AdminHorariosProps {
   canchas: readonly Campo[]
   reservas: readonly Reserva[]
   eventos: readonly BloqueoEvento[]
+  supabaseConfigurado: boolean
+  leerConfiguracion?: () => Promise<ConfiguracionHorariosAdmin>
+  guardarConfiguracion?: (configuracion: ConfiguracionHorariosAdmin) => Promise<ConfiguracionHorariosAdmin>
 }
 
 export const TURNOS_HORARIOS_ADMIN = [
@@ -62,7 +65,14 @@ function nombreFecha(fecha: string): string {
   })
 }
 
-export default function AdminHorarios({ canchas, reservas, eventos }: AdminHorariosProps) {
+export default function AdminHorarios({
+  canchas,
+  reservas,
+  eventos,
+  supabaseConfigurado,
+  leerConfiguracion,
+  guardarConfiguracion,
+}: AdminHorariosProps) {
   const [inicial] = useState(estadoInicial)
   const [campoSeleccionado, setCampoSeleccionado] = useState(canchas[0]?.id ?? 1)
   const [diaSeleccionado, setDiaSeleccionado] = useState(1)
@@ -75,6 +85,53 @@ export default function AdminHorarios({ canchas, reservas, eventos }: AdminHorar
   const [forzarError, setForzarError] = useState(false)
   const [mostrarAplicar, setMostrarAplicar] = useState(false)
   const [diasParaAplicar, setDiasParaAplicar] = useState<number[]>([])
+  const [cargandoHorarios, setCargandoHorarios] = useState(supabaseConfigurado)
+  const [horariosListos, setHorariosListos] = useState(!supabaseConfigurado)
+  const [intentoCarga, setIntentoCarga] = useState(0)
+
+  useEffect(() => {
+    let activo = true
+
+    if (!supabaseConfigurado) {
+      setCargandoHorarios(false)
+      setHorariosListos(true)
+      return () => {
+        activo = false
+      }
+    }
+
+    setCargandoHorarios(true)
+    setHorariosListos(false)
+    setError('')
+
+    if (!leerConfiguracion) {
+      setCargandoHorarios(false)
+      setError('No está disponible la lectura de horarios de Supabase.')
+      return () => {
+        activo = false
+      }
+    }
+
+    void leerConfiguracion()
+      .then((guardada) => {
+        if (!activo) return
+        const borradorLocal = leerBorradorHorariosDemo()
+        setConfiguracionGuardada(guardada)
+        setBorrador(borradorLocal ?? guardada)
+        setHorariosListos(true)
+      })
+      .catch(() => {
+        if (!activo) return
+        setError('No pudimos cargar los horarios desde Supabase. Revisa la conexión e inténtalo de nuevo.')
+      })
+      .finally(() => {
+        if (activo) setCargandoHorarios(false)
+      })
+
+    return () => {
+      activo = false
+    }
+  }, [intentoCarga, leerConfiguracion, supabaseConfigurado])
 
   const campo = canchas.find((item) => item.id === campoSeleccionado) ?? canchas[0]
   const celdasCampo = useMemo(
@@ -111,7 +168,9 @@ export default function AdminHorarios({ canchas, reservas, eventos }: AdminHorar
   function actualizarBorrador(siguiente: ConfiguracionHorariosAdmin): void {
     setBorrador(siguiente)
     guardarBorradorHorariosDemo(siguiente)
-    setMensaje('Cambio guardado en este navegador. Pulsa “Guardar cambios” para confirmarlo.')
+    setMensaje(supabaseConfigurado
+      ? 'Cambio guardado localmente. Pulsa “Guardar cambios” para enviarlo a Supabase.'
+      : 'Cambio guardado en este navegador. Pulsa “Guardar cambios” para confirmarlo.')
     setError('')
   }
 
@@ -122,9 +181,19 @@ export default function AdminHorarios({ canchas, reservas, eventos }: AdminHorar
   async function guardar(): Promise<void> {
     if (!tieneCambios || guardando) return
     setGuardando(true)
-    setMensaje('Guardando configuración demo…')
+    setMensaje(supabaseConfigurado ? 'Guardando configuración en Supabase…' : 'Guardando configuración demo…')
     setError('')
     try {
+      if (supabaseConfigurado) {
+        if (!guardarConfiguracion) throw new Error('guardado-supabase-no-disponible')
+        const configuracionRemota = await guardarConfiguracion(borrador)
+        setConfiguracionGuardada(configuracionRemota)
+        setBorrador(configuracionRemota)
+        borrarBorradorHorariosDemo()
+        setMensaje('Configuración guardada en Supabase correctamente.')
+        return
+      }
+
       const resultado = await guardarHorariosDemo(borrador, { forzarError })
       if (!resultado.ok) {
         setError('La simulación falló. El borrador sigue guardado y puedes reintentar.')
@@ -135,6 +204,11 @@ export default function AdminHorarios({ canchas, reservas, eventos }: AdminHorar
       setBorrador(resultado.configuracion)
       borrarBorradorHorariosDemo()
       setMensaje('Configuración guardada en el servidor demo. En esta fase no se modificó Supabase.')
+    } catch {
+      setError(supabaseConfigurado
+        ? 'No pudimos guardar los horarios en Supabase. El borrador sigue guardado y puedes reintentar.'
+        : 'No pudimos guardar la configuración demo. El borrador sigue guardado y puedes reintentar.')
+      setMensaje('')
     } finally {
       setGuardando(false)
     }
@@ -169,6 +243,29 @@ export default function AdminHorarios({ canchas, reservas, eventos }: AdminHorar
       : [...actuales, dia])
   }
 
+  if (supabaseConfigurado && (!horariosListos || cargandoHorarios)) {
+    return (
+      <section id="admin-horarios" className="admin-horarios" aria-labelledby="titulo-horarios-academia" aria-busy={cargandoHorarios}>
+        <div className="admin-horarios-cabecera">
+          <div>
+            <p className="admin-kicker">Configuración semanal</p>
+            <h2 id="titulo-horarios-academia">Horarios de academia</h2>
+            <p className="admin-horarios-ayuda">Los horarios reales se cargan desde Supabase antes de permitir cambios.</p>
+          </div>
+          <div className="admin-horarios-demo-aviso" role={cargandoHorarios ? 'status' : 'alert'}>
+            <strong>{cargandoHorarios ? 'Cargando horarios…' : 'No se pudo cargar'}</strong>
+            <span>{cargandoHorarios ? 'Espera un momento.' : error}</span>
+          </div>
+        </div>
+        {!cargandoHorarios && (
+          <button className="admin-boton admin-control-primario" type="button" onClick={() => setIntentoCarga((actual) => actual + 1)}>
+            Reintentar lectura
+          </button>
+        )}
+      </section>
+    )
+  }
+
   function etiquetaCelda(celda: CeldaHorarioAdmin): string {
     const nombreDia = NOMBRES_DIAS_ADMIN.find((dia) => dia.valor === celda.diaSemana)?.largo ?? 'Día'
     const nombreCampo = campo?.nombre ?? `Campo ${celda.canchaId}`
@@ -201,10 +298,6 @@ export default function AdminHorarios({ canchas, reservas, eventos }: AdminHorar
           <p className="admin-horarios-ayuda">
             Se repite todas las semanas. Toca un switch para ocupar o liberar bloques de 30 minutos.
           </p>
-        </div>
-        <div className="admin-horarios-demo-aviso" role="status">
-          <strong>Simulador local</strong>
-          <span>Los cambios todavía no se envían a Supabase.</span>
         </div>
       </div>
 
@@ -360,10 +453,12 @@ export default function AdminHorarios({ canchas, reservas, eventos }: AdminHorar
       )}
 
       <div className="admin-horarios-pie">
-        <label className="admin-horarios-prueba">
-          <input type="checkbox" checked={forzarError} onChange={(evento) => setForzarError(evento.target.checked)} />
-          Simular error de guardado (pruebas)
-        </label>
+        {!supabaseConfigurado && (
+          <label className="admin-horarios-prueba">
+            <input type="checkbox" checked={forzarError} onChange={(evento) => setForzarError(evento.target.checked)} />
+            Simular error de guardado (pruebas)
+          </label>
+        )}
         <div className="admin-horarios-guardar">
           {mensaje && <span className="admin-horarios-mensaje" role="status">{mensaje}</span>}
           {error && <span className="admin-horarios-error" role="alert">{error}</span>}

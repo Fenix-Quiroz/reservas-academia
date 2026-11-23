@@ -63,6 +63,8 @@ import AdminModalEditarReserva from './components/admin/AdminModalEditarReserva'
 import AdminLoadingSplash from './components/admin/AdminLoadingSplash'
 import AdminNotificaciones from './components/admin/AdminNotificaciones'
 import AdminHorarios from './components/admin/AdminHorarios'
+import { leerHorariosEntrenamientoAdminRemotos } from './horariosAdminSupabase'
+import { guardarHorariosEntrenamientoAdminRemoto } from './horariosAdminSupabaseGuardado'
 import { crearBloqueoAccion } from './accionUnica'
 
 type EstadoConexion = 'sincronizando' | 'demo' | 'error' | 'sincronizado'
@@ -742,7 +744,14 @@ export default function AdminApp() {
       </section>
 
       <div className="admin-seccion-destino">
-        <AdminHorarios canchas={canchas} reservas={reservas} eventos={eventos} />
+        <AdminHorarios
+          canchas={canchas}
+          reservas={reservas}
+          eventos={eventos}
+          supabaseConfigurado={supabaseConfigurado}
+          leerConfiguracion={leerHorariosEntrenamientoAdminRemotos}
+          guardarConfiguracion={guardarHorariosEntrenamientoAdminRemoto}
+        />
       </div>
 
       <div id="admin-reservas-especiales" className="admin-seccion-destino">
