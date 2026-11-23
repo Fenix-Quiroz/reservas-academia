@@ -6112,6 +6112,587 @@ button:disabled {
   }
 }
 
+/* Editor local de horarios de academia */
+.admin-horarios {
+  display: grid;
+  gap: 18px;
+  margin-top: 24px;
+  padding: clamp(18px, 3vw, 30px);
+  border: 1px solid var(--color-ink-700);
+  border-radius: var(--radius-card);
+  background: var(--color-ink-900);
+  color: var(--color-ink-50);
+  scroll-margin-top: 24px;
+}
+
+.admin-horarios-cabecera,
+.admin-horarios-controles,
+.admin-horarios-pie {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 18px;
+}
+
+.admin-horarios-cabecera h2 {
+  margin: 2px 0 8px;
+  color: var(--color-ink-50);
+}
+
+.admin-horarios-ayuda,
+.admin-horarios-aplicar span,
+.admin-horarios-conflictos p {
+  margin: 0;
+  color: var(--color-ink-300);
+  line-height: 1.55;
+}
+
+.admin-horarios-demo-aviso {
+  display: grid;
+  gap: 3px;
+  min-width: 220px;
+  padding: 12px 14px;
+  border: 1px solid var(--color-gold-700);
+  border-radius: 12px;
+  background: var(--color-gold-950);
+  color: var(--color-gold-200);
+  font-size: 0.82rem;
+}
+
+.admin-horarios-demo-aviso span {
+  color: var(--color-ink-200);
+}
+
+.admin-horarios-controles {
+  align-items: center;
+  flex-wrap: wrap;
+  padding-top: 8px;
+  border-top: 1px solid var(--color-ink-700);
+}
+
+.admin-horarios-campos,
+.admin-horarios-acciones,
+.admin-horarios-dias-aplicar,
+.admin-horarios-guardar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.admin-horarios-campo,
+.admin-horarios-tabs button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 42px;
+  padding: 9px 13px;
+  border: 1px solid var(--color-ink-600);
+  border-radius: 10px;
+  background: var(--color-ink-800);
+  color: var(--color-ink-200);
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.admin-horarios-campo:hover,
+.admin-horarios-campo.activo,
+.admin-horarios-tabs button[aria-selected='true'] {
+  border-color: var(--color-gold-500);
+  background: var(--color-gold-950);
+  color: var(--color-gold-200);
+}
+
+.admin-horarios-campo-punto {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  box-shadow: 0 0 0 3px rgb(255 255 255 / 8%);
+}
+
+.admin-horarios-secundario {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 42px;
+  border: 1px solid var(--color-ink-600);
+  background: var(--color-ink-800);
+}
+
+.admin-horarios-secundario:hover:not(:disabled) {
+  border-color: var(--color-gold-600);
+  background: var(--color-ink-700);
+}
+
+.admin-horarios-aplicar {
+  display: grid;
+  grid-template-columns: minmax(180px, 0.8fr) minmax(0, 1.8fr) auto;
+  align-items: center;
+  gap: 14px;
+  padding: 15px;
+  border: 1px solid var(--color-gold-700);
+  border-radius: 12px;
+  background: var(--color-gold-950);
+}
+
+.admin-horarios-aplicar > div:first-child {
+  display: grid;
+  gap: 3px;
+}
+
+.admin-horarios-dia-check {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 38px;
+  padding: 7px 10px;
+  border: 1px solid var(--color-ink-600);
+  border-radius: 9px;
+  background: var(--color-ink-800);
+  color: var(--color-ink-100);
+  cursor: pointer;
+}
+
+.admin-horarios-dia-check:has(input:checked) {
+  border-color: var(--color-gold-500);
+  color: var(--color-gold-200);
+}
+
+.admin-horarios-turnos {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.admin-horarios-turno {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  min-height: 68px;
+  padding: 12px 14px;
+  border: 1px solid var(--color-ink-700);
+  border-radius: 12px;
+  background: var(--color-ink-950);
+  color: var(--color-ink-200);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.admin-horarios-turno:hover,
+.admin-horarios-turno.abierto {
+  border-color: var(--color-gold-600);
+  background: #30230f;
+  color: var(--color-gold-100);
+}
+
+.admin-horarios-turno:focus-visible {
+  outline: 3px solid var(--color-gold-300);
+  outline-offset: 2px;
+}
+
+.admin-horarios-turno-contenido {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.admin-horarios-turno-contenido small {
+  color: var(--color-ink-400);
+  font-size: 0.75rem;
+  font-weight: 500;
+}
+
+.admin-horarios-turno.abierto .admin-horarios-turno-contenido small {
+  color: var(--color-gold-300);
+}
+
+.admin-horarios-turno-cantidad {
+  flex: 0 0 auto;
+  color: var(--color-ink-400);
+  font-size: 0.72rem;
+  white-space: nowrap;
+}
+
+.admin-horarios-turno.abierto .admin-horarios-turno-cantidad {
+  color: var(--color-gold-200);
+}
+
+.admin-horarios-turno svg {
+  flex: 0 0 auto;
+  color: var(--color-ink-400);
+  transition: transform 160ms ease;
+}
+
+.admin-horarios-turno svg.girada {
+  transform: rotate(180deg);
+  color: var(--color-gold-300);
+}
+
+.admin-horarios-turno-activo {
+  margin: -7px 0 0;
+  color: var(--color-ink-400);
+  font-size: 0.84rem;
+}
+
+.admin-horarios-turno-activo strong {
+  color: var(--color-gold-200);
+}
+
+.admin-horarios-resumen,
+.admin-horarios-leyenda {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px 18px;
+  color: var(--color-ink-300);
+  font-size: 0.9rem;
+}
+
+.admin-horarios-resumen strong {
+  color: var(--color-ink-50);
+}
+
+.admin-horarios-resumen .pendiente {
+  color: var(--color-gold-200);
+}
+
+.admin-horarios-leyenda {
+  padding: 11px 14px;
+  border-radius: 10px;
+  background: var(--color-ink-950);
+}
+
+.admin-horarios-leyenda span {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.admin-horarios-leyenda i {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+}
+
+.admin-horarios-leyenda i.libre {
+  background: #4dbd78;
+}
+
+.admin-horarios-leyenda i.bloqueado {
+  background: var(--color-gold-400);
+}
+
+.admin-horarios-grid-escritorio {
+  display: grid;
+  grid-template-columns: 82px repeat(7, minmax(108px, 1fr));
+  min-width: 850px;
+  overflow: auto;
+  border: 1px solid var(--color-ink-700);
+  border-radius: 12px;
+  background: var(--color-ink-950);
+}
+
+.admin-horarios-grid-cabecera {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  padding: 12px 8px;
+  border-bottom: 1px solid var(--color-ink-700);
+  background: var(--color-ink-800);
+  color: var(--color-gold-200);
+  font-size: 0.82rem;
+  font-weight: 800;
+  text-align: center;
+}
+
+.admin-horarios-grid-cabecera.hora {
+  left: 0;
+  z-index: 2;
+  color: var(--color-ink-300);
+}
+
+.admin-horarios-grid-fila {
+  display: contents;
+}
+
+.admin-horarios-hora,
+.admin-horarios-grid-celda {
+  min-height: 52px;
+  padding: 5px;
+  border-bottom: 1px solid rgb(255 255 255 / 6%);
+}
+
+.admin-horarios-hora {
+  position: sticky;
+  left: 0;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  padding-right: 10px;
+  background: var(--color-ink-950);
+  color: var(--color-ink-400);
+  font-size: 0.75rem;
+  white-space: nowrap;
+}
+
+.admin-horarios-grid-celda {
+  background: rgb(255 255 255 / 1%);
+}
+
+.admin-horarios-switch {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  width: 100%;
+  min-height: 40px;
+  padding: 6px 5px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  color: var(--color-ink-50);
+  font: inherit;
+  font-size: 0.72rem;
+  font-weight: 800;
+  cursor: pointer;
+  transition: transform 120ms ease, filter 120ms ease;
+}
+
+.admin-horarios-switch:hover {
+  filter: brightness(1.12);
+  transform: translateY(-1px);
+}
+
+.admin-horarios-switch:focus-visible,
+.admin-horarios-campo:focus-visible,
+.admin-horarios-tabs button:focus-visible {
+  outline: 3px solid var(--color-gold-300);
+  outline-offset: 2px;
+}
+
+.admin-horarios-switch.libre {
+  border-color: #286c43;
+  background: #153b28;
+  color: #a4e6b8;
+}
+
+.admin-horarios-switch.bloqueado {
+  border-color: var(--color-gold-600);
+  background: #4e370f;
+  color: var(--color-gold-200);
+}
+
+.admin-horarios-switch-icon {
+  display: inline-flex;
+}
+
+.admin-horarios-movil {
+  display: none;
+}
+
+.admin-horarios-conflictos {
+  display: flex;
+  gap: 12px;
+  padding: 14px;
+  border: 1px solid #9a6d1b;
+  border-radius: 12px;
+  background: #30230f;
+  color: var(--color-gold-100);
+}
+
+.admin-horarios-conflictos-icono {
+  flex: 0 0 auto;
+  color: var(--color-gold-300);
+}
+
+.admin-horarios-conflictos strong {
+  color: var(--color-gold-200);
+}
+
+.admin-horarios-conflictos ul {
+  display: grid;
+  gap: 5px;
+  margin: 9px 0 0;
+  padding-left: 20px;
+  color: var(--color-ink-100);
+}
+
+.admin-horarios-conflictos small {
+  display: block;
+  margin-top: 8px;
+  color: var(--color-ink-300);
+}
+
+.admin-horarios-prueba {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--color-ink-400);
+  font-size: 0.8rem;
+}
+
+.admin-horarios-guardar {
+  justify-content: flex-end;
+  flex: 1;
+}
+
+.admin-horarios-mensaje,
+.admin-horarios-error {
+  max-width: 420px;
+  font-size: 0.82rem;
+  line-height: 1.4;
+}
+
+.admin-horarios-mensaje {
+  color: var(--color-gold-200);
+}
+
+.admin-horarios-error {
+  color: #ffb4aa;
+}
+
+.admin-horarios-guardar-boton {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 44px;
+  border: 0;
+  border-radius: 999px;
+  box-shadow: none;
+  white-space: nowrap;
+}
+
+.admin-horarios-guardar-boton:disabled {
+  background: var(--color-ink-700);
+  color: var(--color-ink-400);
+  cursor: not-allowed;
+  opacity: 1;
+}
+
+.admin-horarios-confirmado {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  margin: 0;
+  color: #a4e6b8;
+  font-size: 0.85rem;
+}
+
+@media (max-width: 900px) {
+  .admin-horarios-aplicar {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 760px) {
+  .admin-horarios {
+    gap: 15px;
+    padding: 16px;
+  }
+
+  .admin-horarios-cabecera,
+  .admin-horarios-pie {
+    display: grid;
+  }
+
+  .admin-horarios-demo-aviso {
+    min-width: 0;
+  }
+
+  .admin-horarios-controles {
+    align-items: stretch;
+  }
+
+  .admin-horarios-turnos {
+    grid-template-columns: 1fr;
+  }
+
+  .admin-horarios-turno {
+    min-height: 60px;
+  }
+
+  .admin-horarios-campos,
+  .admin-horarios-acciones {
+    width: 100%;
+  }
+
+  .admin-horarios-campo,
+  .admin-horarios-secundario {
+    flex: 1 1 140px;
+  }
+
+  .admin-horarios-grid-escritorio {
+    display: none;
+  }
+
+  .admin-horarios-movil {
+    display: grid;
+    gap: 12px;
+  }
+
+  .admin-horarios-tabs {
+    display: grid;
+    grid-template-columns: repeat(7, minmax(0, 1fr));
+    gap: 5px;
+  }
+
+  .admin-horarios-tabs button {
+    min-height: 40px;
+    padding: 7px 3px;
+    font-size: 0.8rem;
+  }
+
+  .admin-horarios-lista-movil {
+    display: grid;
+    gap: 7px;
+  }
+
+  .admin-horarios-fila-movil {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    min-height: 52px;
+    padding: 7px 8px 7px 12px;
+    border: 1px solid var(--color-ink-700);
+    border-radius: 10px;
+    background: var(--color-ink-950);
+  }
+
+  .admin-horarios-fila-movil > span {
+    color: var(--color-ink-100);
+    font-size: 0.88rem;
+  }
+
+  .admin-horarios-fila-movil .admin-horarios-switch {
+    width: auto;
+    min-width: 116px;
+  }
+
+  .admin-horarios-pie {
+    gap: 12px;
+  }
+
+  .admin-horarios-guardar {
+    align-items: stretch;
+    display: grid;
+  }
+
+  .admin-horarios-mensaje,
+  .admin-horarios-error {
+    max-width: none;
+  }
+
+  .admin-horarios-guardar-boton {
+    justify-content: center;
+    width: 100%;
+  }
+}
+
 @media (max-width: 380px) {
   .admin-reserva {
     grid-template-columns: 1fr;

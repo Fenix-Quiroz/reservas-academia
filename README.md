@@ -21,8 +21,10 @@ Sin esas variables, la aplicación funciona con el modo demo local. Con Supabase
    Para una base ya operativa que solo necesita reemplazar la programación de fútbol, ejecuta `supabase/fix-horarios-academia-programacion.sql`; esta migración no cambia tipos, triggers, reservas ni C4/vóley.
 6. La misma migración crea `bloqueos_eventos`: desde el panel, el encargado puede bloquear eventos de 5 o más horas. Esos rangos aparecen como no disponibles para clientes y no exponen los detalles del evento.
 7. En Database > Publications, confirma que `reservas` esté en `supabase_realtime`.
-8. En Authentication, crea el usuario del encargado y asígnale `app_metadata.role = admin`.
-9. Reinicia Vite con `npm run dev`.
+8. Ejecuta `supabase/horarios-entrenamiento-admin.sql` para crear la RPC que permite al administrador guardar la configuración semanal. Esta migración solo crea o reemplaza funciones y permisos; no cambia reservas ni horarios por sí sola.
+9. Para actualizar automáticamente la disponibilidad pública cuando el administrador bloquee o libere horarios, ejecuta `supabase/fix-realtime-horarios-publicos.sql`.
+10. En Authentication, crea el usuario del encargado y asígnale `app_metadata.role = admin`.
+11. Reinicia Vite con `npm run dev`.
 
 ### Notificaciones del encargado en Android
 

@@ -1,9 +1,10 @@
 import { useEffect, useRef, useState } from 'react'
-import { BarChart3, CalendarDays, Home, Star, Users } from 'lucide-react'
+import { BarChart3, CalendarDays, Clock3, Home, Star, Users } from 'lucide-react'
 
 type SeccionAdmin =
   | 'admin-inicio'
   | 'admin-agenda'
+  | 'admin-horarios'
   | 'admin-reservas-especiales'
   | 'admin-balance'
   | 'admin-clientes-confiables'
@@ -18,6 +19,7 @@ interface ItemNavegacion {
 const ITEMS_NAVEGACION: readonly ItemNavegacion[] = [
   { id: 'admin-inicio', etiqueta: 'Inicio', Icono: Home },
   { id: 'admin-agenda', etiqueta: 'Agenda', Icono: CalendarDays },
+  { id: 'admin-horarios', etiqueta: 'Horarios de academia', Icono: Clock3 },
   { id: 'admin-reservas-especiales', etiqueta: 'Reservas especiales', Icono: Star },
   { id: 'admin-balance', etiqueta: 'Balance mensual', Icono: BarChart3 },
   { id: 'admin-clientes-confiables', etiqueta: 'Clientes confiables', Icono: Users },
