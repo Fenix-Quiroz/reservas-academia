@@ -471,6 +471,7 @@ assert.match(css, /\.admin-filtro-menu-boton,\s*\.admin-filtros input\s*\{[\s\S]
 assert.match(css, /\.admin-filtros-campos\s*\{[\s\S]*flex-wrap:\s*wrap[\s\S]*background:\s*var\(--color-ink-950\)/)
 assert.match(css, /\.admin-filtro-campo\[aria-pressed='true'\]\s*\{[\s\S]*background:\s*var\(--color-gold-500\)/)
 assert.match(css, /\.admin-navegacion\s*\{[\s\S]*background:\s*var\(--color-ink-800\)/)
+assert.match(css, /\.admin-navegacion-enlace\s*>\s*span\s*\{[\s\S]*white-space:\s*nowrap/)
 assert.match(css, /\.admin-navegacion-enlace\[aria-current='page'\]\s*\{[\s\S]*background:\s*var\(--color-gold-500\)/)
 assert.match(adminHorarios, /aria-pressed={celda\.bloqueado}/)
 assert.match(adminHorarios, /TURNOS_HORARIOS_ADMIN/)
