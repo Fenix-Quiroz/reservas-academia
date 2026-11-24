@@ -460,6 +460,7 @@ export function esReservaVisibleCliente(reserva: Reserva, ahora = Date.now()): b
   if (reserva.estado === 'cancelado') {
     const guardados = leerTokensGuardados()
     const registro = guardados[reserva.id]
+    if (!registro) return false
     const canceladoAt = registro?.canceladoAt
     if (!canceladoAt) {
       marcarTokenCancelado(reserva.id, ahora)

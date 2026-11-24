@@ -70,6 +70,10 @@ assert.equal(esReservaVisibleCliente(reservaCancelada, ahora + 5.1 * 60 * 60 * 1
 limpiarTokensInactivos([reservaCancelada], ahora + 5.1 * 60 * 60 * 1000)
 assert.equal(tokenReserva('reserva-cancelada-5h', '987654321'), undefined)
 
+// Una reserva cancelada que llega por UUID sin token local ya superó su ventana visible.
+const reservaCanceladaSinToken = { ...reservaCancelada, id: 'reserva-cancelada-sin-token' }
+assert.equal(esReservaVisibleCliente(reservaCanceladaSinToken, ahora), false)
+
 limpiarDatosLocales()
 assert.deepEqual(leerTokensReservas('987654321'), [])
 
