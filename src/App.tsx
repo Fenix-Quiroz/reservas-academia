@@ -9,7 +9,7 @@ import type { HorarioDisponible } from './reservas'
 import {
   leerReservas, crearReserva, cancelarReserva, registrarCliente, actualizarCliente,
   leerTokensReservas, guardarTokenReserva, eliminarTokenReserva, limpiarTokensInactivos,
-  marcarTokenCancelado, esReservaVisibleCliente,
+  leerClienteId, guardarClienteId, marcarTokenCancelado, esReservaVisibleCliente,
   leerYo, guardarYo, olvidarYo, leerBloqueosEventos, leerNumerosBloqueados, leerNumerosConfiables,
 } from './almacen'
 import { supabaseFaltaEnProduccion, supabaseConfigurado, supabasePublic } from './supabase'
@@ -17,7 +17,9 @@ import {
   cancelarReservaPublicaRemota,
   leerHorariosRemotos,
   leerMisReservasRemotas,
+  leerMisReservasPorClienteRemotas,
   leerTicketsAcumuladosRemotos,
+  leerTicketsAcumuladosPorClienteRemoto,
   precalentarRegistrarAdelantoYapeRemoto,
   registrarAdelantoYapeRemoto,
   suscribirseAReservas,
@@ -43,7 +45,7 @@ const INTERVALO_MIS_RESERVAS_ACTIVAS_MS = 10_000
 const NOMBRES_PASOS = ['Campo', 'Día y hora', 'Tus datos'] as const
 
 type ResultadoReservaCliente =
-  | { reserva: Reserva; token?: string }
+  | { reserva: Reserva; token?: string; clienteId?: string }
   | { error: ErrorReserva | 'limite-intentos'; alternativa?: HorarioDisponible }
 
 export default function App() {
@@ -59,6 +61,7 @@ export default function App() {
   const [reservas, setReservas] = useState<Reserva[]>(leerReservas)
   const [bloqueosEventos, setBloqueosEventos] = useState<BloqueoEvento[]>(leerBloqueosEventos)
   const [yo, setYo] = useState<Cliente | null>(leerYo)
+  const [clienteId, setClienteId] = useState<string | null>(() => leerClienteId(leerYo()?.celular) ?? null)
   const [hecha, setHecha] = useState<Reserva | null>(null)
   const [errorConexion, setErrorConexion] = useState('')
   const [errorMias, setErrorMias] = useState('')
@@ -78,6 +81,7 @@ export default function App() {
   const retrocediendoRef = useRef(false)
   const tokens = leerTokensReservas(yo?.celular)
   const claveTokens = tokens.join('|')
+  const claveIdentidad = `${clienteId ?? ''}|${claveTokens}`
   const mias = supabaseConfigurado
     ? yo ? reservas.filter((r) => r.celular === yo.celular && (activa(r) || esReservaVisibleCliente(r))) : []
     : yo ? deCliente(reservas, yo.celular) : []
@@ -112,7 +116,9 @@ export default function App() {
     const alCambiar = () => {
       if (!supabaseConfigurado) setReservas(leerReservas())
       if (!supabaseConfigurado) setBloqueosEventos(leerBloqueosEventos())
-      setYo(leerYo())
+      const yoActual = leerYo()
+      setYo(yoActual)
+      setClienteId(leerClienteId(yoActual?.celular) ?? null)
     }
     if (!supabaseConfigurado) setReservas(leerReservas())
     window.addEventListener('storage', alCambiar)
@@ -131,20 +137,20 @@ export default function App() {
 
   useEffect(() => {
     if (!supabaseConfigurado) return
-    if (!tokens.length) {
+    if (!tokens.length && !clienteId) {
       sincronizarMiasRef.current = null
       setReservas([])
       setTicketsAcumulados(0)
       setCargandoMias(false)
       setErrorMias('')
-      ultimaCargaMias.current = claveTokens
+      ultimaCargaMias.current = claveIdentidad
       ultimaSincronizacionMias.current = Date.now()
       return
     }
 
     let montado = true
     let cargaMiasEnCurso = false
-    const mostrarCargaInicial = ultimaCargaMias.current !== claveTokens
+    const mostrarCargaInicial = ultimaCargaMias.current !== claveIdentidad
     if (mostrarCargaInicial) {
       setCargandoMias(true)
       setErrorMias('')
@@ -154,15 +160,20 @@ export default function App() {
       cargaMiasEnCurso = true
       if (mostrarCarga) setCargandoMias(true)
       try {
-        const [actuales, totalTickets] = await Promise.all([
-          leerMisReservasRemotas(tokens),
-          leerTicketsAcumuladosRemotos(tokens),
-        ])
+        const [actuales, totalTickets] = clienteId
+          ? await Promise.all([
+            leerMisReservasPorClienteRemotas(clienteId),
+            leerTicketsAcumuladosPorClienteRemoto(clienteId),
+          ])
+          : await Promise.all([
+            leerMisReservasRemotas(tokens),
+            leerTicketsAcumuladosRemotos(tokens),
+          ])
         if (!montado) return
         setReservas(actuales)
         setTicketsAcumulados(totalTickets)
         limpiarTokensInactivos(actuales)
-        ultimaCargaMias.current = claveTokens
+        ultimaCargaMias.current = claveIdentidad
         ultimaSincronizacionMias.current = Date.now()
         setErrorMias('')
         setErrorConexion('')
@@ -188,17 +199,17 @@ export default function App() {
       document.removeEventListener('visibilitychange', sincronizarSiEstaDesactualizada)
       window.removeEventListener('focus', sincronizarSiEstaDesactualizada)
     }
-  }, [claveTokens, intentoCarga])
+  }, [claveIdentidad, clienteId, intentoCarga])
 
   useEffect(() => {
-    if (!supabaseConfigurado || !verMias || !tokens.length) return
+    if (!supabaseConfigurado || !verMias || (!tokens.length && !clienteId)) return
     const sincronizarMientrasSeVe = () => {
       if (document.visibilityState !== 'visible') return
       sincronizarMiasRef.current?.()
     }
     const temporizador = window.setInterval(sincronizarMientrasSeVe, INTERVALO_MIS_RESERVAS_ACTIVAS_MS)
     return () => window.clearInterval(temporizador)
-  }, [verMias, claveTokens])
+  }, [verMias, claveIdentidad, clienteId])
 
   useEffect(() => {
     if (paso !== 2 || !cancha) {
@@ -257,11 +268,13 @@ export default function App() {
   function recordarCliente(cliente: Cliente): void {
     guardarYo(cliente)
     setYo(cliente)
+    setClienteId(leerClienteId(cliente.celular) ?? null)
   }
 
   function olvidarCliente(): void {
     olvidarYo()
     setYo(null)
+    setClienteId(null)
   }
 
   async function crearCliente(alias: string, celular: string): Promise<ResultadoCliente> {
@@ -284,6 +297,10 @@ export default function App() {
       }, sinAdelanto))
       if ('token' in r && r.token) {
         guardarTokenReserva(r.reserva.id, r.token, cliente.celular)
+      }
+      if ('reserva' in r && r.clienteId) {
+        guardarClienteId(r.clienteId, cliente.celular)
+        setClienteId(r.clienteId)
       }
       if ('reserva' in r && r.reserva.pagoEstado === 'pendiente') {
         reservaPendienteRef.current = { reserva: r.reserva, token: r.token }
@@ -342,10 +359,15 @@ export default function App() {
         else {
           try {
             const tokensActuales = leerTokensReservas(yo?.celular)
-            const [actuales, totalTickets] = await Promise.all([
-              leerMisReservasRemotas(tokensActuales),
-              leerTicketsAcumuladosRemotos(tokensActuales),
-            ])
+            const [actuales, totalTickets] = clienteId
+              ? await Promise.all([
+                leerMisReservasPorClienteRemotas(clienteId),
+                leerTicketsAcumuladosPorClienteRemoto(clienteId),
+              ])
+              : await Promise.all([
+                leerMisReservasRemotas(tokensActuales),
+                leerTicketsAcumuladosRemotos(tokensActuales),
+              ])
             setReservas(actuales)
             setTicketsAcumulados(totalTickets)
             limpiarTokensInactivos(actuales)

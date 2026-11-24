@@ -87,6 +87,7 @@ create table if not exists public.reservas (
   horas numeric(2,1) not null check (horas in (0.5, 1, 1.5, 2, 2.5, 3)),
   alias text not null check (char_length(trim(alias)) between 2 and 60),
   celular text not null check (celular ~ '^9[0-9]{8}$'),
+  cliente_id uuid references public.clientes(id),
   token_hash text,
   estado text not null default 'activo' check (estado in ('activo', 'iniciado', 'finalizado', 'cancelado', 'no_asistio')),
   monto_total numeric(10, 2) check (monto_total is null or monto_total >= 0),
@@ -107,6 +108,34 @@ alter table public.reservas alter column estado set default 'activo';
 alter table public.reservas alter column estado set not null;
 alter table public.reservas add column if not exists monto_total numeric(10, 2);
 alter table public.reservas add column if not exists token_hash text;
+alter table public.reservas add column if not exists cliente_id uuid;
+do $$
+begin
+  if not exists (
+    select 1 from pg_constraint
+    where conname = 'reservas_cliente_id_fkey'
+      and conrelid = 'public.reservas'::regclass
+  ) then
+    alter table public.reservas
+      add constraint reservas_cliente_id_fkey
+      foreign key (cliente_id) references public.clientes(id);
+  end if;
+end
+$$;
+update public.reservas as reserva
+set cliente_id = cliente.id
+from public.clientes as cliente
+where reserva.cliente_id is null
+  and cliente.celular = reserva.celular;
+do $$
+begin
+  if exists (select 1 from public.reservas where cliente_id is null) then
+    raise exception using errcode = '23502', message = 'reservas_sin_cliente';
+  end if;
+end
+$$;
+alter table public.reservas alter column cliente_id set not null;
+create index if not exists reservas_cliente_id_idx on public.reservas (cliente_id, created_at desc);
 alter table public.reservas add column if not exists pago_estado text;
 update public.reservas set pago_estado = 'no_requerido' where pago_estado is null;
 alter table public.reservas alter column pago_estado set default 'no_requerido';
@@ -387,6 +416,33 @@ drop trigger if exists validar_reserva_no_evento on public.reservas;
 create trigger validar_reserva_no_evento
 before insert or update of cancha_id, fecha, inicio, horas, estado on public.reservas
 for each row execute function public.validar_reserva_no_evento();
+
+create or replace function public.asignar_cliente_reserva()
+returns trigger
+language plpgsql
+security definer
+set search_path = public, pg_temp
+as $function$
+begin
+  select cliente.id
+  into new.cliente_id
+  from public.clientes as cliente
+  where cliente.celular = new.celular;
+
+  if new.cliente_id is null then
+    raise exception using errcode = '23503', message = 'cliente_no_encontrado';
+  end if;
+
+  return new;
+end;
+$function$;
+
+drop trigger if exists asignar_cliente_reserva on public.reservas;
+create trigger asignar_cliente_reserva
+before insert on public.reservas
+for each row execute function public.asignar_cliente_reserva();
+
+revoke all on function public.asignar_cliente_reserva() from public, anon, authenticated;
 
 revoke all on table public.numeros_bloqueados, public.numeros_confiables from public, anon, authenticated;
 grant select, insert, update, delete on table public.numeros_bloqueados, public.numeros_confiables to authenticated;
@@ -1762,6 +1818,85 @@ begin
 end;
 $function$;
 
+drop function if exists public.obtener_cliente_id_publico(text);
+
+create function public.obtener_cliente_id_publico(p_celular text)
+returns uuid
+language plpgsql
+security definer
+set search_path = public, extensions, pg_temp
+as $function$
+declare
+  v_celular text := regexp_replace(trim(p_celular), '[[:space:]-]+', '', 'g');
+  v_cliente_id uuid;
+begin
+  if v_celular !~ '^9[0-9]{8}$' then
+    raise exception using errcode = '22023', message = 'celular_invalido';
+  end if;
+
+  select cliente.id
+  into v_cliente_id
+  from public.clientes as cliente
+  where cliente.celular = v_celular;
+
+  return v_cliente_id;
+end;
+$function$;
+
+drop function if exists public.obtener_mis_reservas_por_cliente_publicas(uuid);
+
+create function public.obtener_mis_reservas_por_cliente_publicas(p_cliente_id uuid)
+returns table (
+  id uuid,
+  cancha_id integer,
+  fecha date,
+  inicio numeric,
+  horas numeric(2,1),
+  alias text,
+  celular text,
+  estado text,
+  pago_estado text
+)
+language plpgsql
+security definer
+set search_path = public, extensions, pg_temp
+as $function$
+begin
+  if p_cliente_id is null then
+    raise exception using errcode = '22023', message = 'cliente_invalido';
+  end if;
+
+  return query
+  select r.id, r.cancha_id, r.fecha, r.inicio, r.horas, r.alias, r.celular, r.estado, r.pago_estado
+  from public.reservas as r
+  where r.cliente_id = p_cliente_id
+  order by r.fecha, r.inicio;
+end;
+$function$;
+
+drop function if exists public.contar_tickets_por_cliente_publico(uuid);
+
+create function public.contar_tickets_por_cliente_publico(p_cliente_id uuid)
+returns integer
+language plpgsql
+security definer
+set search_path = public, extensions, pg_temp
+as $function$
+begin
+  if p_cliente_id is null then
+    raise exception using errcode = '22023', message = 'cliente_invalido';
+  end if;
+
+  return (
+    select count(*)::integer
+    from public.reservas as r
+    where r.cliente_id = p_cliente_id
+      and r.estado = 'finalizado'
+      and r.pago_estado in ('confirmado', 'no_requerido')
+  );
+end;
+$function$;
+
 create or replace function public.cancelar_reserva_publica(p_reserva_id uuid, p_token text)
 returns boolean
 language plpgsql
@@ -1801,6 +1936,12 @@ revoke all on function public.obtener_mis_reservas_publicas(text[]) from public,
 grant execute on function public.obtener_mis_reservas_publicas(text[]) to anon;
 revoke all on function public.contar_tickets_publicos(text[]) from public, anon, authenticated;
 grant execute on function public.contar_tickets_publicos(text[]) to anon;
+revoke all on function public.obtener_cliente_id_publico(text) from public, anon, authenticated;
+grant execute on function public.obtener_cliente_id_publico(text) to anon;
+revoke all on function public.obtener_mis_reservas_por_cliente_publicas(uuid) from public, anon, authenticated;
+grant execute on function public.obtener_mis_reservas_por_cliente_publicas(uuid) to anon;
+revoke all on function public.contar_tickets_por_cliente_publico(uuid) from public, anon, authenticated;
+grant execute on function public.contar_tickets_por_cliente_publico(uuid) to anon;
 revoke all on function public.cancelar_reserva_publica(uuid, text) from public, anon, authenticated;
 grant execute on function public.cancelar_reserva_publica(uuid, text) to anon;
 revoke all on function public.validar_transicion_reserva() from public, anon, authenticated;

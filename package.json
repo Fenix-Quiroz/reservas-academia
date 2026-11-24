@@ -12,6 +12,7 @@
     "check": "tsx src/reservas.check.ts",
     "check:ui": "tsx src/ui.check.ts",
     "check:tickets": "tsx src/tickets.check.ts",
+    "check:cliente-identidad": "tsx src/clienteIdentidad.check.ts",
     "check:borrador": "tsx src/borradorReserva.check.ts && tsx src/borradorReserva-app.check.ts",
     "check:components": "tsx src/componentization.check.ts",
     "check:scenarios": "tsx src/reservas.scenarios.check.ts",

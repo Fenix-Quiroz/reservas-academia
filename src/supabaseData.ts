@@ -27,7 +27,7 @@ export type ErrorReserva =
 
 export type ResultadoError = { error: ErrorReserva }
 export type ErrorReservaPublica = ErrorReserva | 'limite-intentos'
-export type ResultadoReserva = { reserva: Reserva; token?: string } | { error: ErrorReservaPublica }
+export type ResultadoReserva = { reserva: Reserva; token?: string; clienteId?: string } | { error: ErrorReservaPublica }
 export type ResultadoCliente = { cliente: Cliente } | ResultadoError
 export type ResultadoCancelacion = Record<string, never> | ResultadoError
 export type ErrorEstado = ErrorReserva | 'estado-invalido'
@@ -58,6 +58,7 @@ interface FilaReserva {
   pago_estado?: unknown
   monto_total?: number | string | null
   token?: unknown
+  cliente_id?: unknown
 }
 
 interface FilaHorarioPublico {
@@ -399,6 +400,15 @@ export async function verificarNumeroConfiableRemoto(celular: string): Promise<b
   }
 }
 
+export async function leerClienteIdRemoto(celular: string): Promise<string | undefined> {
+  const nuevoCelular = normalizarCelular(celular)
+  if (validarCelular(nuevoCelular)) return undefined
+  const { data, error } = await clienteSupabasePublic().rpc('obtener_cliente_id_publico', {
+    p_celular: nuevoCelular,
+  })
+  return !error && typeof data === 'string' ? data : undefined
+}
+
 export async function crearReservaPublicaRemota(
   reserva: ReservaNueva,
   sinAdelanto = false,
@@ -436,7 +446,8 @@ export async function crearReservaPublicaRemota(
   const fila = (Array.isArray(data) ? data[0] : data) as FilaReserva | null | undefined
   if (!fila) return { error: 'conexion' }
   const token = typeof fila.token === 'string' ? fila.token : undefined
-  return { reserva: deReserva(fila), ...(token ? { token } : {}) }
+  const clienteId = typeof fila.cliente_id === 'string' ? fila.cliente_id : await leerClienteIdRemoto(nuevoCelular)
+  return { reserva: deReserva(fila), ...(token ? { token } : {}), ...(clienteId ? { clienteId } : {}) }
 }
 
 export async function crearReservaAdminFueraHorarioRemota(
@@ -473,7 +484,8 @@ export async function crearReservaAdminFueraHorarioRemota(
   const fila = (Array.isArray(data) ? data[0] : data) as FilaReserva | null | undefined
   if (!fila) return { error: 'conexion' }
   const token = typeof fila.token === 'string' ? fila.token : undefined
-  return { reserva: deReserva(fila), ...(token ? { token } : {}) }
+  const clienteId = typeof fila.cliente_id === 'string' ? fila.cliente_id : undefined
+  return { reserva: deReserva(fila), ...(token ? { token } : {}), ...(clienteId ? { clienteId } : {}) }
 }
 
 export async function leerMisReservasRemotas(tokens: string[]): Promise<Reserva[]> {
@@ -485,10 +497,31 @@ export async function leerMisReservasRemotas(tokens: string[]): Promise<Reserva[
   return (data as FilaReserva[] | null ?? []).map(deReserva)
 }
 
+export async function leerMisReservasPorClienteRemotas(clienteId: string): Promise<Reserva[]> {
+  if (!clienteId) return []
+  const cliente = clienteSupabasePublic()
+  const { data, error } = await cliente.rpc('obtener_mis_reservas_por_cliente_publicas', { p_cliente_id: clienteId })
+
+  if (error) throw error
+  return (data as FilaReserva[] | null ?? []).map(deReserva)
+}
+
 export async function leerTicketsAcumuladosRemotos(tokens: string[]): Promise<number> {
   if (!tokens.length) return 0
   const cliente = clienteSupabasePublic()
   const { data, error } = await cliente.rpc('contar_tickets_publicos', { p_tokens: tokens })
+
+  if (error) throw error
+  const total = Number(data)
+  if (!Number.isInteger(total) || total < 0) throw new Error('respuesta-tickets-invalida')
+  return total
+}
+
+export async function leerTicketsAcumuladosPorClienteRemoto(clienteId: string): Promise<number> {
+  if (!clienteId) return 0
+  const { data, error } = await clienteSupabasePublic().rpc('contar_tickets_por_cliente_publico', {
+    p_cliente_id: clienteId,
+  })
 
   if (error) throw error
   const total = Number(data)

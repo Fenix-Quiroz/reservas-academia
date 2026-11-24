@@ -33,10 +33,12 @@ export const HORAS_GRACIA_CANCELADA_MS = 5 * 60 * 60 * 1000 // 5 horas visible c
 export const HORAS_EXPIRACION_TOKEN_MS = 5 * 60 * 60 * 1000 // 5 horas token
 type TokensReserva = Record<string, TokenReservaGuardado>
 const CLAVE_TOKENS_RESERVA = 'reserva-tokens'
+const CLAVE_CLIENTES_UUID = 'cliente-ids'
 const CLAVE_NUMEROS_BLOQUEADOS = 'numeros-bloqueados'
 const CLAVE_NUMEROS_CONFIABLES = 'numeros-confiables'
 const CLAVE_BLOQUEOS_EVENTOS = 'bloqueos-eventos'
 const FORMATO_TOKEN_RESERVA = /^[0-9a-f]{48}$/
+const FORMATO_UUID_CLIENTE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
 
 function leer<T>(clave: string, porDefecto: T): T {
   try {
@@ -80,7 +82,7 @@ export const cargarReservas = (): Reserva[] | Promise<Reserva[]> =>
 
 export function limpiarDatosLocales(): void {
   for (const clave of [
-    'reservas', 'clientes', 'yo', CLAVE_TOKENS_RESERVA,
+    'reservas', 'clientes', 'yo', CLAVE_TOKENS_RESERVA, CLAVE_CLIENTES_UUID,
     CLAVE_NUMEROS_BLOQUEADOS, CLAVE_NUMEROS_CONFIABLES, CLAVE_BLOQUEOS_EVENTOS,
   ]) {
     try {
@@ -419,6 +421,21 @@ export function guardarTokenReserva(id: string, token: string, celular: string):
     ...guardados,
     [id]: { token, celular: celularNormalizado },
   })
+}
+
+export function leerClienteId(celular?: string): string | undefined {
+  if (!celular) return undefined
+  const celularNormalizado = normalizarCelular(celular)
+  if (validarCelular(celularNormalizado)) return undefined
+  const clienteId = leer<Record<string, unknown>>(CLAVE_CLIENTES_UUID, {})[celularNormalizado]
+  return typeof clienteId === 'string' && FORMATO_UUID_CLIENTE.test(clienteId) ? clienteId : undefined
+}
+
+export function guardarClienteId(clienteId: string, celular: string): void {
+  const celularNormalizado = normalizarCelular(celular)
+  if (!FORMATO_UUID_CLIENTE.test(clienteId) || validarCelular(celularNormalizado)) return
+  const guardados = leer<Record<string, string>>(CLAVE_CLIENTES_UUID, {})
+  guardar(CLAVE_CLIENTES_UUID, { ...guardados, [celularNormalizado]: clienteId })
 }
 
 export function eliminarTokenReserva(id: string): void {
