@@ -6,7 +6,6 @@ import type { Campo, Cliente, Reserva } from '../../types.js'
 import { ALIAS_MAXIMO } from '../../validacionCliente'
 import { crearBloqueoAccion } from '../../accionUnica'
 import { Phone, Ticket } from 'lucide-react'
-import datosDemo from '../../data/clientes-frecuentes-demo.json'
 import PopupPromocion from './PopupPromocion'
 
 export const NUMERO_CONSULTAS = '997621348'
@@ -29,6 +28,7 @@ export interface MisReservasProps {
   reservas: Reserva[]
   yo: Cliente | null
   canchas: readonly Campo[]
+  ticketsAcumulados: number
   cargando?: boolean
   errorCarga?: string
   permitirEdicion?: boolean
@@ -44,6 +44,7 @@ export default function MisReservas({
   reservas,
   yo,
   canchas,
+  ticketsAcumulados,
   cargando = false,
   errorCarga = '',
   permitirEdicion = true,
@@ -62,9 +63,6 @@ export default function MisReservas({
       if (aCancelada !== bCancelada) return aCancelada ? 1 : -1
       return a.fecha.localeCompare(b.fecha) || a.inicio - b.inicio
     })
-  const clienteDemo = yo ? datosDemo.find((c) => c.celular === yo.celular) : null
-  const reservasFinalizadas = reservas.filter((r) => r.estado === 'finalizado').length
-  const ticketsAcumulados = clienteDemo ? clienteDemo.reservasMes + reservasFinalizadas : reservasFinalizadas
   const [porCancelar, setPorCancelar] = useState<string | null>(null)
   const [verSorteo, setVerSorteo] = useState(false)
   const [editando, setEditando] = useState(false)
@@ -176,7 +174,7 @@ export default function MisReservas({
                 </span>
               </div>
               <span className="ticket-sorteo-subconteo">
-                {ticketsAcumulados} {ticketsAcumulados === 1 ? 'reserva completada y pagada' : 'reservas completadas y pagadas'}
+                {ticketsAcumulados} {ticketsAcumulados === 1 ? 'reserva finalizada válida' : 'reservas finalizadas válidas'}
               </span>
             </div>
           </div>

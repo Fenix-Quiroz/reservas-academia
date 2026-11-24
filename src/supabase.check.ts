@@ -450,4 +450,13 @@ assert.match(almacen, /limpiarDatosDemoLocales\(\)/)
 assert.match(almacen, /reserva-tokens/)
 assert.match(almacen, /supabaseFaltaEnProduccion\s*\?\s*\[\]/)
 
+for (const source of [schema, permissions]) {
+  assert.match(source, /create(?: or replace)? function public\.contar_tickets_publicos\(p_tokens text\[\]\)/)
+  assert.match(source, /contar_tickets_publicos\(p_tokens text\[\]\)[\s\S]*?returns integer/)
+  assert.match(source, /contar_tickets_publicos\(p_tokens text\[\]\)[\s\S]*?security definer/)
+  assert.match(source, /contar_tickets_publicos\(p_tokens text\[\]\)[\s\S]*?finalizado[\s\S]*?confirmado[\s\S]*?no_requerido/)
+  assert.match(source, /revoke all on function public\.contar_tickets_publicos\(text\[\]\) from public, anon, authenticated/)
+  assert.match(source, /grant execute on function public\.contar_tickets_publicos\(text\[\]\) to anon/)
+}
+
 console.log('✔ supabase.check.ts OK')

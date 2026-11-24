@@ -485,6 +485,17 @@ export async function leerMisReservasRemotas(tokens: string[]): Promise<Reserva[
   return (data as FilaReserva[] | null ?? []).map(deReserva)
 }
 
+export async function leerTicketsAcumuladosRemotos(tokens: string[]): Promise<number> {
+  if (!tokens.length) return 0
+  const cliente = clienteSupabasePublic()
+  const { data, error } = await cliente.rpc('contar_tickets_publicos', { p_tokens: tokens })
+
+  if (error) throw error
+  const total = Number(data)
+  if (!Number.isInteger(total) || total < 0) throw new Error('respuesta-tickets-invalida')
+  return total
+}
+
 export async function cancelarReservaPublicaRemota(id: string, token: string): Promise<ResultadoCancelacion> {
   const cliente = clienteSupabasePublic()
   const { data, error } = await cliente.rpc('cancelar_reserva_publica', {

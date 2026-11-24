@@ -91,11 +91,14 @@ type PosicionTicketSlot = 'anterior-2' | 'anterior' | 'actual' | 'siguiente' | '
 
 const POSICIONES_TICKET_SLOT: PosicionTicketSlot[] = ['anterior-2', 'anterior', 'actual', 'siguiente', 'siguiente-2']
 
-function TicketSlot({ ticket, posicion, ganador }: {
+function TicketSlot({ ticket, posicion, ganador, nombreVisible }: {
   ticket: TicketSorteo
   posicion: PosicionTicketSlot
   ganador: boolean
+  nombreVisible?: string
 }) {
+  const nombreMostrado = nombreVisible ?? ticket.nombre
+
   return (
     <article className={`sorteo-slot-ticket sorteo-slot-ticket-${posicion} ${ganador ? 'sorteo-slot-ticket-ganador' : ''}`}>
       <div className="sorteo-slot-ticket-topline">
@@ -108,9 +111,8 @@ function TicketSlot({ ticket, posicion, ganador }: {
         </span>
       </div>
       <strong className="sorteo-slot-ticket-number">#{ticket.numeroGlobal}</strong>
-      <span className="sorteo-slot-ticket-name">{ticket.nombre}</span>
+      <span className="sorteo-slot-ticket-name">{nombreMostrado}</span>
       <span className="sorteo-slot-ticket-phone">{ticket.celular}</span>
-      {ganador && <span className="sorteo-slot-ticket-winner-label">Ticket ganador</span>}
     </article>
   )
 }
@@ -234,54 +236,7 @@ export default function AdminSorteosVista({ onVolver }: AdminSorteosVistaProps) 
         </div>
       </header>
 
-      <section className="sorteo-intro" aria-labelledby="sorteo-titulo-principal">
-        <div>
-          <p className="sorteo-kicker"><Sparkles size={15} aria-hidden="true" /> Fidelidad que se celebra</p>
-          <h2 id="sorteo-titulo-principal">Gran Sorteo Navideño</h2>
-          <p>Un ticket por cada reserva elegible. El slot se detiene en un número y revela al ganador de la campaña.</p>
-        </div>
-        <div className="sorteo-campaign-pill">
-          <Calendar size={17} aria-hidden="true" />
-          <span><strong>Campaña activa</strong> · 1 al 24 de diciembre</span>
-        </div>
-      </section>
-
-      <section className="sorteo-summary-grid" aria-label="Resumen de la campaña">
-        <article className="sorteo-summary-card sorteo-summary-card-campaign">
-          <div className="sorteo-summary-icon"><Gift size={21} aria-hidden="true" /></div>
-          <div>
-            <span>Premio de la campaña</span>
-            <strong>2 horas de cancha gratis</strong>
-            <small>Para el ticket ganador</small>
-          </div>
-        </article>
-        <article className="sorteo-summary-card">
-          <div className="sorteo-summary-icon"><Users size={21} aria-hidden="true" /></div>
-          <div>
-            <span>Participantes</span>
-            <strong>{totalParticipantes} clientes</strong>
-            <small>Con reservas elegibles</small>
-          </div>
-        </article>
-        <article className="sorteo-summary-card">
-          <div className="sorteo-summary-icon"><Ticket size={21} aria-hidden="true" /></div>
-          <div>
-            <span>Tickets en juego</span>
-            <strong>{totalTickets} tickets</strong>
-            <small>Promedio: {promedioTickets} por cliente</small>
-          </div>
-        </article>
-        <article className="sorteo-summary-card sorteo-summary-card-success">
-          <div className="sorteo-summary-icon"><ShieldCheck size={21} aria-hidden="true" /></div>
-          <div>
-            <span>Transparencia</span>
-            <strong>1 ticket = 1 oportunidad</strong>
-            <small>Selección aleatoria demo</small>
-          </div>
-        </article>
-      </section>
-
-      <section className="sorteo-main-grid" aria-label="Sorteo y detalles de campaña">
+      <section className="sorteo-main-grid sorteo-main-grid-slot-first" aria-label="Sorteo y detalles de campaña">
         <article className="sorteo-slot-panel">
           <div className="sorteo-section-heading">
             <div>
@@ -319,6 +274,9 @@ export default function AdminSorteosVista({ onVolver }: AdminSorteosVistaProps) 
                         ticket={ticket}
                         posicion={POSICIONES_TICKET_SLOT[index] ?? 'actual'}
                         ganador={Boolean(ganador && ticket.id === ganador.id && index === 2)}
+                        nombreVisible={ganador && ticket.id === ganador.id
+                          ? participantes.find((participante) => participante.cliente.id === ticket.clienteId)?.cliente.nombre ?? ticket.nombre
+                          : ticket.nombre}
                       />
                     ))}
                   </div>
@@ -404,6 +362,53 @@ export default function AdminSorteosVista({ onVolver }: AdminSorteosVistaProps) 
             <div className="sorteo-rule-row"><span>24</span><strong>diciembre</strong><em>·</em><strong>cierre</strong></div>
           </article>
         </aside>
+      </section>
+
+      <section className="sorteo-intro" aria-labelledby="sorteo-titulo-principal">
+        <div>
+          <p className="sorteo-kicker"><Sparkles size={15} aria-hidden="true" /> Fidelidad que se celebra</p>
+          <h2 id="sorteo-titulo-principal">Gran Sorteo Navideño</h2>
+          <p>Un ticket por cada reserva elegible. El slot se detiene en un número y revela al ganador de la campaña.</p>
+        </div>
+        <div className="sorteo-campaign-pill">
+          <Calendar size={17} aria-hidden="true" />
+          <span><strong>Campaña activa</strong> · 1 al 24 de diciembre</span>
+        </div>
+      </section>
+
+      <section className="sorteo-summary-grid" aria-label="Resumen de la campaña">
+        <article className="sorteo-summary-card sorteo-summary-card-campaign">
+          <div className="sorteo-summary-icon"><Gift size={21} aria-hidden="true" /></div>
+          <div>
+            <span>Premio de la campaña</span>
+            <strong>2 horas de cancha gratis</strong>
+            <small>Para el ticket ganador</small>
+          </div>
+        </article>
+        <article className="sorteo-summary-card">
+          <div className="sorteo-summary-icon"><Users size={21} aria-hidden="true" /></div>
+          <div>
+            <span>Participantes</span>
+            <strong>{totalParticipantes} clientes</strong>
+            <small>Con reservas elegibles</small>
+          </div>
+        </article>
+        <article className="sorteo-summary-card">
+          <div className="sorteo-summary-icon"><Ticket size={21} aria-hidden="true" /></div>
+          <div>
+            <span>Tickets en juego</span>
+            <strong>{totalTickets} tickets</strong>
+            <small>Promedio: {promedioTickets} por cliente</small>
+          </div>
+        </article>
+        <article className="sorteo-summary-card sorteo-summary-card-success">
+          <div className="sorteo-summary-icon"><ShieldCheck size={21} aria-hidden="true" /></div>
+          <div>
+            <span>Transparencia</span>
+            <strong>1 ticket = 1 oportunidad</strong>
+            <small>Selección aleatoria demo</small>
+          </div>
+        </article>
       </section>
 
       <section className="sorteo-data-section" aria-label="Datos y transparencia">

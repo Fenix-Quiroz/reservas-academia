@@ -4,6 +4,7 @@ import {
   horarios, masCercana, fechaISO, sumarDias, DURACION_BLOQUE, horarioSeleccionadoValido,
   deCliente, activa,
 } from './reservas'
+import { contarTickets } from './tickets'
 import type { HorarioDisponible } from './reservas'
 import {
   leerReservas, crearReserva, cancelarReserva, registrarCliente, actualizarCliente,
@@ -16,6 +17,7 @@ import {
   cancelarReservaPublicaRemota,
   leerHorariosRemotos,
   leerMisReservasRemotas,
+  leerTicketsAcumuladosRemotos,
   precalentarRegistrarAdelantoYapeRemoto,
   registrarAdelantoYapeRemoto,
   suscribirseAReservas,
@@ -63,6 +65,7 @@ export default function App() {
   const [horariosDisponibles, setHorariosDisponibles] = useState<HorarioDisponible[]>([])
   const [cargandoHorarios, setCargandoHorarios] = useState(false)
   const [cargandoMias, setCargandoMias] = useState(false)
+  const [ticketsAcumulados, setTicketsAcumulados] = useState(0)
   const [intentoCarga, setIntentoCarga] = useState(0)
   const [mostrarPromo, setMostrarPromo] = useState(() => (estadoInicialReserva?.paso ?? 1) === 1)
   // "Mis reservas" se abre encima del paso actual, así al volver no se pierde lo elegido
@@ -79,6 +82,9 @@ export default function App() {
     ? yo ? reservas.filter((r) => r.celular === yo.celular && (activa(r) || esReservaVisibleCliente(r))) : []
     : yo ? deCliente(reservas, yo.celular) : []
   const clienteMias = yo ?? (mias[0] ? { alias: mias[0].alias, celular: mias[0].celular } : null)
+  const ticketsParaMostrar = supabaseConfigurado
+    ? ticketsAcumulados
+    : yo ? contarTickets(reservas, yo.celular) : 0
   const fecha = fechaISO(sumarDias(dia))
 
   useEffect(() => {
@@ -128,6 +134,7 @@ export default function App() {
     if (!tokens.length) {
       sincronizarMiasRef.current = null
       setReservas([])
+      setTicketsAcumulados(0)
       setCargandoMias(false)
       setErrorMias('')
       ultimaCargaMias.current = claveTokens
@@ -147,9 +154,13 @@ export default function App() {
       cargaMiasEnCurso = true
       if (mostrarCarga) setCargandoMias(true)
       try {
-        const actuales = await leerMisReservasRemotas(tokens)
+        const [actuales, totalTickets] = await Promise.all([
+          leerMisReservasRemotas(tokens),
+          leerTicketsAcumuladosRemotos(tokens),
+        ])
         if (!montado) return
         setReservas(actuales)
+        setTicketsAcumulados(totalTickets)
         limpiarTokensInactivos(actuales)
         ultimaCargaMias.current = claveTokens
         ultimaSincronizacionMias.current = Date.now()
@@ -330,8 +341,13 @@ export default function App() {
         if (!supabaseConfigurado) setReservas(leerReservas())
         else {
           try {
-            const actuales = await leerMisReservasRemotas(leerTokensReservas(yo?.celular))
+            const tokensActuales = leerTokensReservas(yo?.celular)
+            const [actuales, totalTickets] = await Promise.all([
+              leerMisReservasRemotas(tokensActuales),
+              leerTicketsAcumuladosRemotos(tokensActuales),
+            ])
             setReservas(actuales)
+            setTicketsAcumulados(totalTickets)
             limpiarTokensInactivos(actuales)
           } catch {
             return { error: 'conexion' as const }
@@ -421,6 +437,7 @@ export default function App() {
             reservas={mias}
             yo={clienteMias}
             canchas={canchas}
+            ticketsAcumulados={ticketsParaMostrar}
             cargando={cargandoMias}
             errorCarga={errorMias}
             onRetry={() => {

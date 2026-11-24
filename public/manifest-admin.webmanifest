@@ -1,0 +1,21 @@
+{
+  "name": "Panel El Jaguar",
+  "short_name": "Panel Jaguar",
+  "lang": "es-PE",
+  "dir": "ltr",
+  "id": "/admin/",
+  "start_url": "/admin/",
+  "scope": "/admin/",
+  "display": "standalone",
+  "background_color": "#0b1714",
+  "theme_color": "#197a3c",
+  "description": "Panel de administración del Polideportivo El Jaguar.",
+  "icons": [
+    {
+      "src": "/logo-admin-polideportivo-el-jaguar.png",
+      "sizes": "1024x1024",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ]
+}

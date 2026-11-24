@@ -9880,6 +9880,10 @@ button:disabled {
   align-items: stretch;
 }
 
+.sorteo-main-grid-slot-first {
+  grid-template-columns: minmax(0, 1fr);
+}
+
 .sorteo-slot-panel,
 .sorteo-info-card,
 .sorteo-winner-card,
@@ -10204,22 +10208,15 @@ button:disabled {
   line-height: 1;
 }
 
-.sorteo-slot-ticket:not(.sorteo-slot-ticket-actual) .sorteo-slot-ticket-phone {
-  display: none;
+.sorteo-slot-ticket-ganador .sorteo-slot-ticket-name {
+  display: block;
+  overflow: visible;
+  white-space: normal;
+  -webkit-line-clamp: unset;
 }
 
-.sorteo-slot-ticket-winner-label {
-  position: absolute;
-  top: 13px;
-  right: 18px;
-  padding: 4px 8px;
-  border-radius: var(--radius-pill);
-  background: var(--color-ink-950);
-  color: var(--color-gold-200);
-  font-size: 0.66rem;
-  font-weight: 900;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
+.sorteo-slot-ticket:not(.sorteo-slot-ticket-actual) .sorteo-slot-ticket-phone {
+  display: none;
 }
 
 .sorteo-slot-pointer {
@@ -10677,6 +10674,10 @@ button:disabled {
   .sorteo-main-grid {
     grid-template-columns: minmax(0, 1fr) minmax(290px, 0.72fr);
   }
+
+  .sorteo-main-grid-slot-first {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }
 
 @media (max-width: 860px) {
@@ -10713,7 +10714,8 @@ button:disabled {
 @media (max-width: 600px) {
   .sorteo-page {
     width: calc(100% - 20px);
-    gap: 18px;
+    gap: 16px;
+    padding-top: 12px;
     padding-bottom: 42px;
   }
 
@@ -10726,6 +10728,10 @@ button:disabled {
   .sorteo-page-heading {
     padding-left: 0;
     border-left: 0;
+  }
+
+  .sorteo-page-heading h1 {
+    font-size: 1.18rem;
   }
 
   .sorteo-page-header-actions {
@@ -10743,7 +10749,12 @@ button:disabled {
   }
 
   .sorteo-intro h2 {
-    font-size: 2.45rem;
+    font-size: clamp(2.05rem, 10vw, 2.45rem);
+  }
+
+  .sorteo-intro p:not(.sorteo-kicker) {
+    font-size: 0.9rem;
+    line-height: 1.42;
   }
 
   .sorteo-campaign-pill {
@@ -10752,9 +10763,42 @@ button:disabled {
     border-radius: 11px;
   }
 
-  .sorteo-summary-grid,
+  .sorteo-summary-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+  }
+
   .sorteo-side-column {
     grid-template-columns: 1fr;
+  }
+
+  .sorteo-summary-card {
+    align-items: flex-start;
+    gap: 9px;
+    padding: 12px;
+    border-radius: 14px;
+  }
+
+  .sorteo-summary-icon {
+    width: 34px;
+    height: 34px;
+    flex-basis: 34px;
+    border-radius: 10px;
+  }
+
+  .sorteo-summary-card span {
+    font-size: 0.62rem;
+    line-height: 1.15;
+  }
+
+  .sorteo-summary-card strong {
+    font-size: 0.9rem;
+    line-height: 1.15;
+  }
+
+  .sorteo-summary-card small {
+    font-size: 0.66rem;
+    line-height: 1.25;
   }
 
   .sorteo-side-column .sorteo-rules-card {
@@ -10774,36 +10818,37 @@ button:disabled {
   }
 
   .sorteo-slot-panel {
-    padding: 14px;
+    padding: 12px;
   }
 
   .sorteo-slot-machine {
-    padding: 9px;
+    padding: 8px;
+    border-radius: 15px;
   }
 
   .sorteo-slot-viewport {
-    height: 520px;
+    height: 470px;
   }
 
   .sorteo-slot-ticket-stack {
-    gap: 7px;
-    padding: 10px;
+    gap: 6px;
+    padding: 8px;
   }
 
   .sorteo-slot-ticket {
-    flex-basis: 74px;
-    padding: 10px 14px;
+    flex-basis: 70px;
+    padding: 8px 10px;
   }
 
   .sorteo-slot-ticket-actual {
-    flex-basis: 130px;
-    padding: 16px;
+    flex-basis: 122px;
+    padding: 14px;
   }
 
   .sorteo-slot-focus-window {
-    right: 10px;
-    left: 10px;
-    height: 130px;
+    right: 8px;
+    left: 8px;
+    height: 122px;
   }
 
   .sorteo-slot-ticket-number {
@@ -10811,17 +10856,29 @@ button:disabled {
   }
 
   .sorteo-slot-ticket-name {
-    font-size: 0.94rem;
+    font-size: 0.88rem;
   }
 
   .sorteo-slot-ticket-actual .sorteo-slot-ticket-name {
-    font-size: 1.5rem;
+    font-size: 1.38rem;
   }
 
-  .sorteo-slot-ticket-winner-label {
-    position: static;
-    align-self: flex-start;
-    margin-top: 4px;
+  .sorteo-slot-current-caption {
+    padding-top: 10px;
+    font-size: 0.7rem;
+  }
+
+  .sorteo-slot-current-caption strong {
+    font-size: 0.84rem;
+  }
+
+  .sorteo-slot-ticket-ganador .sorteo-slot-ticket-phone {
+    display: none;
+  }
+
+  .sorteo-slot-ticket-ganador .sorteo-slot-ticket-name {
+    font-size: 1.22rem;
+    line-height: 1.05;
   }
 
   .sorteo-primary-action {
@@ -10834,6 +10891,20 @@ button:disabled {
 
   .sorteo-table-wrapper {
     padding: 14px 12px 4px;
+  }
+}
+
+@media (max-width: 390px) {
+  .sorteo-summary-card {
+    padding: 10px;
+  }
+
+  .sorteo-summary-card strong {
+    font-size: 0.82rem;
+  }
+
+  .sorteo-slot-ticket-actual .sorteo-slot-ticket-name {
+    font-size: 1.25rem;
   }
 }
 

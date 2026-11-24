@@ -1305,6 +1305,59 @@ begin
 end;
 $function$;
 
+drop function if exists public.contar_tickets_publicos(text[]);
+
+create function public.contar_tickets_publicos(p_tokens text[])
+returns integer
+language plpgsql
+security definer
+set search_path = public, extensions, pg_temp
+as $function$
+declare
+  v_hashes text[];
+  v_celulares text[];
+  v_total integer;
+begin
+  if p_tokens is null or cardinality(p_tokens) not between 1 and 20 then
+    raise exception using errcode = '22023', message = 'tokens_invalidos';
+  end if;
+
+  if exists (
+    select 1
+    from unnest(p_tokens) as token(valor)
+    where token.valor is null or token.valor !~ '^[0-9a-f]{48}$'
+  ) then
+    raise exception using errcode = '22023', message = 'tokens_invalidos';
+  end if;
+
+  select array_agg(encode(digest(token.valor, 'sha256'), 'hex'))
+  into v_hashes
+  from unnest(p_tokens) as token(valor);
+
+  select array_agg(distinct r.celular)
+  into v_celulares
+  from public.reservas r
+  where r.token_hash = any(v_hashes);
+
+  if v_celulares is null then
+    return 0;
+  end if;
+
+  if cardinality(v_celulares) > 1 then
+    raise exception using errcode = '22023', message = 'tokens_invalidos';
+  end if;
+
+  select count(*)::integer
+  into v_total
+  from public.reservas r
+  where r.celular = any(v_celulares)
+    and r.estado = 'finalizado'
+    and r.pago_estado in ('confirmado', 'no_requerido');
+
+  return coalesce(v_total, 0);
+end;
+$function$;
+
 create or replace function public.cancelar_reserva_publica(p_reserva_id uuid, p_token text)
 returns boolean
 language plpgsql
@@ -1342,6 +1395,8 @@ revoke all on function public.crear_reserva_admin_fuera_horario(integer, date, n
 grant execute on function public.crear_reserva_admin_fuera_horario(integer, date, numeric, numeric, text, text) to authenticated;
 revoke all on function public.obtener_mis_reservas_publicas(text[]) from public, anon, authenticated;
 grant execute on function public.obtener_mis_reservas_publicas(text[]) to anon;
+revoke all on function public.contar_tickets_publicos(text[]) from public, anon, authenticated;
+grant execute on function public.contar_tickets_publicos(text[]) to anon;
 revoke all on function public.cancelar_reserva_publica(uuid, text) from public, anon, authenticated;
 grant execute on function public.cancelar_reserva_publica(uuid, text) to anon;
 revoke all on function public.validar_transicion_reserva() from public, anon, authenticated;

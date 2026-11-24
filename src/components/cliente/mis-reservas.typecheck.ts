@@ -28,6 +28,7 @@ const vista = MisReservas({
   reservas: [reserva],
   yo: cliente,
   canchas: [cancha],
+  ticketsAcumulados: 0,
   onCancel: async () => ({}),
   onUpdateData: async () => ({ cliente }),
   onReserve: () => undefined,
