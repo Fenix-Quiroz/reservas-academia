@@ -11,6 +11,7 @@ const reserva = (datos: Partial<Reserva> & Pick<Reserva, 'id' | 'fecha' | 'inici
   canchaId: 1,
   horas: 1,
   estado: 'finalizado',
+  pagoEstado: 'no_requerido',
   ...datos,
 })
 
@@ -56,6 +57,18 @@ assert.deepEqual(filas.slice(0, 3).map((fila) => fila.celular), ['912345678', '9
 assert.deepEqual(filas.slice(0, 3).map((fila) => fila.campoId), [1, 1, 1])
 assert.equal(filas[3]?.campoId, 1)
 assert.equal(filas[5]?.campoId, 2)
+
+const reservaConfirmada = reserva({ id: 'r-confirmada', fecha: '2026-11-06', inicio: 20, alias: 'Cliente Confirmado', celular: '945678901', pagoEstado: 'confirmado' })
+const reservaCancelada = reserva({ id: 'r-cancelada', fecha: '2026-11-06', inicio: 21, alias: 'Cliente Cancelado', celular: '945678902', estado: 'cancelado' })
+const reservaPendiente = reserva({ id: 'r-pendiente', fecha: '2026-11-06', inicio: 22, alias: 'Cliente Pendiente', celular: '945678903', pagoEstado: 'pendiente' })
+const reservaFenix = reserva({ id: 'r-fenix', fecha: '2026-11-06', inicio: 23, alias: 'Fenix', celular: '931283181' })
+const filasFiltradas = prepararFilasDatosReservas(
+  [...reservas, reservaConfirmada, reservaCancelada, reservaPendiente, reservaFenix],
+  canchas,
+  comprobantes,
+)
+assert.ok(filasFiltradas.some((fila) => fila.reservaId === 'r-confirmada'), 'debe incluir finalizadas con pago confirmado')
+assert.ok(!filasFiltradas.some((fila) => ['r-cancelada', 'r-pendiente', 'r-fenix'].includes(fila.reservaId)), 'debe excluir canceladas, pendientes y Fenix')
 
 assert.deepEqual(
   calcularTamanoImagenExcel({ ancho: 100, alto: 200 }),

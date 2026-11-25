@@ -28,6 +28,14 @@ export interface FilaDatosReserva {
 export type ResolverComprobante = (storagePath: string) => Promise<Blob>
 export type ProgresoExportacionReservas = (completados: number, total: number) => void
 
+const CELULAR_FENIX = normalizarCelular('931283181')
+
+function esReservaExportable(reserva: Reserva): boolean {
+  if (reserva.estado !== 'finalizado') return false
+  if (normalizarCelular(reserva.celular) === CELULAR_FENIX) return false
+  return reserva.pagoEstado === 'confirmado' || reserva.pagoEstado === 'no_requerido'
+}
+
 const COLORES = {
   negro: '0B0B0A',
   negroSuave: '1E1D1A',
@@ -55,6 +63,7 @@ export function prepararFilasDatosReservas(
   canchas: readonly Campo[],
   comprobantes: readonly ComprobanteAdmin[] = [],
 ): FilaDatosReserva[] {
+  const reservasExportables = reservas.filter(esReservaExportable)
   const canchaPorId = new Map(canchas.map((cancha) => [cancha.id, cancha]))
   const comprobantePorReserva = new Map<string, ComprobanteAdmin>()
   for (const comprobante of comprobantes) {
@@ -65,7 +74,7 @@ export function prepararFilasDatosReservas(
   const cantidadPorCampoYCliente = new Map<number, Map<string, number>>()
   const clientePorReserva = new Map<string, string>()
 
-  for (const reserva of reservas) {
+  for (const reserva of reservasExportables) {
     const porCliente = cantidadPorCampoYCliente.get(reserva.canchaId) ?? new Map<string, number>()
     const cliente = claveCliente(reserva)
     clientePorReserva.set(reserva.id, cliente)
@@ -73,7 +82,7 @@ export function prepararFilasDatosReservas(
     cantidadPorCampoYCliente.set(reserva.canchaId, porCliente)
   }
 
-  const filas = reservas.map((reserva): FilaDatosReserva => {
+  const filas = reservasExportables.map((reserva): FilaDatosReserva => {
     const campo = canchaPorId.get(reserva.canchaId) ?? {
       id: reserva.canchaId,
       nombre: `Campo ${reserva.canchaId}`,
