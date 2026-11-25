@@ -1,6 +1,13 @@
 import { rangoHablado } from './reservas.js'
 import type { Campo, ComprobanteAdmin, Reserva } from './types.js'
-import ExcelJS from 'exceljs'
+import type ExcelJS from 'exceljs'
+
+type ModuloExcelJS = typeof import('exceljs')
+
+async function cargarModuloExcelJS(): Promise<ModuloExcelJS> {
+  const modulo = await import('exceljs') as unknown as ModuloExcelJS & { default?: ModuloExcelJS }
+  return modulo.default ?? modulo
+}
 
 export interface FilaDatosReserva {
   reservaId: string
@@ -194,8 +201,9 @@ export async function crearLibroDatosReservas(
   comprobantes: readonly ComprobanteAdmin[] = [],
   resolverUrlComprobante?: ResolverUrlComprobante,
 ): Promise<ExcelJS.Workbook> {
+  const moduloExcelJS = await cargarModuloExcelJS()
   const filas = prepararFilasDatosReservas(reservas, canchas, comprobantes)
-  const libro = new ExcelJS.Workbook()
+  const libro = new moduloExcelJS.Workbook()
   libro.creator = 'Polideportivo El Jaguar'
   libro.created = new Date()
   const hoja = libro.addWorksheet('Datos de reservas')
