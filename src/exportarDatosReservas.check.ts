@@ -86,6 +86,8 @@ const libro = await crearLibroDatosReservas(
 )
 const hoja = libro.getWorksheet('Datos de reservas')
 assert.ok(hoja, 'el libro debe tener una hoja de datos de reservas')
+assert.ok((hoja.getColumn(4).width ?? 0) >= 18, 'la columna Fecha debe tener más espacio')
+assert.ok((hoja.getColumn(5).width ?? 0) >= 32, 'la columna Horario debe tener más espacio')
 
 const filaConTexto = (texto: string): number => {
   let encontrada = 0
@@ -113,6 +115,8 @@ assert.equal(hoja.getCell(filaCampo1 + 2, 1).font?.bold, true, 'los datos deben 
 assert.ok((hoja.getCell(filaCampo1 + 1, 1).font?.size ?? 0) >= 12, 'los encabezados deben usar una letra más grande')
 assert.equal(hoja.getCell(filaCampo1 + 2, 7).value, 110, 'debe calcular el total cuando la reserva no lo trae guardado')
 assert.equal(hoja.getCell(filaCampo1 + 4, 7).value, 82.5, 'debe conservar el total guardado de la reserva')
+assert.equal(hoja.getCell(filaCampo1 + 2, 4).alignment?.horizontal, 'center')
+assert.equal(hoja.getCell(filaCampo1 + 2, 5).alignment?.horizontal, 'center')
 
 const nombresCampo1: string[] = []
 for (let numero = filaCampo1 + 2; numero < filaCampo2; numero += 1) {

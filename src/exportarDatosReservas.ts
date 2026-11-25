@@ -357,8 +357,8 @@ export async function crearLibroDatosReservas(
     { header: 'Nombre', key: 'nombre', width: 26 },
     { header: 'Número', key: 'celular', width: 16 },
     { header: 'Comprobante', key: 'comprobante', width: 52 },
-    { header: 'Fecha', key: 'fecha', width: 14 },
-    { header: 'Horario', key: 'horario', width: 24 },
+    { header: 'Fecha', key: 'fecha', width: 18 },
+    { header: 'Horario', key: 'horario', width: 32 },
     { header: 'Horas', key: 'horas', width: 10 },
     { header: 'Total a pagar', key: 'total', width: 16 },
   ]
@@ -406,6 +406,8 @@ export async function crearLibroDatosReservas(
       filaExcel.getCell(4).numFmt = 'dd/mm/yyyy'
       filaExcel.getCell(6).numFmt = '0.0'
       filaExcel.getCell(7).numFmt = '"S/" #,##0.00'
+      filaExcel.getCell(4).alignment = { vertical: 'middle', horizontal: 'center', wrapText: true }
+      filaExcel.getCell(5).alignment = { vertical: 'middle', horizontal: 'center', wrapText: true }
 
       if (!fila.comprobante) {
         filaExcel.getCell(3).value = 'Cliente confiable — no tiene comprobante'
