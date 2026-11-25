@@ -83,8 +83,6 @@ const libro = await crearLibroDatosReservas(
     llamadasActivas -= 1
     return imagenBlob
   },
-  undefined,
-  async (storagePath) => `https://ejemplo.test/${storagePath}`,
 )
 const hoja = libro.getWorksheet('Datos de reservas')
 assert.ok(hoja, 'el libro debe tener una hoja de datos de reservas')
@@ -109,10 +107,7 @@ assert.equal(hoja.getCell(filaCampo1 + 1, 3).value, 'Comprobante')
 assert.equal(hoja.getCell(filaCampo1 + 1, 4).value, 'Fecha')
 assert.equal(hoja.getCell(filaCampo1 + 1, 5).value, 'Horario')
 assert.equal(hoja.getCell(filaCampo1 + 1, 6).value, 'Horas')
-assert.equal(hoja.getCell(filaCampo1 + 1, 7).value, 'Abrir comprobante')
-const enlaceComprobante = hoja.getCell(filaCampo1 + 2, 7).value as { text?: string; hyperlink?: string }
-assert.equal(enlaceComprobante.text, 'Abrir comprobante')
-assert.equal(enlaceComprobante.hyperlink, 'https://ejemplo.test/comprobantes/r2-2.png')
+assert.equal(hoja.getCell(filaCampo1 + 1, 7).value, null, 'el reporte no debe agregar una columna de enlaces temporales')
 
 const nombresCampo1: string[] = []
 for (let numero = filaCampo1 + 2; numero < filaCampo2; numero += 1) {

@@ -24,7 +24,6 @@ export interface FilaDatosReserva {
 }
 
 export type ResolverComprobante = (storagePath: string) => Promise<Blob>
-export type ResolverUrlComprobante = (storagePath: string) => Promise<string>
 export type ProgresoExportacionReservas = (completados: number, total: number) => void
 
 const COLORES = {
@@ -134,11 +133,6 @@ interface ImagenParaExcel {
   dataUrl: string
   extension: 'jpeg' | 'png' | 'gif'
   dimensiones: DimensionesImagen
-}
-
-interface ResultadoComprobanteExcel {
-  imagen?: ImagenParaExcel
-  url?: string
 }
 
 export interface DimensionesImagen {
@@ -261,13 +255,12 @@ async function cargarImagenesComprobantes(
   filas: readonly FilaDatosReserva[],
   resolverComprobante: ResolverComprobante,
   alProgresar?: ProgresoExportacionReservas,
-  resolverUrlComprobante?: ResolverUrlComprobante,
-): Promise<Map<string, ResultadoComprobanteExcel>> {
+): Promise<Map<string, ImagenParaExcel>> {
   const filasConComprobante = filas.filter((fila) => fila.comprobante)
-  const resultadosPorReserva = new Map<string, ResultadoComprobanteExcel>()
+  const imagenesPorReserva = new Map<string, ImagenParaExcel>()
   if (!filasConComprobante.length) {
     alProgresar?.(0, 0)
-    return resultadosPorReserva
+    return imagenesPorReserva
   }
 
   let siguiente = 0
@@ -279,19 +272,11 @@ async function cargarImagenesComprobantes(
       const fila = filasConComprobante[indice]
       if (!fila?.comprobante) return
 
-      const promesaUrl = resolverUrlComprobante
-        ? resolverUrlComprobante(fila.comprobante.storagePath).catch(() => undefined)
-        : Promise.resolve(undefined)
       try {
-        const [blob, url] = await Promise.all([
-          resolverComprobante(fila.comprobante.storagePath),
-          promesaUrl,
-        ])
+        const blob = await resolverComprobante(fila.comprobante.storagePath)
         const imagen = await convertirBlobAImagenExcel(blob, fila.comprobante.mimeType)
-        resultadosPorReserva.set(fila.reservaId, { imagen, ...(url ? { url } : {}) })
+        imagenesPorReserva.set(fila.reservaId, imagen)
       } catch {
-        const url = await promesaUrl
-        if (url) resultadosPorReserva.set(fila.reservaId, { url })
         // La fila se conserva y el usuario verá "No se pudo cargar" en Excel.
       } finally {
         completados += 1
@@ -302,7 +287,7 @@ async function cargarImagenesComprobantes(
 
   const cantidadTrabajadores = Math.min(MAX_COMPROBANTES_EN_PARALELO, filasConComprobante.length)
   await Promise.all(Array.from({ length: cantidadTrabajadores }, () => trabajador()))
-  return resultadosPorReserva
+  return imagenesPorReserva
 }
 
 function aplicarEstiloTitulo(celda: ExcelJS.Cell): void {
@@ -355,13 +340,12 @@ export async function crearLibroDatosReservas(
   comprobantes: readonly ComprobanteAdmin[] = [],
   resolverComprobante?: ResolverComprobante,
   alProgresar?: ProgresoExportacionReservas,
-  resolverUrlComprobante?: ResolverUrlComprobante,
 ): Promise<ExcelJS.Workbook> {
   const moduloExcelJS = await cargarModuloExcelJS()
   const filas = prepararFilasDatosReservas(reservas, canchas, comprobantes)
   const imagenesPorReserva = resolverComprobante
-    ? await cargarImagenesComprobantes(filas, resolverComprobante, alProgresar, resolverUrlComprobante)
-    : new Map<string, ResultadoComprobanteExcel>()
+    ? await cargarImagenesComprobantes(filas, resolverComprobante, alProgresar)
+    : new Map<string, ImagenParaExcel>()
   const libro = new moduloExcelJS.Workbook()
   libro.creator = 'Polideportivo El Jaguar'
   libro.created = new Date()
@@ -373,37 +357,36 @@ export async function crearLibroDatosReservas(
     { header: 'Fecha', key: 'fecha', width: 14 },
     { header: 'Horario', key: 'horario', width: 24 },
     { header: 'Horas', key: 'horas', width: 10 },
-    { header: 'Abrir comprobante', key: 'enlace', width: 22 },
   ]
 
   let filaActual = 1
-  hoja.mergeCells(filaActual, 1, filaActual, 7)
+  hoja.mergeCells(filaActual, 1, filaActual, 6)
   hoja.getCell(filaActual, 1).value = 'DATOS DE RESERVAS'
   hoja.getRow(filaActual).height = 30
   aplicarEstiloTitulo(hoja.getCell(filaActual, 1))
   filaActual += 1
 
-  hoja.mergeCells(filaActual, 1, filaActual, 7)
+  hoja.mergeCells(filaActual, 1, filaActual, 6)
   hoja.getCell(filaActual, 1).value = 'Histórico de reservas — una fila por cada reserva'
   hoja.getCell(filaActual, 1).font = { name: 'Arial', size: 10, italic: true, color: { argb: COLORES.negro } }
   hoja.getCell(filaActual, 1).alignment = { horizontal: 'center' }
   filaActual += 2
 
   for (const grupo of filasPorCampo(filas, canchas)) {
-    hoja.mergeCells(filaActual, 1, filaActual, 7)
+    hoja.mergeCells(filaActual, 1, filaActual, 6)
     hoja.getCell(filaActual, 1).value = grupo.campo.nombre.toUpperCase()
     hoja.getRow(filaActual).height = 25
     aplicarEstiloCampo(hoja.getCell(filaActual, 1))
     filaActual += 1
 
     const filaCabecera = hoja.getRow(filaActual)
-    filaCabecera.values = ['Nombre', 'Número', 'Comprobante', 'Fecha', 'Horario', 'Horas', 'Abrir comprobante']
+    filaCabecera.values = ['Nombre', 'Número', 'Comprobante', 'Fecha', 'Horario', 'Horas']
     filaCabecera.height = 24
-    for (let columna = 1; columna <= 7; columna += 1) aplicarEstiloCabecera(filaCabecera.getCell(columna))
+    for (let columna = 1; columna <= 6; columna += 1) aplicarEstiloCabecera(filaCabecera.getCell(columna))
     filaActual += 1
 
     if (!grupo.filas.length) {
-      hoja.mergeCells(filaActual, 1, filaActual, 7)
+      hoja.mergeCells(filaActual, 1, filaActual, 6)
       hoja.getCell(filaActual, 1).value = 'Sin reservas registradas'
       hoja.getCell(filaActual, 1).font = { name: 'Arial', size: 10, italic: true, color: { argb: '66635C' } }
       hoja.getCell(filaActual, 1).alignment = { horizontal: 'center' }
@@ -413,9 +396,9 @@ export async function crearLibroDatosReservas(
 
     for (const [indice, fila] of grupo.filas.entries()) {
       const filaExcel = hoja.getRow(filaActual)
-      filaExcel.values = [fila.nombre, fila.celular, '', new Date(`${fila.fecha}T12:00:00`), fila.horario, fila.horas, '']
+      filaExcel.values = [fila.nombre, fila.celular, '', new Date(`${fila.fecha}T12:00:00`), fila.horario, fila.horas]
       filaExcel.height = ALTURA_MINIMA_FILA_EXCEL
-      for (let columna = 1; columna <= 7; columna += 1) aplicarEstiloFila(filaExcel.getCell(columna), indice % 2 === 1)
+      for (let columna = 1; columna <= 6; columna += 1) aplicarEstiloFila(filaExcel.getCell(columna), indice % 2 === 1)
       filaExcel.getCell(4).numFmt = 'dd/mm/yyyy'
       filaExcel.getCell(6).numFmt = '0.0'
 
@@ -424,28 +407,17 @@ export async function crearLibroDatosReservas(
       } else if (!resolverComprobante) {
         filaExcel.getCell(3).value = 'Imagen no disponible'
       } else {
-        const resultado = imagenesPorReserva.get(fila.reservaId)
-        if (!resultado?.imagen) {
+        const imagen = imagenesPorReserva.get(fila.reservaId)
+        if (!imagen) {
           filaExcel.getCell(3).value = 'No se pudo cargar'
         } else {
-          const tamano = calcularTamanoImagenExcel(resultado.imagen.dimensiones)
+          const tamano = calcularTamanoImagenExcel(imagen.dimensiones)
           filaExcel.height = Math.max(ALTURA_MINIMA_FILA_EXCEL, Math.ceil(tamano.height * 0.75))
-          const imagenId = libro.addImage({ base64: resultado.imagen.dataUrl, extension: resultado.imagen.extension })
+          const imagenId = libro.addImage({ base64: imagen.dataUrl, extension: imagen.extension })
           hoja.addImage(imagenId, {
             tl: { col: 2.1, row: filaActual - 1 + 0.08 },
             ext: tamano,
           })
-        }
-
-        if (resultado?.url) {
-          filaExcel.getCell(7).value = {
-            text: 'Abrir comprobante',
-            hyperlink: resultado.url,
-            tooltip: 'Abrir comprobante original',
-          }
-          filaExcel.getCell(7).font = { name: 'Arial', size: 10, color: { argb: '0563C1' }, underline: true }
-        } else if (resolverUrlComprobante) {
-          filaExcel.getCell(7).value = 'Enlace no disponible'
         }
       }
       filaActual += 1
@@ -462,7 +434,6 @@ export async function descargarDatosReservas(
   comprobantes: readonly ComprobanteAdmin[] = [],
   resolverComprobante?: ResolverComprobante,
   alProgresar?: ProgresoExportacionReservas,
-  resolverUrlComprobante?: ResolverUrlComprobante,
 ): Promise<void> {
   const libro = await crearLibroDatosReservas(
     reservas,
@@ -470,7 +441,6 @@ export async function descargarDatosReservas(
     comprobantes,
     resolverComprobante,
     alProgresar,
-    resolverUrlComprobante,
   )
   const contenido = await libro.xlsx.writeBuffer()
   const blob = new Blob([contenido], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' })
