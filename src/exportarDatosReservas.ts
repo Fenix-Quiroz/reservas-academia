@@ -132,6 +132,88 @@ function base64DesdeBytes(bytes: Uint8Array): string {
 interface ImagenParaExcel {
   dataUrl: string
   extension: 'jpeg' | 'png' | 'gif'
+  dimensiones: DimensionesImagen
+}
+
+export interface DimensionesImagen {
+  ancho: number
+  alto: number
+}
+
+export interface TamanoImagenExcel {
+  width: number
+  height: number
+}
+
+const MAX_ANCHO_IMAGEN_EXCEL = 360
+const MAX_ALTO_IMAGEN_EXCEL = 520
+
+export function calcularTamanoImagenExcel(dimensiones: DimensionesImagen): TamanoImagenExcel {
+  const ancho = Number.isFinite(dimensiones.ancho) && dimensiones.ancho > 0 ? dimensiones.ancho : 1
+  const alto = Number.isFinite(dimensiones.alto) && dimensiones.alto > 0 ? dimensiones.alto : 1
+  const escala = Math.min(1, MAX_ANCHO_IMAGEN_EXCEL / ancho, MAX_ALTO_IMAGEN_EXCEL / alto)
+  return {
+    width: Math.max(1, Math.round(ancho * escala)),
+    height: Math.max(1, Math.round(alto * escala)),
+  }
+}
+
+function leerUint32Grande(bytes: Uint8Array, inicio: number): number {
+  return bytes[inicio] * 0x1000000 + bytes[inicio + 1] * 0x10000 + bytes[inicio + 2] * 0x100 + bytes[inicio + 3]
+}
+
+function leerDimensionesPng(bytes: Uint8Array): DimensionesImagen | null {
+  const firmaPng = [137, 80, 78, 71, 13, 10, 26, 10]
+  if (!firmaPng.every((valor, indice) => bytes[indice] === valor) || bytes.length < 24) return null
+  return { ancho: leerUint32Grande(bytes, 16), alto: leerUint32Grande(bytes, 20) }
+}
+
+function leerDimensionesJpeg(bytes: Uint8Array): DimensionesImagen | null {
+  if (bytes[0] !== 0xff || bytes[1] !== 0xd8) return null
+  let indice = 2
+  while (indice + 9 < bytes.length) {
+    if (bytes[indice] !== 0xff) {
+      indice += 1
+      continue
+    }
+    const marcador = bytes[indice + 1]
+    indice += 2
+    if (marcador === 0xd8 || marcador === 0xd9) continue
+    if (indice + 2 > bytes.length) return null
+    const longitud = bytes[indice] * 0x100 + bytes[indice + 1]
+    const esMarco = (marcador >= 0xc0 && marcador <= 0xc3)
+      || (marcador >= 0xc5 && marcador <= 0xc7)
+      || (marcador >= 0xc9 && marcador <= 0xcb)
+      || (marcador >= 0xcd && marcador <= 0xcf)
+    if (esMarco && indice + 7 < bytes.length) {
+      return {
+        alto: bytes[indice + 3] * 0x100 + bytes[indice + 4],
+        ancho: bytes[indice + 5] * 0x100 + bytes[indice + 6],
+      }
+    }
+    if (longitud < 2) return null
+    indice += longitud
+  }
+  return null
+}
+
+async function leerDimensionesImagen(blob: Blob): Promise<DimensionesImagen> {
+  const bytes = new Uint8Array(await blob.arrayBuffer())
+  const dimensionesDelEncabezado = leerDimensionesPng(bytes) ?? leerDimensionesJpeg(bytes)
+  if (dimensionesDelEncabezado) return dimensionesDelEncabezado
+
+  if (typeof createImageBitmap === 'function') {
+    try {
+      const imagen = await createImageBitmap(blob)
+      const dimensiones = { ancho: imagen.width, alto: imagen.height }
+      imagen.close()
+      return dimensiones
+    } catch {
+      // El comprobante queda como no cargable si el navegador no puede decodificarlo.
+    }
+  }
+
+  throw new Error('dimensiones-imagen-no-disponibles')
 }
 
 async function convertirBlobAImagenExcel(blob: Blob, mimeType: ComprobanteAdmin['mimeType']): Promise<ImagenParaExcel> {
@@ -150,19 +232,24 @@ async function convertirBlobAImagenExcel(blob: Blob, mimeType: ComprobanteAdmin[
     }
     contexto.drawImage(imagen, 0, 0)
     imagen.close()
-    return { dataUrl: canvas.toDataURL('image/png'), extension: 'png' }
+    return {
+      dataUrl: canvas.toDataURL('image/png'),
+      extension: 'png',
+      dimensiones: { ancho: canvas.width, alto: canvas.height },
+    }
   }
 
+  const dimensiones = await leerDimensionesImagen(blob)
   const bytes = new Uint8Array(await blob.arrayBuffer())
   return {
     dataUrl: `data:${mimeType};base64,${base64DesdeBytes(bytes)}`,
     extension: extensionImagen(mimeType),
+    dimensiones,
   }
 }
 
 const MAX_COMPROBANTES_EN_PARALELO = 5
-const ALTURA_FILA_COMPROBANTE = 180
-const ANCHO_IMAGEN_COMPROBANTE = 300
+const ALTURA_MINIMA_FILA_EXCEL = 30
 
 async function cargarImagenesComprobantes(
   filas: readonly FilaDatosReserva[],
@@ -266,7 +353,7 @@ export async function crearLibroDatosReservas(
   hoja.columns = [
     { header: 'Nombre', key: 'nombre', width: 26 },
     { header: 'Número', key: 'celular', width: 16 },
-    { header: 'Comprobante', key: 'comprobante', width: 42 },
+    { header: 'Comprobante', key: 'comprobante', width: 52 },
     { header: 'Fecha', key: 'fecha', width: 14 },
     { header: 'Horario', key: 'horario', width: 24 },
     { header: 'Horas', key: 'horas', width: 10 },
@@ -310,7 +397,7 @@ export async function crearLibroDatosReservas(
     for (const [indice, fila] of grupo.filas.entries()) {
       const filaExcel = hoja.getRow(filaActual)
       filaExcel.values = [fila.nombre, fila.celular, '', new Date(`${fila.fecha}T12:00:00`), fila.horario, fila.horas]
-      filaExcel.height = ALTURA_FILA_COMPROBANTE
+      filaExcel.height = ALTURA_MINIMA_FILA_EXCEL
       for (let columna = 1; columna <= 6; columna += 1) aplicarEstiloFila(filaExcel.getCell(columna), indice % 2 === 1)
       filaExcel.getCell(4).numFmt = 'dd/mm/yyyy'
       filaExcel.getCell(6).numFmt = '0.0'
@@ -324,10 +411,12 @@ export async function crearLibroDatosReservas(
         if (!imagen) {
           filaExcel.getCell(3).value = 'No se pudo cargar'
         } else {
+          const tamano = calcularTamanoImagenExcel(imagen.dimensiones)
+          filaExcel.height = Math.max(ALTURA_MINIMA_FILA_EXCEL, Math.ceil(tamano.height * 0.75))
           const imagenId = libro.addImage({ base64: imagen.dataUrl, extension: imagen.extension })
           hoja.addImage(imagenId, {
             tl: { col: 2.1, row: filaActual - 1 + 0.08 },
-            ext: { width: ANCHO_IMAGEN_COMPROBANTE, height: ALTURA_FILA_COMPROBANTE },
+            ext: tamano,
           })
         }
       }

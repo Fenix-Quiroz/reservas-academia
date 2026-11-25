@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict'
-import { crearLibroDatosReservas, prepararFilasDatosReservas } from './exportarDatosReservas.js'
+import { calcularTamanoImagenExcel, crearLibroDatosReservas, prepararFilasDatosReservas } from './exportarDatosReservas.js'
 import type { Campo, ComprobanteAdmin, Reserva } from './types.js'
 
 const canchas: Campo[] = [
@@ -57,6 +57,17 @@ assert.deepEqual(filas.slice(0, 3).map((fila) => fila.campoId), [1, 1, 1])
 assert.equal(filas[3]?.campoId, 1)
 assert.equal(filas[5]?.campoId, 2)
 
+assert.deepEqual(
+  calcularTamanoImagenExcel({ ancho: 100, alto: 200 }),
+  { width: 100, height: 200 },
+  'una imagen pequeña no debe agrandarse y perder nitidez',
+)
+assert.deepEqual(
+  calcularTamanoImagenExcel({ ancho: 1000, alto: 2000 }),
+  { width: 260, height: 520 },
+  'una imagen grande debe reducirse manteniendo su proporción',
+)
+
 const imagenPng = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII='
 const imagenBlob = await (await fetch(imagenPng)).blob()
 let llamadasActivas = 0
@@ -88,7 +99,7 @@ const filaCampo1 = filaConTexto('CAMPO 1')
 const filaCampo2 = filaConTexto('CAMPO 2')
 assert.ok(filaCampo1 > 0 && filaCampo2 > filaCampo1, 'los bloques deben aparecer en el orden de los campos')
 assert.ok((hoja.getCell(filaCampo1, 1).font?.size ?? 0) >= 16, 'el título del campo debe verse grande')
-assert.ok((hoja.getRow(filaCampo1 + 2).height ?? 0) >= 170, 'la fila debe ser suficientemente alta para leer el comprobante')
+assert.ok((hoja.getRow(filaCampo1 + 2).height ?? 0) >= 30, 'la fila debe conservar una altura visible')
 assert.equal(hoja.views?.some((vista) => vista.state === 'frozen'), false, 'el reporte no debe congelar el título del primer campo')
 assert.equal(hoja.getCell(filaCampo1 + 1, 1).value, 'Nombre')
 assert.equal(hoja.getCell(filaCampo1 + 1, 2).value, 'Número')
