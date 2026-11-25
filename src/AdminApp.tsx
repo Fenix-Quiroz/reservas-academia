@@ -230,6 +230,7 @@ export default function AdminApp() {
       })
           setEventos(eventosActuales)
           setEstadoConexion(supabaseConfigurado ? 'sincronizado' : 'demo')
+          setListaCargada(true)
         }
       } catch {
         if (montado) {
@@ -238,7 +239,6 @@ export default function AdminApp() {
         }
       } finally {
         if (montado) {
-          setListaCargada(true)
           setCargando(false)
         }
       }
@@ -316,6 +316,7 @@ export default function AdminApp() {
       ])
       setReservas(actuales)
       setComprobantesAdmin(comprobantesActuales)
+      setListaCargada(true)
       setModalComprobante((actual) => {
         if (!actual) return null
         const pagoId = actual.comprobante.pagoId
@@ -784,6 +785,7 @@ export default function AdminApp() {
             eventos={eventos}
             comprobantes={comprobantesAdmin}
             resolverUrlComprobante={supabaseConfigurado ? crearUrlComprobanteAdminRemota : undefined}
+            datosCargados={listaCargada}
           />
       </div>
 

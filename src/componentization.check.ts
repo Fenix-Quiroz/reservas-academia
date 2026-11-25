@@ -61,6 +61,9 @@ assert.match(balance, /comprobantes/, 'AdminBalanceMensual debe recibir los comp
 assert.match(balance, /Descargar datos de reservas/, 'AdminBalanceMensual debe mostrar el botón del nuevo reporte')
 assert.match(balance, /descargarDatosReservas/, 'AdminBalanceMensual debe invocar el exportador de datos de reservas')
 assert.match(adminApp, /comprobantes={comprobantesAdmin}/, 'AdminApp debe pasar los comprobantes al reporte')
+assert.match(balance, /datosCargados/, 'AdminBalanceMensual debe saber si la carga inicial terminó')
+assert.match(balance, /!datosCargados/, 'El nuevo botón no debe descargar mientras la carga inicial está pendiente')
+assert.match(adminApp, /datosCargados={listaCargada}/, 'AdminApp debe informar cuándo terminó la carga inicial')
 
 assert.doesNotMatch(app, /function (Progreso|DibujoCancha|PasoCancha|PasoHorario|PasoDatos|PasoListo|MisReservas)\s*\(/)
 assert.doesNotMatch(adminApp, /function (AdminMarca|AdminLogin|AdminNoAutorizado)\s*\(/)

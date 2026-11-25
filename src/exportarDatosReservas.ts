@@ -1,5 +1,6 @@
 import { rangoHablado } from './reservas.js'
 import type { Campo, ComprobanteAdmin, Reserva } from './types.js'
+import { normalizarCelular } from './validacionCliente.js'
 import type ExcelJS from 'exceljs'
 
 type ModuloExcelJS = typeof import('exceljs')
@@ -34,7 +35,7 @@ const COLORES = {
 }
 
 function claveClienteDatos(celular: string, nombre: string): string {
-  const numero = celular.trim()
+  const numero = normalizarCelular(celular)
   return numero || `sin-celular:${nombre.trim().toLocaleLowerCase()}`
 }
 
@@ -52,12 +53,19 @@ export function prepararFilasDatosReservas(
   comprobantes: readonly ComprobanteAdmin[] = [],
 ): FilaDatosReserva[] {
   const canchaPorId = new Map(canchas.map((cancha) => [cancha.id, cancha]))
-  const comprobantePorReserva = new Map(comprobantes.map((comprobante) => [comprobante.reservaId, comprobante]))
+  const comprobantePorReserva = new Map<string, ComprobanteAdmin>()
+  for (const comprobante of comprobantes) {
+    if (!comprobantePorReserva.has(comprobante.reservaId)) {
+      comprobantePorReserva.set(comprobante.reservaId, comprobante)
+    }
+  }
   const cantidadPorCampoYCliente = new Map<number, Map<string, number>>()
+  const clientePorReserva = new Map<string, string>()
 
   for (const reserva of reservas) {
     const porCliente = cantidadPorCampoYCliente.get(reserva.canchaId) ?? new Map<string, number>()
     const cliente = claveCliente(reserva)
+    clientePorReserva.set(reserva.id, cliente)
     porCliente.set(cliente, (porCliente.get(cliente) ?? 0) + 1)
     cantidadPorCampoYCliente.set(reserva.canchaId, porCliente)
   }
@@ -78,7 +86,7 @@ export function prepararFilasDatosReservas(
       campoId: reserva.canchaId,
       campo,
       nombre: reserva.nombre?.trim() || reserva.alias,
-      celular: reserva.celular,
+      celular: normalizarCelular(reserva.celular),
       fecha: reserva.fecha,
       inicio: reserva.inicio,
       horario: rangoHablado(reserva.inicio, reserva.horas),
@@ -94,9 +102,13 @@ export function prepararFilasDatosReservas(
     if (campoA !== campoB) return campoA - campoB
     if (a.campoId !== b.campoId) return a.campoId - b.campoId
 
-    const cantidadA = cantidadPorCampoYCliente.get(a.campoId)?.get(claveClienteDatos(a.celular, a.nombre)) ?? 0
-    const cantidadB = cantidadPorCampoYCliente.get(b.campoId)?.get(claveClienteDatos(b.celular, b.nombre)) ?? 0
+    const clienteA = clientePorReserva.get(a.reservaId) ?? claveClienteDatos(a.celular, a.nombre)
+    const clienteB = clientePorReserva.get(b.reservaId) ?? claveClienteDatos(b.celular, b.nombre)
+    const cantidadA = cantidadPorCampoYCliente.get(a.campoId)?.get(clienteA) ?? 0
+    const cantidadB = cantidadPorCampoYCliente.get(b.campoId)?.get(clienteB) ?? 0
     if (cantidadA !== cantidadB) return cantidadB - cantidadA
+    const ordenCliente = clienteA.localeCompare(clienteB)
+    if (ordenCliente !== 0) return ordenCliente
     return compararFechas(a, b)
   })
 }

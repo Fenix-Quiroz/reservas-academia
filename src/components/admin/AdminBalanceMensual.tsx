@@ -13,6 +13,7 @@ export interface AdminBalanceMensualProps {
   eventos: readonly BloqueoEvento[]
   comprobantes: readonly ComprobanteAdmin[]
   resolverUrlComprobante?: ResolverUrlComprobante
+  datosCargados: boolean
 }
 
 export default function AdminBalanceMensual({
@@ -21,6 +22,7 @@ export default function AdminBalanceMensual({
   eventos,
   comprobantes,
   resolverUrlComprobante,
+  datosCargados,
 }: AdminBalanceMensualProps) {
   const [mes, setMes] = useState(mesActual)
   const [descargando, setDescargando] = useState(false)
@@ -126,7 +128,7 @@ export default function AdminBalanceMensual({
             className="admin-boton admin-balance-descargar-txt"
             type="button"
             onClick={() => void descargarDatos()}
-            disabled={descargando || descargandoTexto || descargandoDatos}
+            disabled={!datosCargados || descargando || descargandoTexto || descargandoDatos}
           >
             <Download size={20} strokeWidth={2.5} aria-hidden="true" />
             <span>{descargandoDatos ? 'Preparando datos…' : 'Descargar datos de reservas'}</span>

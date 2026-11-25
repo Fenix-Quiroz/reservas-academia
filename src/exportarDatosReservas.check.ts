@@ -17,8 +17,9 @@ const reserva = (datos: Partial<Reserva> & Pick<Reserva, 'id' | 'fecha' | 'inici
 const reservas: Reserva[] = [
   reserva({ id: 'r1', fecha: '2026-11-05', inicio: 20, horas: 1.5, alias: 'Cliente Tres A', celular: '912345678' }),
   reserva({ id: 'r2', fecha: '2026-11-01', inicio: 18, horas: 2, alias: 'Cliente Tres', celular: '912345678' }),
-  reserva({ id: 'r3', fecha: '2026-11-03', inicio: 19, alias: 'Cliente Tres B', celular: '912345678' }),
+  reserva({ id: 'r3', fecha: '2026-11-03', inicio: 19, alias: 'Cliente Tres B', celular: '912 345-678' }),
   reserva({ id: 'r4', fecha: '2026-11-02', inicio: 21, alias: 'Cliente Uno', celular: '923456789' }),
+  reserva({ id: 'r6', fecha: '2026-11-04', inicio: 21, alias: 'Cliente Uno', celular: '923456789' }),
   reserva({ id: 'r5', canchaId: 2, fecha: '2026-11-02', inicio: 17, alias: 'Cliente Campo Dos', celular: '934567890' }),
 ]
 
@@ -26,39 +27,41 @@ const comprobante = (reservaId: string, numero: number): ComprobanteAdmin => ({
   pagoId: `pago-${numero}`,
   reservaId,
   estado: 'confirmado',
-  storagePath: `comprobantes/${reservaId}.png`,
+  storagePath: `comprobantes/${reservaId}-${numero}.png`,
   mimeType: 'image/png',
   sizeBytes: 100 + numero,
 })
 
-const filas = prepararFilasDatosReservas(reservas, canchas, [
+const comprobantes = [
+  comprobante('r1', 99),
   comprobante('r1', 1),
   comprobante('r2', 2),
   comprobante('r3', 3),
   comprobante('r4', 4),
-])
+]
+const filas = prepararFilasDatosReservas(reservas, canchas, comprobantes)
 
 assert.equal(filas.length, reservas.length, 'cada reserva debe conservar su propia fila')
 assert.deepEqual(
   filas.map((fila) => fila.reservaId),
-  ['r2', 'r3', 'r1', 'r4', 'r5'],
-  'el cliente con tres reservas debe aparecer primero y sus filas deben ordenarse por fecha',
+  ['r2', 'r3', 'r1', 'r4', 'r6', 'r5'],
+  'el cliente con tres reservas debe aparecer primero y cada grupo debe mantenerse unido',
 )
 assert.deepEqual(
   filas.slice(0, 3).map((fila) => fila.comprobante?.storagePath),
-  ['comprobantes/r2.png', 'comprobantes/r3.png', 'comprobantes/r1.png'],
+  ['comprobantes/r2-2.png', 'comprobantes/r3-3.png', 'comprobantes/r1-99.png'],
   'cada fila debe conservar el comprobante de su reserva',
 )
 assert.deepEqual(filas.slice(0, 3).map((fila) => fila.celular), ['912345678', '912345678', '912345678'])
 assert.deepEqual(filas.slice(0, 3).map((fila) => fila.campoId), [1, 1, 1])
 assert.equal(filas[3]?.campoId, 1)
-assert.equal(filas[4]?.campoId, 2)
+assert.equal(filas[5]?.campoId, 2)
 
 const imagenPng = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII='
 const libro = await crearLibroDatosReservas(
   reservas,
   canchas,
-  [comprobante('r1', 1), comprobante('r2', 2), comprobante('r3', 3), comprobante('r4', 4)],
+  comprobantes,
   async () => imagenPng,
 )
 const hoja = libro.getWorksheet('Datos de reservas')
@@ -88,7 +91,7 @@ for (let numero = filaCampo1 + 2; numero < filaCampo2; numero += 1) {
   const nombre = hoja.getCell(numero, 1).value
   if (typeof nombre === 'string' && nombre !== 'Sin reservas registradas') nombresCampo1.push(nombre)
 }
-assert.deepEqual(nombresCampo1, ['Cliente Tres', 'Cliente Tres B', 'Cliente Tres A', 'Cliente Uno'])
+assert.deepEqual(nombresCampo1, ['Cliente Tres', 'Cliente Tres B', 'Cliente Tres A', 'Cliente Uno', 'Cliente Uno'])
 assert.equal(hoja.getCell(filaCampo1 + 2, 2).value, '912345678')
 assert.equal(hoja.getCell(filaCampo1 + 4, 2).value, '912345678')
 assert.equal(hoja.getCell(filaCampo1 + 5, 1).value, 'Cliente Uno')
