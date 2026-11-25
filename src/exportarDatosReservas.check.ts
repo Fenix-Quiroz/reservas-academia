@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict'
-import { calcularAlturaFilaImagenExcel, calcularTamanoImagenExcel, crearLibroDatosReservas, prepararFilasDatosReservas } from './exportarDatosReservas.js'
+import { calcularTamanoImagenExcel, crearLibroDatosReservas, prepararFilasDatosReservas } from './exportarDatosReservas.js'
 import type { Campo, ComprobanteAdmin, Reserva } from './types.js'
 
 const canchas: Campo[] = [
@@ -15,7 +15,7 @@ const reserva = (datos: Partial<Reserva> & Pick<Reserva, 'id' | 'fecha' | 'inici
 })
 
 const reservas: Reserva[] = [
-  reserva({ id: 'r1', fecha: '2026-11-05', inicio: 20, horas: 1.5, montoTotal: 82.5, alias: 'Cliente Tres A', celular: '912345678' }),
+  reserva({ id: 'r1', fecha: '2026-11-05', inicio: 20, horas: 1.5, alias: 'Cliente Tres A', celular: '912345678' }),
   reserva({ id: 'r2', fecha: '2026-11-01', inicio: 18, horas: 2, alias: 'Cliente Tres', celular: '912345678' }),
   reserva({ id: 'r3', fecha: '2026-11-03', inicio: 19, alias: 'Cliente Tres B', celular: '912 345-678' }),
   reserva({ id: 'r4', fecha: '2026-11-02', inicio: 21, alias: 'Cliente Uno', celular: '923456789' }),
@@ -67,11 +67,6 @@ assert.deepEqual(
   { width: 260, height: 520 },
   'una imagen grande debe reducirse manteniendo su proporción',
 )
-assert.equal(
-  calcularAlturaFilaImagenExcel({ width: 260, height: 520 }),
-  420,
-  'la fila debe tener margen suficiente para que la imagen no invada la siguiente',
-)
 
 const imagenPng = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII='
 const imagenBlob = await (await fetch(imagenPng)).blob()
@@ -112,10 +107,7 @@ assert.equal(hoja.getCell(filaCampo1 + 1, 3).value, 'Comprobante')
 assert.equal(hoja.getCell(filaCampo1 + 1, 4).value, 'Fecha')
 assert.equal(hoja.getCell(filaCampo1 + 1, 5).value, 'Horario')
 assert.equal(hoja.getCell(filaCampo1 + 1, 6).value, 'Horas')
-assert.equal(hoja.getCell(filaCampo1 + 1, 7).value, 'Total a pagar')
-assert.equal(hoja.getCell(filaCampo1 + 1, 8).value, null, 'el reporte no debe agregar una columna de enlaces temporales')
-assert.equal(hoja.getCell(filaCampo1 + 2, 7).value, 110, 'debe calcular el total cuando la reserva no lo trae guardado')
-assert.equal(hoja.getCell(filaCampo1 + 4, 7).value, 82.5, 'debe conservar el total guardado de la reserva')
+assert.equal(hoja.getCell(filaCampo1 + 1, 7).value, null, 'el reporte no debe agregar una columna de enlaces temporales')
 
 const nombresCampo1: string[] = []
 for (let numero = filaCampo1 + 2; numero < filaCampo2; numero += 1) {

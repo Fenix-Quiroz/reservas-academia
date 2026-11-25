@@ -1,5 +1,4 @@
 import { rangoHablado } from './reservas.js'
-import { montoDeReserva } from './balanceMensual.js'
 import type { Campo, ComprobanteAdmin, Reserva } from './types.js'
 import { normalizarCelular } from './validacionCliente.js'
 import type ExcelJS from 'exceljs'
@@ -21,7 +20,6 @@ export interface FilaDatosReserva {
   inicio: number
   horario: string
   horas: number
-  total: number
   comprobante?: ComprobanteAdmin
 }
 
@@ -94,7 +92,6 @@ export function prepararFilasDatosReservas(
       inicio: reserva.inicio,
       horario: rangoHablado(reserva.inicio, reserva.horas),
       horas: reserva.horas,
-      total: montoDeReserva(reserva, canchas),
       comprobante: comprobantePorReserva.get(reserva.id),
     }
   })
@@ -150,7 +147,6 @@ export interface TamanoImagenExcel {
 
 const MAX_ANCHO_IMAGEN_EXCEL = 360
 const MAX_ALTO_IMAGEN_EXCEL = 520
-const ALTURA_MINIMA_FILA_EXCEL = 30
 
 export function calcularTamanoImagenExcel(dimensiones: DimensionesImagen): TamanoImagenExcel {
   const ancho = Number.isFinite(dimensiones.ancho) && dimensiones.ancho > 0 ? dimensiones.ancho : 1
@@ -160,10 +156,6 @@ export function calcularTamanoImagenExcel(dimensiones: DimensionesImagen): Taman
     width: Math.max(1, Math.round(ancho * escala)),
     height: Math.max(1, Math.round(alto * escala)),
   }
-}
-
-export function calcularAlturaFilaImagenExcel(tamano: TamanoImagenExcel): number {
-  return Math.max(ALTURA_MINIMA_FILA_EXCEL, Math.ceil(tamano.height * 0.75 + 30))
 }
 
 function leerUint32Grande(bytes: Uint8Array, inicio: number): number {
@@ -257,6 +249,7 @@ async function convertirBlobAImagenExcel(blob: Blob, mimeType: ComprobanteAdmin[
 }
 
 const MAX_COMPROBANTES_EN_PARALELO = 5
+const ALTURA_MINIMA_FILA_EXCEL = 30
 
 async function cargarImagenesComprobantes(
   filas: readonly FilaDatosReserva[],
@@ -364,37 +357,36 @@ export async function crearLibroDatosReservas(
     { header: 'Fecha', key: 'fecha', width: 14 },
     { header: 'Horario', key: 'horario', width: 24 },
     { header: 'Horas', key: 'horas', width: 10 },
-    { header: 'Total a pagar', key: 'total', width: 16 },
   ]
 
   let filaActual = 1
-  hoja.mergeCells(filaActual, 1, filaActual, 7)
+  hoja.mergeCells(filaActual, 1, filaActual, 6)
   hoja.getCell(filaActual, 1).value = 'DATOS DE RESERVAS'
   hoja.getRow(filaActual).height = 30
   aplicarEstiloTitulo(hoja.getCell(filaActual, 1))
   filaActual += 1
 
-  hoja.mergeCells(filaActual, 1, filaActual, 7)
+  hoja.mergeCells(filaActual, 1, filaActual, 6)
   hoja.getCell(filaActual, 1).value = 'Histórico de reservas — una fila por cada reserva'
   hoja.getCell(filaActual, 1).font = { name: 'Arial', size: 10, italic: true, color: { argb: COLORES.negro } }
   hoja.getCell(filaActual, 1).alignment = { horizontal: 'center' }
   filaActual += 2
 
   for (const grupo of filasPorCampo(filas, canchas)) {
-    hoja.mergeCells(filaActual, 1, filaActual, 7)
+    hoja.mergeCells(filaActual, 1, filaActual, 6)
     hoja.getCell(filaActual, 1).value = grupo.campo.nombre.toUpperCase()
     hoja.getRow(filaActual).height = 25
     aplicarEstiloCampo(hoja.getCell(filaActual, 1))
     filaActual += 1
 
     const filaCabecera = hoja.getRow(filaActual)
-    filaCabecera.values = ['Nombre', 'Número', 'Comprobante', 'Fecha', 'Horario', 'Horas', 'Total a pagar']
+    filaCabecera.values = ['Nombre', 'Número', 'Comprobante', 'Fecha', 'Horario', 'Horas']
     filaCabecera.height = 24
-    for (let columna = 1; columna <= 7; columna += 1) aplicarEstiloCabecera(filaCabecera.getCell(columna))
+    for (let columna = 1; columna <= 6; columna += 1) aplicarEstiloCabecera(filaCabecera.getCell(columna))
     filaActual += 1
 
     if (!grupo.filas.length) {
-      hoja.mergeCells(filaActual, 1, filaActual, 7)
+      hoja.mergeCells(filaActual, 1, filaActual, 6)
       hoja.getCell(filaActual, 1).value = 'Sin reservas registradas'
       hoja.getCell(filaActual, 1).font = { name: 'Arial', size: 10, italic: true, color: { argb: '66635C' } }
       hoja.getCell(filaActual, 1).alignment = { horizontal: 'center' }
@@ -404,12 +396,11 @@ export async function crearLibroDatosReservas(
 
     for (const [indice, fila] of grupo.filas.entries()) {
       const filaExcel = hoja.getRow(filaActual)
-      filaExcel.values = [fila.nombre, fila.celular, '', new Date(`${fila.fecha}T12:00:00`), fila.horario, fila.horas, fila.total]
+      filaExcel.values = [fila.nombre, fila.celular, '', new Date(`${fila.fecha}T12:00:00`), fila.horario, fila.horas]
       filaExcel.height = ALTURA_MINIMA_FILA_EXCEL
-      for (let columna = 1; columna <= 7; columna += 1) aplicarEstiloFila(filaExcel.getCell(columna), indice % 2 === 1)
+      for (let columna = 1; columna <= 6; columna += 1) aplicarEstiloFila(filaExcel.getCell(columna), indice % 2 === 1)
       filaExcel.getCell(4).numFmt = 'dd/mm/yyyy'
       filaExcel.getCell(6).numFmt = '0.0'
-      filaExcel.getCell(7).numFmt = '"S/" #,##0.00'
 
       if (!fila.comprobante) {
         filaExcel.getCell(3).value = 'Cliente confiable — no tiene comprobante'
@@ -421,10 +412,10 @@ export async function crearLibroDatosReservas(
           filaExcel.getCell(3).value = 'No se pudo cargar'
         } else {
           const tamano = calcularTamanoImagenExcel(imagen.dimensiones)
-          filaExcel.height = calcularAlturaFilaImagenExcel(tamano)
+          filaExcel.height = Math.max(ALTURA_MINIMA_FILA_EXCEL, Math.ceil(tamano.height * 0.75))
           const imagenId = libro.addImage({ base64: imagen.dataUrl, extension: imagen.extension })
           hoja.addImage(imagenId, {
-            tl: { col: 2.1, row: filaActual - 1 + 0.02 },
+            tl: { col: 2.1, row: filaActual - 1 + 0.08 },
             ext: tamano,
           })
         }
