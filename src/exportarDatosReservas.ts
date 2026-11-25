@@ -1,4 +1,5 @@
 import { rangoHablado } from './reservas.js'
+import { montoDeReserva } from './balanceMensual.js'
 import type { Campo, ComprobanteAdmin, Reserva } from './types.js'
 import { normalizarCelular } from './validacionCliente.js'
 import type ExcelJS from 'exceljs'
@@ -20,6 +21,7 @@ export interface FilaDatosReserva {
   inicio: number
   horario: string
   horas: number
+  total: number
   comprobante?: ComprobanteAdmin
 }
 
@@ -92,6 +94,7 @@ export function prepararFilasDatosReservas(
       inicio: reserva.inicio,
       horario: rangoHablado(reserva.inicio, reserva.horas),
       horas: reserva.horas,
+      total: montoDeReserva(reserva, canchas),
       comprobante: comprobantePorReserva.get(reserva.id),
     }
   })
@@ -147,6 +150,7 @@ export interface TamanoImagenExcel {
 
 const MAX_ANCHO_IMAGEN_EXCEL = 360
 const MAX_ALTO_IMAGEN_EXCEL = 520
+const ALTURA_MINIMA_FILA_EXCEL = 30
 
 export function calcularTamanoImagenExcel(dimensiones: DimensionesImagen): TamanoImagenExcel {
   const ancho = Number.isFinite(dimensiones.ancho) && dimensiones.ancho > 0 ? dimensiones.ancho : 1
@@ -249,7 +253,6 @@ async function convertirBlobAImagenExcel(blob: Blob, mimeType: ComprobanteAdmin[
 }
 
 const MAX_COMPROBANTES_EN_PARALELO = 5
-const ALTURA_MINIMA_FILA_EXCEL = 30
 
 async function cargarImagenesComprobantes(
   filas: readonly FilaDatosReserva[],
@@ -291,26 +294,26 @@ async function cargarImagenesComprobantes(
 }
 
 function aplicarEstiloTitulo(celda: ExcelJS.Cell): void {
-  celda.font = { name: 'Arial', size: 16, bold: true, color: { argb: COLORES.crema } }
+  celda.font = { name: 'Arial', size: 18, bold: true, color: { argb: COLORES.crema } }
   celda.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: COLORES.negro } }
   celda.alignment = { horizontal: 'center', vertical: 'middle' }
 }
 
 function aplicarEstiloCampo(celda: ExcelJS.Cell): void {
-  celda.font = { name: 'Arial', size: 16, bold: true, color: { argb: COLORES.negro } }
+  celda.font = { name: 'Arial', size: 18, bold: true, color: { argb: COLORES.negro } }
   celda.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: COLORES.dorado } }
   celda.alignment = { horizontal: 'left', vertical: 'middle' }
 }
 
 function aplicarEstiloCabecera(celda: ExcelJS.Cell): void {
-  celda.font = { name: 'Arial', size: 10, bold: true, color: { argb: COLORES.crema } }
+  celda.font = { name: 'Arial', size: 12, bold: true, color: { argb: COLORES.crema } }
   celda.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: COLORES.negroSuave } }
   celda.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true }
   celda.border = { bottom: { style: 'thin', color: { argb: COLORES.dorado } } }
 }
 
 function aplicarEstiloFila(celda: ExcelJS.Cell, alterna: boolean): void {
-  celda.font = { name: 'Arial', size: 10, color: { argb: COLORES.negro } }
+  celda.font = { name: 'Arial', size: 12, bold: true, color: { argb: COLORES.negro } }
   celda.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: alterna ? 'F8F4EA' : COLORES.blanco } }
   celda.alignment = { vertical: 'middle', wrapText: true }
   celda.border = { bottom: { style: 'hair', color: { argb: COLORES.grisClaro } } }
@@ -357,38 +360,39 @@ export async function crearLibroDatosReservas(
     { header: 'Fecha', key: 'fecha', width: 14 },
     { header: 'Horario', key: 'horario', width: 24 },
     { header: 'Horas', key: 'horas', width: 10 },
+    { header: 'Total a pagar', key: 'total', width: 16 },
   ]
 
   let filaActual = 1
-  hoja.mergeCells(filaActual, 1, filaActual, 6)
+  hoja.mergeCells(filaActual, 1, filaActual, 7)
   hoja.getCell(filaActual, 1).value = 'DATOS DE RESERVAS'
   hoja.getRow(filaActual).height = 30
   aplicarEstiloTitulo(hoja.getCell(filaActual, 1))
   filaActual += 1
 
-  hoja.mergeCells(filaActual, 1, filaActual, 6)
+  hoja.mergeCells(filaActual, 1, filaActual, 7)
   hoja.getCell(filaActual, 1).value = 'Histórico de reservas — una fila por cada reserva'
-  hoja.getCell(filaActual, 1).font = { name: 'Arial', size: 10, italic: true, color: { argb: COLORES.negro } }
+  hoja.getCell(filaActual, 1).font = { name: 'Arial', size: 12, italic: true, color: { argb: COLORES.negro } }
   hoja.getCell(filaActual, 1).alignment = { horizontal: 'center' }
   filaActual += 2
 
   for (const grupo of filasPorCampo(filas, canchas)) {
-    hoja.mergeCells(filaActual, 1, filaActual, 6)
+    hoja.mergeCells(filaActual, 1, filaActual, 7)
     hoja.getCell(filaActual, 1).value = grupo.campo.nombre.toUpperCase()
     hoja.getRow(filaActual).height = 25
     aplicarEstiloCampo(hoja.getCell(filaActual, 1))
     filaActual += 1
 
     const filaCabecera = hoja.getRow(filaActual)
-    filaCabecera.values = ['Nombre', 'Número', 'Comprobante', 'Fecha', 'Horario', 'Horas']
+    filaCabecera.values = ['Nombre', 'Número', 'Comprobante', 'Fecha', 'Horario', 'Horas', 'Total a pagar']
     filaCabecera.height = 24
-    for (let columna = 1; columna <= 6; columna += 1) aplicarEstiloCabecera(filaCabecera.getCell(columna))
+    for (let columna = 1; columna <= 7; columna += 1) aplicarEstiloCabecera(filaCabecera.getCell(columna))
     filaActual += 1
 
     if (!grupo.filas.length) {
-      hoja.mergeCells(filaActual, 1, filaActual, 6)
+      hoja.mergeCells(filaActual, 1, filaActual, 7)
       hoja.getCell(filaActual, 1).value = 'Sin reservas registradas'
-      hoja.getCell(filaActual, 1).font = { name: 'Arial', size: 10, italic: true, color: { argb: '66635C' } }
+      hoja.getCell(filaActual, 1).font = { name: 'Arial', size: 12, bold: true, italic: true, color: { argb: '66635C' } }
       hoja.getCell(filaActual, 1).alignment = { horizontal: 'center' }
       filaActual += 2
       continue
@@ -396,11 +400,12 @@ export async function crearLibroDatosReservas(
 
     for (const [indice, fila] of grupo.filas.entries()) {
       const filaExcel = hoja.getRow(filaActual)
-      filaExcel.values = [fila.nombre, fila.celular, '', new Date(`${fila.fecha}T12:00:00`), fila.horario, fila.horas]
+      filaExcel.values = [fila.nombre, fila.celular, '', new Date(`${fila.fecha}T12:00:00`), fila.horario, fila.horas, fila.total]
       filaExcel.height = ALTURA_MINIMA_FILA_EXCEL
-      for (let columna = 1; columna <= 6; columna += 1) aplicarEstiloFila(filaExcel.getCell(columna), indice % 2 === 1)
+      for (let columna = 1; columna <= 7; columna += 1) aplicarEstiloFila(filaExcel.getCell(columna), indice % 2 === 1)
       filaExcel.getCell(4).numFmt = 'dd/mm/yyyy'
       filaExcel.getCell(6).numFmt = '0.0'
+      filaExcel.getCell(7).numFmt = '"S/" #,##0.00'
 
       if (!fila.comprobante) {
         filaExcel.getCell(3).value = 'Cliente confiable — no tiene comprobante'
