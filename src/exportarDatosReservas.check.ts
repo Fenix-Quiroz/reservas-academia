@@ -97,6 +97,8 @@ const libro = await crearLibroDatosReservas(
     llamadasActivas -= 1
     return imagenBlob
   },
+  undefined,
+  async (storagePath) => `https://ejemplo.test/${storagePath}`,
 )
 const hoja = libro.getWorksheet('Datos de reservas')
 assert.ok(hoja, 'el libro debe tener una hoja de datos de reservas')
@@ -124,11 +126,15 @@ assert.equal(hoja.getCell(filaCampo1 + 1, 4).value, 'Fecha')
 assert.equal(hoja.getCell(filaCampo1 + 1, 5).value, 'Horario')
 assert.equal(hoja.getCell(filaCampo1 + 1, 6).value, 'Horas')
 assert.equal(hoja.getCell(filaCampo1 + 1, 7).value, 'Total a pagar')
+assert.equal(hoja.getCell(filaCampo1 + 1, 8).value, 'Abrir comprobante')
 assert.ok((hoja.getCell(filaCampo1 + 2, 1).font?.size ?? 0) >= 12, 'los datos deben usar una letra más grande')
 assert.equal(hoja.getCell(filaCampo1 + 2, 1).font?.bold, true, 'los datos deben usar una letra más gruesa')
 assert.ok((hoja.getCell(filaCampo1 + 1, 1).font?.size ?? 0) >= 12, 'los encabezados deben usar una letra más grande')
 assert.equal(hoja.getCell(filaCampo1 + 2, 7).value, 110, 'debe calcular el total cuando la reserva no lo trae guardado')
 assert.equal(hoja.getCell(filaCampo1 + 4, 7).value, 82.5, 'debe conservar el total guardado de la reserva')
+const enlaceComprobante = hoja.getCell(filaCampo1 + 2, 8).value as { text?: string; hyperlink?: string }
+assert.equal(enlaceComprobante.text, 'Abrir comprobante')
+assert.equal(enlaceComprobante.hyperlink, 'https://ejemplo.test/comprobantes/r2-2.png')
 assert.equal(hoja.getCell(filaCampo1 + 2, 4).alignment?.horizontal, 'center')
 assert.equal(hoja.getCell(filaCampo1 + 2, 5).alignment?.horizontal, 'center')
 
