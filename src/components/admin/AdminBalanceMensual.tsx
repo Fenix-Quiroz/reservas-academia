@@ -4,7 +4,7 @@ import type { BloqueoEvento, Campo, ComprobanteAdmin, Reserva } from '../../type
 import { construirBalanceMensual, mesActual } from '../../balanceMensual.js'
 import { descargarBalanceMensual } from '../../exportarBalance.js'
 import { descargarBalanceTexto } from '../../exportarBalanceTexto.js'
-import { descargarDatosReservas, type ResolverComprobante } from '../../exportarDatosReservas.js'
+import { descargarDatosReservas, type ResolverComprobante, type ResolverUrlComprobante } from '../../exportarDatosReservas.js'
 import { crearBloqueoAccion } from '../../accionUnica'
 
 export interface AdminBalanceMensualProps {
@@ -13,6 +13,7 @@ export interface AdminBalanceMensualProps {
   eventos: readonly BloqueoEvento[]
   comprobantes: readonly ComprobanteAdmin[]
   resolverComprobante?: ResolverComprobante
+  resolverUrlComprobante?: ResolverUrlComprobante
   datosCargados: boolean
 }
 
@@ -22,6 +23,7 @@ export default function AdminBalanceMensual({
   eventos,
   comprobantes,
   resolverComprobante,
+  resolverUrlComprobante,
   datosCargados,
 }: AdminBalanceMensualProps) {
   const [mes, setMes] = useState(mesActual)
@@ -87,6 +89,7 @@ export default function AdminBalanceMensual({
         comprobantes,
         resolverComprobante,
         (completados, total) => setProgresoDatos({ completados, total }),
+        resolverUrlComprobante,
       )
     } catch {
       setErrorDatosDescarga('No pudimos descargar los datos de reservas. Inténtalo de nuevo.')

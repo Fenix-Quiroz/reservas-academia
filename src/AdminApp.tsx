@@ -29,6 +29,7 @@ import {
   cancelarEventoEspecialRemoto,
   confirmarPagoAdminRemoto,
   crearUrlComprobanteAdminRemota,
+  crearUrlComprobanteExportacionRemota,
   descargarComprobanteAdminRemota,
   nombreDescargaComprobante,
   obtenerUrlComprobanteCacheada,
@@ -786,6 +787,7 @@ export default function AdminApp() {
             eventos={eventos}
             comprobantes={comprobantesAdmin}
             resolverComprobante={supabaseConfigurado ? descargarComprobanteAdminRemota : undefined}
+            resolverUrlComprobante={supabaseConfigurado ? crearUrlComprobanteExportacionRemota : undefined}
             datosCargados={listaCargada}
           />
       </div>
