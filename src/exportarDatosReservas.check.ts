@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict'
-import { prepararFilasDatosReservas } from './exportarDatosReservas.js'
+import { crearLibroDatosReservas, prepararFilasDatosReservas } from './exportarDatosReservas.js'
 import type { Campo, ComprobanteAdmin, Reserva } from './types.js'
 
 const canchas: Campo[] = [
@@ -53,5 +53,62 @@ assert.deepEqual(filas.slice(0, 3).map((fila) => fila.celular), ['912345678', '9
 assert.deepEqual(filas.slice(0, 3).map((fila) => fila.campoId), [1, 1, 1])
 assert.equal(filas[3]?.campoId, 1)
 assert.equal(filas[4]?.campoId, 2)
+
+const imagenPng = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII='
+const libro = await crearLibroDatosReservas(
+  reservas,
+  canchas,
+  [comprobante('r1', 1), comprobante('r2', 2), comprobante('r3', 3), comprobante('r4', 4)],
+  async () => imagenPng,
+)
+const hoja = libro.getWorksheet('Datos de reservas')
+assert.ok(hoja, 'el libro debe tener una hoja de datos de reservas')
+
+const filaConTexto = (texto: string): number => {
+  let encontrada = 0
+  hoja.eachRow((fila, numero) => {
+    if (fila.getCell(1).value === texto) encontrada = numero
+  })
+  return encontrada
+}
+
+const filaCampo1 = filaConTexto('CAMPO 1')
+const filaCampo2 = filaConTexto('CAMPO 2')
+assert.ok(filaCampo1 > 0 && filaCampo2 > filaCampo1, 'los bloques deben aparecer en el orden de los campos')
+assert.ok((hoja.getCell(filaCampo1, 1).font?.size ?? 0) >= 16, 'el título del campo debe verse grande')
+assert.equal(hoja.getCell(filaCampo1 + 1, 1).value, 'Nombre')
+assert.equal(hoja.getCell(filaCampo1 + 1, 2).value, 'Número')
+assert.equal(hoja.getCell(filaCampo1 + 1, 3).value, 'Comprobante')
+assert.equal(hoja.getCell(filaCampo1 + 1, 4).value, 'Fecha')
+assert.equal(hoja.getCell(filaCampo1 + 1, 5).value, 'Horario')
+assert.equal(hoja.getCell(filaCampo1 + 1, 6).value, 'Horas')
+
+const nombresCampo1: string[] = []
+for (let numero = filaCampo1 + 2; numero < filaCampo2; numero += 1) {
+  const nombre = hoja.getCell(numero, 1).value
+  if (typeof nombre === 'string' && nombre !== 'Sin reservas registradas') nombresCampo1.push(nombre)
+}
+assert.deepEqual(nombresCampo1, ['Cliente Tres', 'Cliente Tres B', 'Cliente Tres A', 'Cliente Uno'])
+assert.equal(hoja.getCell(filaCampo1 + 2, 2).value, '912345678')
+assert.equal(hoja.getCell(filaCampo1 + 4, 2).value, '912345678')
+assert.equal(hoja.getCell(filaCampo1 + 5, 1).value, 'Cliente Uno')
+assert.equal(hoja.getCell(filaCampo2 + 1, 1).value, 'Nombre')
+
+const media = (libro as unknown as { model?: { media?: unknown[] } }).model?.media ?? []
+assert.equal(media.length, 4, 'cada comprobante resoluble debe incrustarse como imagen')
+
+const libroConFallo = await crearLibroDatosReservas(
+  reservas.slice(0, 1),
+  canchas,
+  [comprobante('r1', 1)],
+  async () => { throw new Error('comprobante inaccesible') },
+)
+const hojaConFallo = libroConFallo.getWorksheet('Datos de reservas')
+assert.ok(hojaConFallo)
+assert.ok(
+  Array.from({ length: hojaConFallo.rowCount }, (_valor, indice) => hojaConFallo.getCell(indice + 1, 3).value)
+    .includes('No se pudo cargar'),
+  'un comprobante que falla no debe impedir el archivo',
+)
 
 console.log('✔ exportarDatosReservas.check.ts: prepara una fila por reserva y ordena por frecuencia')
