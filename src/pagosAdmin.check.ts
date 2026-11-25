@@ -10,6 +10,12 @@ const estilos = fs.readFileSync(new URL('./index.css', import.meta.url), 'utf8')
 const migrationUrl = new URL('../supabase/fix-pagos-admin.sql', import.meta.url)
 assert.equal(fs.existsSync(migrationUrl), true, 'Debe existir la migración administrativa de pagos')
 const migration = fs.readFileSync(migrationUrl, 'utf8')
+const confirmarPagoSources = [
+  migration,
+  fs.readFileSync(new URL('../supabase/fix-confirmar-comprobante-2-horas.sql', import.meta.url), 'utf8'),
+  fs.readFileSync(new URL('../supabase/schema.sql', import.meta.url), 'utf8'),
+  fs.readFileSync(new URL('../supabase/permissions.sql', import.meta.url), 'utf8'),
+]
 const realtimeMigrationUrl = new URL('../supabase/fix-admin-realtime-pagos.sql', import.meta.url)
 assert.equal(fs.existsSync(realtimeMigrationUrl), true, 'Debe existir la migración Realtime de pagos')
 const realtimeMigration = fs.readFileSync(realtimeMigrationUrl, 'utf8')
@@ -32,6 +38,10 @@ assert.match(adminApp, /nombreDescargaComprobante\(comprobante\.storagePath\)/)
 assert.match(adminApp, /AdminModalComprobante/)
 assert.match(adminApp, /verComprobante/)
 assert.match(adminApp, /descargarComprobante/)
+assert.match(adminApp, /Reserva finalizada\. Si tiene comprobante pendiente, aún puedes confirmarlo\./)
+assert.match(adminApp, /setMensaje\('Comprobante confirmado\.'\)/)
+assert.doesNotMatch(adminApp, /Reserva finalizada y pago total confirmado\./)
+assert.doesNotMatch(adminApp, /Comprobante confirmado\. La reserva sigue activa\./)
 assert.doesNotMatch(adminApp, /window\.open/)
 assert.match(modalComprobante, /role="dialog"/)
 assert.match(modalComprobante, /aria-modal="true"/)
@@ -76,9 +86,12 @@ assert.match(migration, /pago_comprobantes/)
 assert.match(migration, /update public\.pagos_reserva/)
 assert.match(migration, /update public\.reservas/)
 assert.match(migration, /pago_expira_at = null/)
-assert.match(migration, /interval '2 hours'/)
 assert.match(migration, /estado not in \('activo', 'iniciado', 'finalizado'\)/)
-assert.match(migration, /confirmacion_fuera_de_plazo/)
+for (const source of confirmarPagoSources) {
+  assert.doesNotMatch(source, /interval '2 hours'/, 'La confirmación no debe tener vencimiento de dos horas')
+  assert.doesNotMatch(source, /confirmacion_fuera_de_plazo/, 'La confirmación no debe bloquearse por plazo')
+  assert.match(source, /estado not in \('activo', 'iniciado', 'finalizado'\)/, 'La RPC debe conservar los estados permitidos')
+}
 assert.match(migration, /grant execute on function public\.confirmar_pago_admin\(uuid\) to authenticated/)
 
 assert.match(supabaseData, /table: 'reservas'/)

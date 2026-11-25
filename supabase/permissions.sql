@@ -1587,7 +1587,6 @@ as $function$
 declare
   v_pago public.pagos_reserva%rowtype;
   v_reserva public.reservas%rowtype;
-  v_limite_confirmacion timestamptz;
 begin
   if coalesce(auth.jwt() -> 'app_metadata' ->> 'role', '') <> 'admin' then
     raise exception using errcode = '42501', message = 'admin_no_autorizado';
@@ -1611,14 +1610,6 @@ begin
   end if;
   if v_reserva.estado not in ('activo', 'iniciado', 'finalizado') then
     raise exception using errcode = 'P0001', message = 'reserva_no_activa';
-  end if;
-  v_limite_confirmacion := (
-    v_reserva.fecha::timestamp
-    + (v_reserva.inicio + v_reserva.horas) * interval '1 hour'
-    + interval '2 hours'
-  ) at time zone 'America/Lima';
-  if now() > v_limite_confirmacion then
-    raise exception using errcode = 'P0001', message = 'confirmacion_fuera_de_plazo';
   end if;
   update public.pagos_reserva
   set estado = 'confirmado', revisado_por = auth.uid(), revisado_at = now()

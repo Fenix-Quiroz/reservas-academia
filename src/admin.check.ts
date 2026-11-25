@@ -1,7 +1,10 @@
 import assert from 'node:assert/strict'
+import { createElement } from 'react'
+import { renderToStaticMarkup } from 'react-dom/server'
 import { filtrarReservas, resumenAdmin } from './admin'
 import { esAdmin } from './adminAuth'
-import type { Reserva } from './types'
+import AdminReservaCard, { puedeConfirmarComprobante } from './components/admin/AdminReservaCard'
+import type { ComprobanteAdmin, Reserva } from './types'
 
 assert.equal(esAdmin(null), false)
 assert.equal(esAdmin({ app_metadata: { role: 'admin' } }), true)
@@ -62,6 +65,53 @@ assert.equal(filtrarReservas([...reservas, reservaCancelada], { vista: 'todas' }
 assert.equal(filtrarReservas([
   { id: 'd', canchaId: 1, fecha: '2026-10-18', inicio: 12, horas: 1, alias: 'David', nombre: 'David', celular: '944444444', estado: 'activo' },
 ], { vista: 'todas', buscar: 'david' }, canchas, ahora)[0].id, 'd')
+
+const comprobanteFueraDePlazo: Reserva = {
+  id: 'comprobante-fuera-de-plazo',
+  canchaId: 1,
+  fecha: '2026-11-23',
+  inicio: 23,
+  horas: 1,
+  alias: 'Pago pendiente',
+  celular: '955555555',
+  estado: 'finalizado',
+}
+assert.equal(
+  puedeConfirmarComprobante(comprobanteFueraDePlazo, new Date('2026-11-24T09:28:00')),
+  true,
+  'un comprobante pendiente debe seguir confirmable después de dos horas',
+)
+assert.equal(puedeConfirmarComprobante({ ...comprobanteFueraDePlazo, estado: 'cancelado' }, new Date('2026-11-24T09:28:00')), false)
+assert.equal(puedeConfirmarComprobante({ ...comprobanteFueraDePlazo, estado: 'no_asistio' }, new Date('2026-11-24T09:28:00')), false)
+
+const comprobantePendiente: ComprobanteAdmin = {
+  pagoId: 'pago-pendiente',
+  reservaId: comprobanteFueraDePlazo.id,
+  estado: 'pendiente',
+  storagePath: 'pruebas/comprobante.png',
+  mimeType: 'image/png',
+  sizeBytes: 100,
+}
+const renderTarjeta = (reserva: Reserva, comprobante: ComprobanteAdmin) => renderToStaticMarkup(createElement(AdminReservaCard, {
+  reserva,
+  comprobante,
+  puedeCancelar: false,
+  porCancelar: null,
+  cancelando: null,
+  onRequestCancel: () => undefined,
+  onCancel: () => undefined,
+  onCancelRequest: () => undefined,
+  onStatus: () => undefined,
+  actualizandoEstado: null,
+  procesandoComprobante: null,
+  onViewComprobante: () => undefined,
+  onDownloadComprobante: () => undefined,
+  onConfirmarComprobante: () => undefined,
+  ahora: new Date('2026-11-24T09:28:00'),
+}))
+assert.match(renderTarjeta(comprobanteFueraDePlazo, comprobantePendiente), /Confirmar comprobante/)
+assert.doesNotMatch(renderTarjeta({ ...comprobanteFueraDePlazo, estado: 'cancelado' }, comprobantePendiente), /Confirmar comprobante/)
+assert.doesNotMatch(renderTarjeta(comprobanteFueraDePlazo, { ...comprobantePendiente, estado: 'confirmado' }), /Confirmar comprobante/)
 
 import fs from 'node:fs'
 const cardSource = fs.readFileSync(new URL('./components/admin/AdminReservaCard.tsx', import.meta.url), 'utf8')

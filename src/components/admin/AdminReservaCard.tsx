@@ -1,7 +1,6 @@
 import { activa, fechaISO, rangoHablado } from '../../reservas'
 import { ADELANTO_YAPE } from '../../pagos'
 import type { Campo, ComprobanteAdmin, EstadoReserva, Reserva } from '../../types.js'
-import { finDeReserva } from '../../utils/alarmaTurno.js'
 import { Ban, Check, Download, Eye, Pencil, Play, X } from 'lucide-react'
 
 type EtiquetaEstado = 'Finalizada' | 'Demo' | 'Activa' | 'En curso' | 'Iniciada' | 'Cancelada' | 'No asistió' | 'Por revisar'
@@ -58,11 +57,8 @@ function reservaEnCurso(reserva: Reserva, ahora: Date): boolean {
   return reserva.estado === 'activo' && reservaYaComenzo(reserva, ahora) && activa(reserva, ahora)
 }
 
-export function puedeConfirmarComprobante(reserva: Reserva, ahora: Date = new Date()): boolean {
-  if (!['activo', 'iniciado', 'finalizado'].includes(reserva.estado)) return false
-  const limiteConfirmacion = finDeReserva(reserva)
-  limiteConfirmacion.setHours(limiteConfirmacion.getHours() + 2)
-  return ahora <= limiteConfirmacion
+export function puedeConfirmarComprobante(reserva: Reserva, _ahora: Date = new Date()): boolean {
+  return ['activo', 'iniciado', 'finalizado'].includes(reserva.estado)
 }
 
 export default function AdminReservaCard({

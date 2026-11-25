@@ -421,7 +421,7 @@ export default function AdminApp() {
         ? 'Turno iniciado.'
         : estado === 'no_asistio'
           ? 'Reserva marcada como inasistencia.'
-          : 'Reserva finalizada y pago total confirmado.')
+          : 'Reserva finalizada. Si tiene comprobante pendiente, aún puedes confirmarlo.')
       setError('')
     } catch {
       setError('No pudimos actualizar el estado. Revisa tu conexión e inténtalo de nuevo.')
@@ -520,7 +520,7 @@ export default function AdminApp() {
           ? { ...actual, comprobante: actualizado }
           : { ...actual, comprobante: { ...actual.comprobante, estado: 'confirmado' } }
       })
-      setMensaje('Comprobante confirmado. La reserva sigue activa.')
+      setMensaje('Comprobante confirmado.')
       setError('')
     } catch {
       setError('No pudimos confirmar el comprobante. Revisa la conexión.')
