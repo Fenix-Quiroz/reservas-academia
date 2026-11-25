@@ -4,7 +4,7 @@ import type { BloqueoEvento, Campo, ComprobanteAdmin, Reserva } from '../../type
 import { construirBalanceMensual, mesActual } from '../../balanceMensual.js'
 import { descargarBalanceMensual } from '../../exportarBalance.js'
 import { descargarBalanceTexto } from '../../exportarBalanceTexto.js'
-import { descargarDatosReservas, type ResolverUrlComprobante } from '../../exportarDatosReservas.js'
+import { descargarDatosReservas, type ResolverComprobante } from '../../exportarDatosReservas.js'
 import { crearBloqueoAccion } from '../../accionUnica'
 
 export interface AdminBalanceMensualProps {
@@ -12,7 +12,7 @@ export interface AdminBalanceMensualProps {
   canchas: readonly Campo[]
   eventos: readonly BloqueoEvento[]
   comprobantes: readonly ComprobanteAdmin[]
-  resolverUrlComprobante?: ResolverUrlComprobante
+  resolverComprobante?: ResolverComprobante
   datosCargados: boolean
 }
 
@@ -21,13 +21,14 @@ export default function AdminBalanceMensual({
   canchas,
   eventos,
   comprobantes,
-  resolverUrlComprobante,
+  resolverComprobante,
   datosCargados,
 }: AdminBalanceMensualProps) {
   const [mes, setMes] = useState(mesActual)
   const [descargando, setDescargando] = useState(false)
   const [descargandoTexto, setDescargandoTexto] = useState(false)
   const [descargandoDatos, setDescargandoDatos] = useState(false)
+  const [progresoDatos, setProgresoDatos] = useState<{ completados: number; total: number } | null>(null)
   const [errorDescarga, setErrorDescarga] = useState('')
   const [errorDatosDescarga, setErrorDatosDescarga] = useState('')
   const bloqueoDescarga = useRef(crearBloqueoAccion())
@@ -78,12 +79,20 @@ export default function AdminBalanceMensual({
     if (!bloqueoDescarga.current.adquirir()) return
     setErrorDatosDescarga('')
     setDescargandoDatos(true)
+    setProgresoDatos(null)
     try {
-      await descargarDatosReservas(reservas, canchas, comprobantes, resolverUrlComprobante)
+      await descargarDatosReservas(
+        reservas,
+        canchas,
+        comprobantes,
+        resolverComprobante,
+        (completados, total) => setProgresoDatos({ completados, total }),
+      )
     } catch {
       setErrorDatosDescarga('No pudimos descargar los datos de reservas. Inténtalo de nuevo.')
     } finally {
       setDescargandoDatos(false)
+      setProgresoDatos(null)
       bloqueoDescarga.current.liberar()
     }
   }
@@ -131,7 +140,13 @@ export default function AdminBalanceMensual({
             disabled={!datosCargados || descargando || descargandoTexto || descargandoDatos}
           >
             <Download size={20} strokeWidth={2.5} aria-hidden="true" />
-            <span>{descargandoDatos ? 'Preparando datos…' : 'Descargar datos de reservas'}</span>
+            <span>
+              {descargandoDatos
+                ? progresoDatos && progresoDatos.total > 0
+                  ? `Preparando comprobantes ${progresoDatos.completados}/${progresoDatos.total}…`
+                  : 'Preparando datos…'
+                : 'Descargar datos de reservas'}
+            </span>
           </button>
         </div>
       </div>

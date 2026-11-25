@@ -310,6 +310,14 @@ export async function crearUrlComprobanteAdminRemota(storagePath: string, descar
   return promesa
 }
 
+export async function descargarComprobanteAdminRemota(storagePath: string): Promise<Blob> {
+  const { data, error } = await clienteSupabase().storage
+    .from('comprobantes-pago')
+    .download(storagePath)
+  if (error || !data) throw error ?? new Error('comprobante-no-descargado')
+  return data
+}
+
 export async function precalentarComprobanteAdminRemoto(storagePath: string): Promise<string | null> {
   try {
     const url = await crearUrlComprobanteAdminRemota(storagePath, false)

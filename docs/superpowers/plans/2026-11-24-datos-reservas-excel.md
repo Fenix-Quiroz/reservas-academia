@@ -4,7 +4,7 @@
 
 **Goal:** Agregar un segundo Excel histórico que muestre una fila por reserva, agrupado visualmente por campo y con el comprobante de cada reserva incrustado como imagen.
 
-**Architecture:** Mantener `exportarBalance.ts` y el flujo del balance mensual sin cambios. Crear un exportador independiente basado en ExcelJS para poder incrustar imágenes; recibir las reservas, los campos y los comprobantes ya cargados, resolver cada URL firmada durante la descarga y disparar la descarga del libro desde el componente administrativo.
+**Architecture:** Mantener `exportarBalance.ts` y el flujo del balance mensual sin cambios. Crear un exportador independiente basado en ExcelJS para poder incrustar imágenes; recibir las reservas, los campos y los comprobantes ya cargados, descargar cada comprobante directamente del bucket privado durante la generación y disparar la descarga del libro desde el componente administrativo.
 
 **Tech Stack:** React 19, TypeScript, Vite, ExcelJS para el libro con imágenes, `xlsx-js-style` únicamente para el Excel existente, checks ejecutables con `tsx` y Node `assert`.
 
@@ -81,8 +81,8 @@
 - Modify: `src/exportarDatosReservas.check.ts`.
 
 **Interfaces:**
-- Consumes: `prepararFilasDatosReservas` de Task 1 and `resolverUrlComprobante?: (storagePath: string) => Promise<string>` for private signed URLs.
-- Produces: `export async function crearLibroDatosReservas(reservas, canchas, comprobantes, resolverUrlComprobante?)` and `export async function descargarDatosReservas(...)`.
+- Consumes: `prepararFilasDatosReservas` de Task 1 and `resolverComprobante?: (storagePath: string) => Promise<Blob>` for authenticated private downloads.
+- Produces: `export async function crearLibroDatosReservas(reservas, canchas, comprobantes, resolverComprobante?)` and `export async function descargarDatosReservas(...)`.
 
 - [ ] **Step 1: Write the failing test**
 
@@ -103,7 +103,7 @@
 
 - [ ] **Step 3: Add the workbook dependency and implement the exporter**
 
-  Add `exceljs` using the repository package manager. Build one worksheet named `Datos de reservas` with an overall title and repeated blocks. Merge and style each field title, freeze the first header area, set readable widths and row heights, write dates and text columns, and add a receipt image to the `Comprobante` column using the resolver's downloaded data URL. Keep a visible fallback string for missing or failed images. Download using `writeBuffer`, `Blob`, an object URL, and a temporary anchor in the browser.
+  Add `exceljs` using the repository package manager. Build one worksheet named `Datos de reservas` with an overall title and repeated blocks. Merge and style each field title, keep the sheet scrollable without freezing Campo 1, set readable widths and taller row heights, write dates and text columns, and add a receipt image to the `Comprobante` column using the resolver's downloaded `Blob`. Prepare up to five comprobantes in parallel and report progress to the button. Keep a visible fallback string for missing or failed images. Download using `writeBuffer`, `Blob`, an object URL, and a temporary anchor in the browser.
 
 - [ ] **Step 4: Run test to verify it passes**
 
@@ -127,7 +127,7 @@
 - Modify: `src/componentization.check.ts` or create a focused admin check only if the existing component checks cover the new prop shape insufficiently.
 
 **Interfaces:**
-- Consumes: `descargarDatosReservas` from Task 2, `comprobantesAdmin` from `AdminApp`, and `crearUrlComprobanteAdminRemota` for the signed image URL resolver when Supabase is configured.
+- Consumes: `descargarDatosReservas` from Task 2, `comprobantesAdmin` from `AdminApp`, and `descargarComprobanteAdminRemota` for the authenticated image `Blob` resolver when Supabase is configured.
 - Produces: a second download button labeled `Descargar datos de reservas`, with its own loading/error state and no changes to the current `Descargar Excel` balance action.
 
 - [ ] **Step 1: Write the failing test**
@@ -142,7 +142,7 @@
 
 - [ ] **Step 3: Implement the UI wiring**
 
-  Pass `comprobantesAdmin` from `AdminApp` to `AdminBalanceMensual`. Add the new button beside the existing report actions, guard it with the existing action lock, show `Preparando datos…` while awaiting image resolution and workbook creation, use the current Supabase signed-URL helper only when remote data is configured, and show a dedicated download error without affecting the balance error state.
+  Pass `comprobantesAdmin` from `AdminApp` to `AdminBalanceMensual`. Add the new button beside the existing report actions, guard it with the existing action lock, show `Preparando datos…` or the comprobante progress while awaiting downloads and workbook creation, use the direct Supabase storage download helper only when remote data is configured, and show a dedicated download error without affecting the balance error state.
 
 - [ ] **Step 4: Run test to verify it passes**
 

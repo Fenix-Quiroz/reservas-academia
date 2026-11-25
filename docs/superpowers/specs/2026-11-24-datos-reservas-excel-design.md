@@ -33,7 +33,7 @@ El nuevo reporte debe ayudar al dueño a revisar rápidamente quién reserva con
 - La identidad para contar reservas será el número de celular normalizado; el nombre que se muestra será el guardado en cada reserva.
 - Cada bloque seguirá el orden de los campos configurados en `canchas.json`.
 - Las reservas sin comprobante mostrarán `Sin comprobante` en la celda correspondiente.
-- El comprobante se resolverá mediante la URL firmada privada existente, se descargará durante la generación y se incrustará en el libro. La URL no se guardará como enlace permanente porque expira.
+- El comprobante se descargará directamente del bucket privado con la sesión administrativa, se incrustará en el libro y no se guardará como enlace permanente que pueda expirar.
 - Si la biblioteca actual de Excel no permite imágenes incrustadas, se añadirá únicamente la capacidad mínima necesaria o se cambiará la estrategia de exportación, manteniendo la interfaz y el formato solicitado.
 
 ## Estructura visual propuesta

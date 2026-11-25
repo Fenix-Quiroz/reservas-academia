@@ -23,7 +23,8 @@ export interface FilaDatosReserva {
   comprobante?: ComprobanteAdmin
 }
 
-export type ResolverUrlComprobante = (storagePath: string) => Promise<string>
+export type ResolverComprobante = (storagePath: string) => Promise<Blob>
+export type ProgresoExportacionReservas = (completados: number, total: number) => void
 
 const COLORES = {
   negro: '0B0B0A',
@@ -133,11 +134,7 @@ interface ImagenParaExcel {
   extension: 'jpeg' | 'png' | 'gif'
 }
 
-async function convertirUrlAImagenExcel(url: string, mimeType: ComprobanteAdmin['mimeType']): Promise<ImagenParaExcel> {
-  const respuesta = await fetch(url)
-  if (!respuesta.ok) throw new Error(`comprobante-http-${respuesta.status}`)
-  const blob = await respuesta.blob()
-
+async function convertirBlobAImagenExcel(blob: Blob, mimeType: ComprobanteAdmin['mimeType']): Promise<ImagenParaExcel> {
   if (mimeType === 'image/webp') {
     if (typeof createImageBitmap !== 'function' || typeof document === 'undefined') {
       throw new Error('webp-no-compatible')
@@ -161,6 +158,47 @@ async function convertirUrlAImagenExcel(url: string, mimeType: ComprobanteAdmin[
     dataUrl: `data:${mimeType};base64,${base64DesdeBytes(bytes)}`,
     extension: extensionImagen(mimeType),
   }
+}
+
+const MAX_COMPROBANTES_EN_PARALELO = 5
+
+async function cargarImagenesComprobantes(
+  filas: readonly FilaDatosReserva[],
+  resolverComprobante: ResolverComprobante,
+  alProgresar?: ProgresoExportacionReservas,
+): Promise<Map<string, ImagenParaExcel>> {
+  const filasConComprobante = filas.filter((fila) => fila.comprobante)
+  const imagenesPorReserva = new Map<string, ImagenParaExcel>()
+  if (!filasConComprobante.length) {
+    alProgresar?.(0, 0)
+    return imagenesPorReserva
+  }
+
+  let siguiente = 0
+  let completados = 0
+  const trabajador = async (): Promise<void> => {
+    while (true) {
+      const indice = siguiente
+      siguiente += 1
+      const fila = filasConComprobante[indice]
+      if (!fila?.comprobante) return
+
+      try {
+        const blob = await resolverComprobante(fila.comprobante.storagePath)
+        const imagen = await convertirBlobAImagenExcel(blob, fila.comprobante.mimeType)
+        imagenesPorReserva.set(fila.reservaId, imagen)
+      } catch {
+        // La fila se conserva y el usuario verá "No se pudo cargar" en Excel.
+      } finally {
+        completados += 1
+        alProgresar?.(completados, filasConComprobante.length)
+      }
+    }
+  }
+
+  const cantidadTrabajadores = Math.min(MAX_COMPROBANTES_EN_PARALELO, filasConComprobante.length)
+  await Promise.all(Array.from({ length: cantidadTrabajadores }, () => trabajador()))
+  return imagenesPorReserva
 }
 
 function aplicarEstiloTitulo(celda: ExcelJS.Cell): void {
@@ -211,10 +249,14 @@ export async function crearLibroDatosReservas(
   reservas: readonly Reserva[],
   canchas: readonly Campo[],
   comprobantes: readonly ComprobanteAdmin[] = [],
-  resolverUrlComprobante?: ResolverUrlComprobante,
+  resolverComprobante?: ResolverComprobante,
+  alProgresar?: ProgresoExportacionReservas,
 ): Promise<ExcelJS.Workbook> {
   const moduloExcelJS = await cargarModuloExcelJS()
   const filas = prepararFilasDatosReservas(reservas, canchas, comprobantes)
+  const imagenesPorReserva = resolverComprobante
+    ? await cargarImagenesComprobantes(filas, resolverComprobante, alProgresar)
+    : new Map<string, ImagenParaExcel>()
   const libro = new moduloExcelJS.Workbook()
   libro.creator = 'Polideportivo El Jaguar'
   libro.created = new Date()
@@ -222,7 +264,7 @@ export async function crearLibroDatosReservas(
   hoja.columns = [
     { header: 'Nombre', key: 'nombre', width: 26 },
     { header: 'Número', key: 'celular', width: 16 },
-    { header: 'Comprobante', key: 'comprobante', width: 28 },
+    { header: 'Comprobante', key: 'comprobante', width: 34 },
     { header: 'Fecha', key: 'fecha', width: 14 },
     { header: 'Horario', key: 'horario', width: 24 },
     { header: 'Horas', key: 'horas', width: 10 },
@@ -266,26 +308,25 @@ export async function crearLibroDatosReservas(
     for (const [indice, fila] of grupo.filas.entries()) {
       const filaExcel = hoja.getRow(filaActual)
       filaExcel.values = [fila.nombre, fila.celular, '', new Date(`${fila.fecha}T12:00:00`), fila.horario, fila.horas]
-      filaExcel.height = 82
+      filaExcel.height = 120
       for (let columna = 1; columna <= 6; columna += 1) aplicarEstiloFila(filaExcel.getCell(columna), indice % 2 === 1)
       filaExcel.getCell(4).numFmt = 'dd/mm/yyyy'
       filaExcel.getCell(6).numFmt = '0.0'
 
       if (!fila.comprobante) {
         filaExcel.getCell(3).value = 'Sin comprobante'
-      } else if (!resolverUrlComprobante) {
+      } else if (!resolverComprobante) {
         filaExcel.getCell(3).value = 'Imagen no disponible'
       } else {
-        try {
-          const url = await resolverUrlComprobante(fila.comprobante.storagePath)
-          const imagen = await convertirUrlAImagenExcel(url, fila.comprobante.mimeType)
+        const imagen = imagenesPorReserva.get(fila.reservaId)
+        if (!imagen) {
+          filaExcel.getCell(3).value = 'No se pudo cargar'
+        } else {
           const imagenId = libro.addImage({ base64: imagen.dataUrl, extension: imagen.extension })
           hoja.addImage(imagenId, {
             tl: { col: 2.1, row: filaActual - 1 + 0.08 },
-            ext: { width: 170, height: 92 },
+            ext: { width: 220, height: 120 },
           })
-        } catch {
-          filaExcel.getCell(3).value = 'No se pudo cargar'
         }
       }
       filaActual += 1
@@ -293,7 +334,6 @@ export async function crearLibroDatosReservas(
     filaActual += 1
   }
 
-  hoja.views = [{ state: 'frozen', ySplit: 4 }]
   return libro
 }
 
@@ -301,9 +341,10 @@ export async function descargarDatosReservas(
   reservas: readonly Reserva[],
   canchas: readonly Campo[],
   comprobantes: readonly ComprobanteAdmin[] = [],
-  resolverUrlComprobante?: ResolverUrlComprobante,
+  resolverComprobante?: ResolverComprobante,
+  alProgresar?: ProgresoExportacionReservas,
 ): Promise<void> {
-  const libro = await crearLibroDatosReservas(reservas, canchas, comprobantes, resolverUrlComprobante)
+  const libro = await crearLibroDatosReservas(reservas, canchas, comprobantes, resolverComprobante, alProgresar)
   const contenido = await libro.xlsx.writeBuffer()
   const blob = new Blob([contenido], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' })
   const url = URL.createObjectURL(blob)

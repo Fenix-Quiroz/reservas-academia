@@ -58,11 +58,20 @@ assert.equal(filas[3]?.campoId, 1)
 assert.equal(filas[5]?.campoId, 2)
 
 const imagenPng = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII='
+const imagenBlob = await (await fetch(imagenPng)).blob()
+let llamadasActivas = 0
+let maxLlamadasActivas = 0
 const libro = await crearLibroDatosReservas(
   reservas,
   canchas,
   comprobantes,
-  async () => imagenPng,
+  async () => {
+    llamadasActivas += 1
+    maxLlamadasActivas = Math.max(maxLlamadasActivas, llamadasActivas)
+    await new Promise((resolve) => setTimeout(resolve, 2))
+    llamadasActivas -= 1
+    return imagenBlob
+  },
 )
 const hoja = libro.getWorksheet('Datos de reservas')
 assert.ok(hoja, 'el libro debe tener una hoja de datos de reservas')
@@ -79,6 +88,8 @@ const filaCampo1 = filaConTexto('CAMPO 1')
 const filaCampo2 = filaConTexto('CAMPO 2')
 assert.ok(filaCampo1 > 0 && filaCampo2 > filaCampo1, 'los bloques deben aparecer en el orden de los campos')
 assert.ok((hoja.getCell(filaCampo1, 1).font?.size ?? 0) >= 16, 'el título del campo debe verse grande')
+assert.ok((hoja.getRow(filaCampo1 + 2).height ?? 0) >= 110, 'la fila debe ser suficientemente alta para leer el comprobante')
+assert.equal(hoja.views?.some((vista) => vista.state === 'frozen'), false, 'el reporte no debe congelar el título del primer campo')
 assert.equal(hoja.getCell(filaCampo1 + 1, 1).value, 'Nombre')
 assert.equal(hoja.getCell(filaCampo1 + 1, 2).value, 'Número')
 assert.equal(hoja.getCell(filaCampo1 + 1, 3).value, 'Comprobante')
@@ -99,6 +110,7 @@ assert.equal(hoja.getCell(filaCampo2 + 1, 1).value, 'Nombre')
 
 const media = (libro as unknown as { model?: { media?: unknown[] } }).model?.media ?? []
 assert.equal(media.length, 4, 'cada comprobante resoluble debe incrustarse como imagen')
+assert.ok(maxLlamadasActivas > 1, 'los comprobantes deben descargarse en paralelo')
 
 const libroConFallo = await crearLibroDatosReservas(
   reservas.slice(0, 1),
