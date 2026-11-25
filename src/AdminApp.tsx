@@ -778,7 +778,13 @@ export default function AdminApp() {
       </div>
 
       <div id="admin-balance" className="admin-seccion-destino">
-        <AdminBalanceMensual reservas={reservas} canchas={canchas} eventos={eventos} />
+          <AdminBalanceMensual
+            reservas={reservas}
+            canchas={canchas}
+            eventos={eventos}
+            comprobantes={comprobantesAdmin}
+            resolverUrlComprobante={supabaseConfigurado ? crearUrlComprobanteAdminRemota : undefined}
+          />
       </div>
 
       <div className="admin-clientes-secciones-destino">

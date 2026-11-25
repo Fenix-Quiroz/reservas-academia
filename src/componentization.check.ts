@@ -39,6 +39,7 @@ for (const file of [...cliente, ...admin]) {
 
 const app = read('src/App.tsx')
 const adminApp = read('src/AdminApp.tsx')
+const balance = read('src/components/admin/AdminBalanceMensual.tsx')
 
 for (const name of ['CabeceraCliente', 'ProgresoReserva', 'SelectorCampos', 'SelectorHorario', 'DatosReserva', 'ReservaCompletada', 'MisReservas']) {
   assert.match(app, new RegExp(`import .*${name}.* from`), `App.tsx debe importar ${name}`)
@@ -56,6 +57,10 @@ assert.match(read('src/components/admin/AdminNoAutorizado.tsx'), /import AdminMa
 assert.match(read('src/components/admin/AdminAlarmaTurno.tsx'), /className="admin-alarma/)
 assert.match(read('src/components/admin/AdminAlarmaTurno.tsx'), /Probar alarmas/)
 assert.match(read('src/components/admin/AdminEventos.tsx'), /Crear evento especial/)
+assert.match(balance, /comprobantes/, 'AdminBalanceMensual debe recibir los comprobantes para el nuevo reporte')
+assert.match(balance, /Descargar datos de reservas/, 'AdminBalanceMensual debe mostrar el botón del nuevo reporte')
+assert.match(balance, /descargarDatosReservas/, 'AdminBalanceMensual debe invocar el exportador de datos de reservas')
+assert.match(adminApp, /comprobantes={comprobantesAdmin}/, 'AdminApp debe pasar los comprobantes al reporte')
 
 assert.doesNotMatch(app, /function (Progreso|DibujoCancha|PasoCancha|PasoHorario|PasoDatos|PasoListo|MisReservas)\s*\(/)
 assert.doesNotMatch(adminApp, /function (AdminMarca|AdminLogin|AdminNoAutorizado)\s*\(/)

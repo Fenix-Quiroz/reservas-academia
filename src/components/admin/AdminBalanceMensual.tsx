@@ -1,22 +1,33 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Download, FileText } from 'lucide-react'
-import type { BloqueoEvento, Campo, Reserva } from '../../types.js'
+import type { BloqueoEvento, Campo, ComprobanteAdmin, Reserva } from '../../types.js'
 import { construirBalanceMensual, mesActual } from '../../balanceMensual.js'
 import { descargarBalanceMensual } from '../../exportarBalance.js'
 import { descargarBalanceTexto } from '../../exportarBalanceTexto.js'
+import { descargarDatosReservas, type ResolverUrlComprobante } from '../../exportarDatosReservas.js'
 import { crearBloqueoAccion } from '../../accionUnica'
 
 export interface AdminBalanceMensualProps {
   reservas: readonly Reserva[]
   canchas: readonly Campo[]
   eventos: readonly BloqueoEvento[]
+  comprobantes: readonly ComprobanteAdmin[]
+  resolverUrlComprobante?: ResolverUrlComprobante
 }
 
-export default function AdminBalanceMensual({ reservas, canchas, eventos }: AdminBalanceMensualProps) {
+export default function AdminBalanceMensual({
+  reservas,
+  canchas,
+  eventos,
+  comprobantes,
+  resolverUrlComprobante,
+}: AdminBalanceMensualProps) {
   const [mes, setMes] = useState(mesActual)
   const [descargando, setDescargando] = useState(false)
   const [descargandoTexto, setDescargandoTexto] = useState(false)
+  const [descargandoDatos, setDescargandoDatos] = useState(false)
   const [errorDescarga, setErrorDescarga] = useState('')
+  const [errorDatosDescarga, setErrorDatosDescarga] = useState('')
   const bloqueoDescarga = useRef(crearBloqueoAccion())
 
   useEffect(() => {
@@ -24,6 +35,12 @@ export default function AdminBalanceMensual({ reservas, canchas, eventos }: Admi
     const temporizador = window.setTimeout(() => setErrorDescarga(''), 5000)
     return () => window.clearTimeout(temporizador)
   }, [errorDescarga])
+
+  useEffect(() => {
+    if (!errorDatosDescarga) return undefined
+    const temporizador = window.setTimeout(() => setErrorDatosDescarga(''), 5000)
+    return () => window.clearTimeout(temporizador)
+  }, [errorDatosDescarga])
 
   const balance = useMemo(() => construirBalanceMensual(mes, reservas, canchas, eventos), [mes, reservas, canchas, eventos])
 
@@ -55,6 +72,20 @@ export default function AdminBalanceMensual({ reservas, canchas, eventos }: Admi
     }
   }
 
+  async function descargarDatos(): Promise<void> {
+    if (!bloqueoDescarga.current.adquirir()) return
+    setErrorDatosDescarga('')
+    setDescargandoDatos(true)
+    try {
+      await descargarDatosReservas(reservas, canchas, comprobantes, resolverUrlComprobante)
+    } catch {
+      setErrorDatosDescarga('No pudimos descargar los datos de reservas. Inténtalo de nuevo.')
+    } finally {
+      setDescargandoDatos(false)
+      bloqueoDescarga.current.liberar()
+    }
+  }
+
   return (
     <section className="admin-balance" aria-labelledby="titulo-balance">
       <div className="admin-balance-cabecera">
@@ -77,7 +108,7 @@ export default function AdminBalanceMensual({ reservas, canchas, eventos }: Admi
             className="admin-boton admin-control-primario admin-balance-descargar"
             type="button"
             onClick={() => void descargar()}
-            disabled={descargando || descargandoTexto}
+            disabled={descargando || descargandoTexto || descargandoDatos}
           >
             <Download size={20} strokeWidth={2.5} aria-hidden="true" />
             <span>{descargando ? 'Preparando balance…' : 'Descargar Excel'}</span>
@@ -86,15 +117,25 @@ export default function AdminBalanceMensual({ reservas, canchas, eventos }: Admi
             className="admin-boton admin-balance-descargar-txt"
             type="button"
             onClick={() => void descargarTexto()}
-            disabled={descargando || descargandoTexto}
+            disabled={descargando || descargandoTexto || descargandoDatos}
           >
             <FileText size={20} strokeWidth={2.5} aria-hidden="true" />
             <span>{descargandoTexto ? 'Preparando texto…' : 'Descargar texto (.txt)'}</span>
+          </button>
+          <button
+            className="admin-boton admin-balance-descargar-txt"
+            type="button"
+            onClick={() => void descargarDatos()}
+            disabled={descargando || descargandoTexto || descargandoDatos}
+          >
+            <Download size={20} strokeWidth={2.5} aria-hidden="true" />
+            <span>{descargandoDatos ? 'Preparando datos…' : 'Descargar datos de reservas'}</span>
           </button>
         </div>
       </div>
 
       {errorDescarga && <p className="admin-balance-error" role="alert">{errorDescarga}</p>}
+      {errorDatosDescarga && <p className="admin-balance-error" role="alert">{errorDatosDescarga}</p>}
 
       <div className="admin-balance-resumen" aria-live="polite">
         <span><strong>{balance.reservasFinalizadas}</strong> reservas finalizadas</span>
