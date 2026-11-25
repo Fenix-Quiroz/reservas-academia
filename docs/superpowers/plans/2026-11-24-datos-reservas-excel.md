@@ -24,7 +24,7 @@
 
 - Tres reservas del mismo número: deben producir tres filas ordenadas y conservar el comprobante correcto por reserva; se cubre en la prueba del ordenamiento y armado de filas.
 - Dos reservas con nombres distintos para el mismo número: deben contarse como la misma persona; se cubre en la prueba de agrupación por celular.
-- Reserva sin comprobante: debe mostrar `Sin comprobante` y mantener la fila; se cubre en la prueba del libro.
+- Reserva sin comprobante: debe mostrar `Cliente confiable — no tiene comprobante` y mantener la fila; se cubre en la prueba del libro.
 - Error al resolver una imagen privada: debe mostrar `No se pudo cargar` y permitir completar la descarga; se cubre en la prueba del exportador asíncrono.
 - Campo sin reservas: debe conservar título y encabezados y mostrar el estado vacío; se cubre en la prueba de bloques.
 
@@ -91,7 +91,7 @@
   - the first worksheet is the data sheet;
   - it contains a large `CAMPO 1` block, its headers, three reservation rows, then a `CAMPO 2` block;
   - every reservation row repeats name and cellular number;
-  - the no-comprobante row contains `Sin comprobante`;
+  - the no-comprobante row contains `Cliente confiable — no tiene comprobante`;
   - a resolver returning a data URL adds one media item for the reservation with a receipt;
   - a resolver that rejects writes `No se pudo cargar` and still returns a workbook.
 

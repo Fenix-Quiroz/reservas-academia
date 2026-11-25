@@ -88,7 +88,7 @@ const filaCampo1 = filaConTexto('CAMPO 1')
 const filaCampo2 = filaConTexto('CAMPO 2')
 assert.ok(filaCampo1 > 0 && filaCampo2 > filaCampo1, 'los bloques deben aparecer en el orden de los campos')
 assert.ok((hoja.getCell(filaCampo1, 1).font?.size ?? 0) >= 16, 'el título del campo debe verse grande')
-assert.ok((hoja.getRow(filaCampo1 + 2).height ?? 0) >= 110, 'la fila debe ser suficientemente alta para leer el comprobante')
+assert.ok((hoja.getRow(filaCampo1 + 2).height ?? 0) >= 170, 'la fila debe ser suficientemente alta para leer el comprobante')
 assert.equal(hoja.views?.some((vista) => vista.state === 'frozen'), false, 'el reporte no debe congelar el título del primer campo')
 assert.equal(hoja.getCell(filaCampo1 + 1, 1).value, 'Nombre')
 assert.equal(hoja.getCell(filaCampo1 + 1, 2).value, 'Número')
@@ -106,6 +106,7 @@ assert.deepEqual(nombresCampo1, ['Cliente Tres', 'Cliente Tres B', 'Cliente Tres
 assert.equal(hoja.getCell(filaCampo1 + 2, 2).value, '912345678')
 assert.equal(hoja.getCell(filaCampo1 + 4, 2).value, '912345678')
 assert.equal(hoja.getCell(filaCampo1 + 5, 1).value, 'Cliente Uno')
+assert.equal(hoja.getCell(filaCampo1 + 6, 3).value, 'Cliente confiable — no tiene comprobante')
 assert.equal(hoja.getCell(filaCampo2 + 1, 1).value, 'Nombre')
 
 const media = (libro as unknown as { model?: { media?: unknown[] } }).model?.media ?? []

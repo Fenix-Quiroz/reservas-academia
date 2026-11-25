@@ -161,6 +161,8 @@ async function convertirBlobAImagenExcel(blob: Blob, mimeType: ComprobanteAdmin[
 }
 
 const MAX_COMPROBANTES_EN_PARALELO = 5
+const ALTURA_FILA_COMPROBANTE = 180
+const ANCHO_IMAGEN_COMPROBANTE = 300
 
 async function cargarImagenesComprobantes(
   filas: readonly FilaDatosReserva[],
@@ -264,7 +266,7 @@ export async function crearLibroDatosReservas(
   hoja.columns = [
     { header: 'Nombre', key: 'nombre', width: 26 },
     { header: 'Número', key: 'celular', width: 16 },
-    { header: 'Comprobante', key: 'comprobante', width: 34 },
+    { header: 'Comprobante', key: 'comprobante', width: 42 },
     { header: 'Fecha', key: 'fecha', width: 14 },
     { header: 'Horario', key: 'horario', width: 24 },
     { header: 'Horas', key: 'horas', width: 10 },
@@ -308,13 +310,13 @@ export async function crearLibroDatosReservas(
     for (const [indice, fila] of grupo.filas.entries()) {
       const filaExcel = hoja.getRow(filaActual)
       filaExcel.values = [fila.nombre, fila.celular, '', new Date(`${fila.fecha}T12:00:00`), fila.horario, fila.horas]
-      filaExcel.height = 120
+      filaExcel.height = ALTURA_FILA_COMPROBANTE
       for (let columna = 1; columna <= 6; columna += 1) aplicarEstiloFila(filaExcel.getCell(columna), indice % 2 === 1)
       filaExcel.getCell(4).numFmt = 'dd/mm/yyyy'
       filaExcel.getCell(6).numFmt = '0.0'
 
       if (!fila.comprobante) {
-        filaExcel.getCell(3).value = 'Sin comprobante'
+        filaExcel.getCell(3).value = 'Cliente confiable — no tiene comprobante'
       } else if (!resolverComprobante) {
         filaExcel.getCell(3).value = 'Imagen no disponible'
       } else {
@@ -325,7 +327,7 @@ export async function crearLibroDatosReservas(
           const imagenId = libro.addImage({ base64: imagen.dataUrl, extension: imagen.extension })
           hoja.addImage(imagenId, {
             tl: { col: 2.1, row: filaActual - 1 + 0.08 },
-            ext: { width: 220, height: 120 },
+            ext: { width: ANCHO_IMAGEN_COMPROBANTE, height: ALTURA_FILA_COMPROBANTE },
           })
         }
       }
