@@ -28,11 +28,8 @@ export interface FilaDatosReserva {
 export type ResolverComprobante = (storagePath: string) => Promise<Blob>
 export type ProgresoExportacionReservas = (completados: number, total: number) => void
 
-const CELULAR_FENIX = normalizarCelular('931283181')
-
 function esReservaExportable(reserva: Reserva): boolean {
   if (reserva.estado !== 'finalizado') return false
-  if (normalizarCelular(reserva.celular) === CELULAR_FENIX) return false
   return reserva.pagoEstado === 'confirmado' || reserva.pagoEstado === 'no_requerido'
 }
 

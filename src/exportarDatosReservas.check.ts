@@ -68,7 +68,8 @@ const filasFiltradas = prepararFilasDatosReservas(
   comprobantes,
 )
 assert.ok(filasFiltradas.some((fila) => fila.reservaId === 'r-confirmada'), 'debe incluir finalizadas con pago confirmado')
-assert.ok(!filasFiltradas.some((fila) => ['r-cancelada', 'r-pendiente', 'r-fenix'].includes(fila.reservaId)), 'debe excluir canceladas, pendientes y Fenix')
+assert.ok(filasFiltradas.some((fila) => fila.reservaId === 'r-fenix'), 'debe volver a incluir las reservas de Fenix')
+assert.ok(!filasFiltradas.some((fila) => ['r-cancelada', 'r-pendiente'].includes(fila.reservaId)), 'debe excluir canceladas y pendientes')
 
 assert.deepEqual(
   calcularTamanoImagenExcel({ ancho: 100, alto: 200 }),
