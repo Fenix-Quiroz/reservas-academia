@@ -294,6 +294,11 @@ export async function prepararArchivoExcelDatosReservas(libro: ExcelJS.Workbook)
   return zip.generateAsync({ type: 'arraybuffer' })
 }
 
+function nombreArchivoDatosReservas(): string {
+  const marcaTiempo = new Date().toISOString().replace(/\D/g, '').slice(0, 14)
+  return `datos-reservas-${marcaTiempo}.xlsx`
+}
+
 async function cargarImagenesComprobantes(
   filas: readonly FilaDatosReserva[],
   resolverComprobante: ResolverComprobante,
@@ -503,7 +508,7 @@ export async function descargarDatosReservas(
   const url = URL.createObjectURL(blob)
   const enlace = document.createElement('a')
   enlace.href = url
-  enlace.download = 'datos-reservas.xlsx'
+  enlace.download = nombreArchivoDatosReservas()
   enlace.click()
   URL.revokeObjectURL(url)
 }
