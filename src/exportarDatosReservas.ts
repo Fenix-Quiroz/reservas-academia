@@ -317,7 +317,7 @@ async function cargarImagenesComprobantes(
       if (!fila?.comprobante) return
 
       const url = resolverUrlComprobante
-        ? await resolverUrlComprobante(fila.comprobante.storagePath).catch(() => undefined)
+        ? await resolverUrlComprobante(fila.comprobante.storagePath)
         : undefined
       try {
         const blob = url
