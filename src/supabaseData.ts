@@ -318,15 +318,6 @@ export async function descargarComprobanteAdminRemota(storagePath: string): Prom
   return data
 }
 
-export async function crearUrlComprobanteExportacionRemota(storagePath: string): Promise<string> {
-  const duracionSegundos = 24 * 60 * 60
-  const { data, error } = await clienteSupabase().storage
-    .from('comprobantes-pago')
-    .createSignedUrl(storagePath, duracionSegundos)
-  if (error || !data?.signedUrl) throw error ?? new Error('url-comprobante-exportacion-no-creada')
-  return data.signedUrl
-}
-
 export async function precalentarComprobanteAdminRemoto(storagePath: string): Promise<string | null> {
   try {
     const url = await crearUrlComprobanteAdminRemota(storagePath, false)
