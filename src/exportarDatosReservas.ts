@@ -27,6 +27,7 @@ export interface FilaDatosReserva {
 }
 
 export type ResolverComprobante = (storagePath: string) => Promise<Blob>
+export type ResolverUrlComprobante = (storagePath: string) => Promise<string>
 export type ProgresoExportacionReservas = (completados: number, total: number) => void
 
 function esReservaExportable(reserva: Reserva): boolean {
@@ -270,6 +271,12 @@ async function convertirBlobAImagenExcel(blob: Blob, mimeType: ComprobanteAdmin[
 
 const MAX_COMPROBANTES_EN_PARALELO = 5
 
+async function descargarBlobDesdeUrl(url: string): Promise<Blob> {
+  const respuesta = await fetch(url)
+  if (!respuesta.ok) throw new Error(`comprobante-http-${respuesta.status}`)
+  return respuesta.blob()
+}
+
 const EXTENSION_CREATION_ID_DIBUJO = /<a:extLst>\s*<a:ext\b[^>]*>\s*<a16:creationId\b[^>]*\/>\s*<\/a:ext>\s*<\/a:extLst>/g
 
 export async function prepararArchivoExcelDatosReservas(libro: ExcelJS.Workbook): Promise<ArrayBuffer> {
@@ -291,6 +298,7 @@ async function cargarImagenesComprobantes(
   filas: readonly FilaDatosReserva[],
   resolverComprobante: ResolverComprobante,
   alProgresar?: ProgresoExportacionReservas,
+  resolverUrlComprobante?: ResolverUrlComprobante,
 ): Promise<Map<string, ResultadoComprobanteExcel>> {
   const filasConComprobante = filas.filter((fila) => fila.comprobante)
   const resultadosPorReserva = new Map<string, ResultadoComprobanteExcel>()
@@ -308,8 +316,13 @@ async function cargarImagenesComprobantes(
       const fila = filasConComprobante[indice]
       if (!fila?.comprobante) return
 
+      const url = resolverUrlComprobante
+        ? await resolverUrlComprobante(fila.comprobante.storagePath).catch(() => undefined)
+        : undefined
       try {
-        const blob = await resolverComprobante(fila.comprobante.storagePath)
+        const blob = url
+          ? await descargarBlobDesdeUrl(url)
+          : await resolverComprobante(fila.comprobante.storagePath)
         const imagen = await convertirBlobAImagenExcel(blob, fila.comprobante.mimeType)
         resultadosPorReserva.set(fila.reservaId, { imagen })
       } catch {
@@ -376,11 +389,12 @@ export async function crearLibroDatosReservas(
   comprobantes: readonly ComprobanteAdmin[] = [],
   resolverComprobante?: ResolverComprobante,
   alProgresar?: ProgresoExportacionReservas,
+  resolverUrlComprobante?: ResolverUrlComprobante,
 ): Promise<ExcelJS.Workbook> {
   const moduloExcelJS = await cargarModuloExcelJS()
   const filas = prepararFilasDatosReservas(reservas, canchas, comprobantes)
   const imagenesPorReserva = resolverComprobante
-    ? await cargarImagenesComprobantes(filas, resolverComprobante, alProgresar)
+    ? await cargarImagenesComprobantes(filas, resolverComprobante, alProgresar, resolverUrlComprobante)
     : new Map<string, ResultadoComprobanteExcel>()
   const libro = new moduloExcelJS.Workbook()
   libro.creator = 'Polideportivo El Jaguar'
@@ -474,6 +488,7 @@ export async function descargarDatosReservas(
   comprobantes: readonly ComprobanteAdmin[] = [],
   resolverComprobante?: ResolverComprobante,
   alProgresar?: ProgresoExportacionReservas,
+  resolverUrlComprobante?: ResolverUrlComprobante,
 ): Promise<void> {
   const libro = await crearLibroDatosReservas(
     reservas,
@@ -481,6 +496,7 @@ export async function descargarDatosReservas(
     comprobantes,
     resolverComprobante,
     alProgresar,
+    resolverUrlComprobante,
   )
   const contenido = await prepararArchivoExcelDatosReservas(libro)
   const blob = new Blob([contenido], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' })

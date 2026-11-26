@@ -154,6 +154,17 @@ const media = (libro as unknown as { model?: { media?: unknown[] } }).model?.med
 assert.equal(media.length, 4, 'cada comprobante resoluble debe incrustarse como imagen')
 assert.ok(maxLlamadasActivas > 1, 'los comprobantes deben descargarse en paralelo')
 
+const libroDesdeLaUrl = await crearLibroDatosReservas(
+  reservas.slice(0, 1),
+  canchas,
+  [comprobante('r1', 1)],
+  async () => { throw new Error('la descarga directa no debe usarse si existe la URL') },
+  undefined,
+  async () => imagenPng,
+)
+const mediaDesdeLaUrl = (libroDesdeLaUrl as unknown as { model?: { media?: unknown[] } }).model?.media ?? []
+assert.equal(mediaDesdeLaUrl.length, 1, 'la imagen debe salir de la URL firmada aunque el enlace no se muestre en Excel')
+
 const archivoExcel = await prepararArchivoExcelDatosReservas(libro)
 const zipExcel = await JSZip.loadAsync(archivoExcel)
 const xmlDibujo = await zipExcel.file('xl/drawings/drawing1.xml')?.async('text')
