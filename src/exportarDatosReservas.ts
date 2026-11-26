@@ -266,6 +266,14 @@ async function convertirBlobAImagenExcel(blob: Blob, mimeType: ComprobanteAdmin[
 
 const MAX_COMPROBANTES_EN_PARALELO = 5
 
+async function descargarBlobDesdeUrl(url: string): Promise<Blob> {
+  const respuesta = await fetch(url)
+  if (!respuesta.ok) {
+    throw new Error(`comprobante-http-${respuesta.status}`)
+  }
+  return respuesta.blob()
+}
+
 async function cargarImagenesComprobantes(
   filas: readonly FilaDatosReserva[],
   resolverComprobante: ResolverComprobante,
@@ -292,10 +300,16 @@ async function cargarImagenesComprobantes(
         ? resolverUrlComprobante(fila.comprobante.storagePath).catch(() => undefined)
         : Promise.resolve(undefined)
       try {
-        const [blob, url] = await Promise.all([
-          resolverComprobante(fila.comprobante.storagePath),
-          promesaUrl,
-        ])
+        const url = await promesaUrl
+        let blob: Blob
+        try {
+          blob = url
+            ? await descargarBlobDesdeUrl(url)
+            : await resolverComprobante(fila.comprobante.storagePath)
+        } catch (error) {
+          if (!url) throw error
+          blob = await resolverComprobante(fila.comprobante.storagePath)
+        }
         const imagen = await convertirBlobAImagenExcel(blob, fila.comprobante.mimeType)
         resultadosPorReserva.set(fila.reservaId, { imagen, ...(url ? { url } : {}) })
       } catch {

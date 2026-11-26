@@ -154,6 +154,17 @@ const media = (libro as unknown as { model?: { media?: unknown[] } }).model?.med
 assert.equal(media.length, 4, 'cada comprobante resoluble debe incrustarse como imagen')
 assert.ok(maxLlamadasActivas > 1, 'los comprobantes deben descargarse en paralelo')
 
+const libroDesdeElMismoEnlace = await crearLibroDatosReservas(
+  reservas.slice(0, 1),
+  canchas,
+  [comprobante('r1', 1)],
+  async () => { throw new Error('la descarga directa no debe usarse si existe el enlace') },
+  undefined,
+  async () => imagenPng,
+)
+const mediaDesdeElMismoEnlace = (libroDesdeElMismoEnlace as unknown as { model?: { media?: unknown[] } }).model?.media ?? []
+assert.equal(mediaDesdeElMismoEnlace.length, 1, 'la imagen incrustada debe salir del mismo enlace que se entrega al usuario')
+
 const libroConFallo = await crearLibroDatosReservas(
   reservas.slice(0, 1),
   canchas,
