@@ -3,6 +3,7 @@ import { montoDeReserva } from './balanceMensual.js'
 import type { Campo, ComprobanteAdmin, Reserva } from './types.js'
 import { normalizarCelular } from './validacionCliente.js'
 import type ExcelJS from 'exceljs'
+import JSZip from 'jszip'
 
 type ModuloExcelJS = typeof import('exceljs')
 
@@ -274,6 +275,23 @@ async function descargarBlobDesdeUrl(url: string): Promise<Blob> {
   return respuesta.blob()
 }
 
+const EXTENSION_CREATION_ID_DIBUJO = /<a:extLst>\s*<a:ext\b[^>]*>\s*<a16:creationId\b[^>]*\/>\s*<\/a:ext>\s*<\/a:extLst>/g
+
+export async function prepararArchivoExcelDatosReservas(libro: ExcelJS.Workbook): Promise<ArrayBuffer> {
+  const archivoOriginal = await libro.xlsx.writeBuffer()
+  const zip = await JSZip.loadAsync(archivoOriginal)
+
+  for (const ruta of Object.keys(zip.files)) {
+    if (!/^xl\/drawings\/drawing\d+\.xml$/.test(ruta)) continue
+    const entrada = zip.file(ruta)
+    if (!entrada) continue
+    const xml = await entrada.async('text')
+    zip.file(ruta, xml.replace(EXTENSION_CREATION_ID_DIBUJO, ''))
+  }
+
+  return zip.generateAsync({ type: 'arraybuffer' })
+}
+
 async function cargarImagenesComprobantes(
   filas: readonly FilaDatosReserva[],
   resolverComprobante: ResolverComprobante,
@@ -499,7 +517,7 @@ export async function descargarDatosReservas(
     alProgresar,
     resolverUrlComprobante,
   )
-  const contenido = await libro.xlsx.writeBuffer()
+  const contenido = await prepararArchivoExcelDatosReservas(libro)
   const blob = new Blob([contenido], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' })
   const url = URL.createObjectURL(blob)
   const enlace = document.createElement('a')

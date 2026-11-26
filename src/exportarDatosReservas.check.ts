@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict'
-import { calcularTamanoImagenExcel, crearLibroDatosReservas, prepararFilasDatosReservas } from './exportarDatosReservas.js'
+import JSZip from 'jszip'
+import { calcularTamanoImagenExcel, crearLibroDatosReservas, prepararArchivoExcelDatosReservas, prepararFilasDatosReservas } from './exportarDatosReservas.js'
 import type { Campo, ComprobanteAdmin, Reserva } from './types.js'
 
 const canchas: Campo[] = [
@@ -153,6 +154,12 @@ assert.equal(hoja.getCell(filaCampo2 + 1, 1).value, 'Nombre')
 const media = (libro as unknown as { model?: { media?: unknown[] } }).model?.media ?? []
 assert.equal(media.length, 4, 'cada comprobante resoluble debe incrustarse como imagen')
 assert.ok(maxLlamadasActivas > 1, 'los comprobantes deben descargarse en paralelo')
+
+const archivoExcel = await prepararArchivoExcelDatosReservas(libro)
+const zipExcel = await JSZip.loadAsync(archivoExcel)
+const xmlDibujo = await zipExcel.file('xl/drawings/drawing1.xml')?.async('text')
+assert.ok(xmlDibujo, 'el Excel debe contener el dibujo de las imágenes')
+assert.doesNotMatch(xmlDibujo, /creationId/, 'las imágenes no deben compartir un identificador interno de Excel')
 
 const libroDesdeElMismoEnlace = await crearLibroDatosReservas(
   reservas.slice(0, 1),
