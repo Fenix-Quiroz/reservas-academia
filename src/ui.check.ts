@@ -370,7 +370,7 @@ assert.ok(adminApp.indexOf('<section className="admin-listado">') < adminApp.ind
 assert.match(admin, /clase: 'iniciado'/)
 assert.match(admin, /clase: 'finalizado'/)
 assert.match(admin, /Balance mensual/)
-assert.match(admin, /Descargar Excel/)
+assert.match(admin, /Descargar balance/)
 assert.match(admin, /type="month"/)
 assert.match(admin, /Cargando reservas…/)
 assert.match(adminApp, /listaCargada/)

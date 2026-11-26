@@ -125,7 +125,7 @@ export default function AdminBalanceMensual({
             disabled={descargando || descargandoTexto || descargandoDatos}
           >
             <Download size={20} strokeWidth={2.5} aria-hidden="true" />
-            <span>{descargando ? 'Preparando balance…' : 'Descargar Excel'}</span>
+            <span>{descargando ? 'Preparando balance…' : 'Descargar balance'}</span>
           </button>
           <button
             className="admin-boton admin-balance-descargar-txt"
