@@ -68,6 +68,8 @@ import AdminHorarios from './components/admin/AdminHorarios'
 import { leerHorariosEntrenamientoAdminRemotos } from './horariosAdminSupabase'
 import { guardarHorariosEntrenamientoAdminRemoto } from './horariosAdminSupabaseGuardado'
 import { crearBloqueoAccion } from './accionUnica'
+import type { TicketSorteo } from './sorteoDemo'
+import { leerUltimoResultadoRemoto, leerUltimoSorteoRemoto, type ResumenSorteo } from './sorteoSupabase'
 
 type EstadoConexion = 'sincronizando' | 'demo' | 'error' | 'sincronizado'
 
@@ -110,7 +112,11 @@ export default function AdminApp() {
   const [usuario, setUsuario] = useState<UsuarioAdmin | null>(null)
   const [cargandoAuth, setCargandoAuth] = useState(supabaseConfigurado)
   const [authError, setAuthError] = useState('')
-  const [reservas, setReservas] = useState<Reserva[]>(leerReservas)
+  const [reservas, setReservas] = useState<Reserva[]>(() => supabaseConfigurado ? [] : leerReservas())
+  const [ultimoSorteo, setUltimoSorteo] = useState<ResumenSorteo | null>(null)
+  const [ultimoGanador, setUltimoGanador] = useState<TicketSorteo | null>(null)
+  const [errorSorteo, setErrorSorteo] = useState('')
+  const [errorDatosSorteo, setErrorDatosSorteo] = useState('')
   const [comprobantesAdmin, setComprobantesAdmin] = useState<ComprobanteAdmin[]>([])
   const [filtros, setFiltros] = useState<FiltrosAdmin>({ vista: 'todas', fecha: 'todas', canchaId: 'todas', buscar: '' })
   const [porCancelar, setPorCancelar] = useState<string | null>(null)
@@ -213,36 +219,68 @@ export default function AdminApp() {
     setCargando(true)
     if (supabaseConfigurado) setEstadoConexion('sincronizando')
     const refrescar = async () => {
+      let actuales: Reserva[]
       try {
-        const [actuales, eventosActuales] = await Promise.all([
-          cargarReservas(),
-          supabaseConfigurado ? leerBloqueosEventosRemotos() : Promise.resolve(leerBloqueosEventos()),
-        ])
-        const comprobantesActuales = supabaseConfigurado ? await leerComprobantesAdminRemotos() : []
-        if (montado) {
-          setReservas(actuales)
-          setComprobantesAdmin(comprobantesActuales)
-      setModalComprobante((actual) => {
-        if (!actual) return null
-        const pagoId = actual.comprobante.pagoId
-        const actualizado = comprobantesActuales.find((c) => c.pagoId === pagoId)
-        return actualizado
-          ? { ...actual, comprobante: actualizado }
-          : { ...actual, comprobante: { ...actual.comprobante, estado: 'confirmado' } }
-      })
-          setEventos(eventosActuales)
-          setEstadoConexion(supabaseConfigurado ? 'sincronizado' : 'demo')
-          setListaCargada(true)
-        }
+        actuales = await cargarReservas()
       } catch {
         if (montado) {
           setEstadoConexion(supabaseConfigurado ? 'error' : 'demo')
           setError('No pudimos cargar las reservas. Ejecuta primero el esquema de Supabase.')
-        }
-      } finally {
-        if (montado) {
+          setErrorDatosSorteo('No pudimos cargar las reservas reales. Revisa la conexión con Supabase.')
           setCargando(false)
         }
+        return
+      }
+
+      let eventosActuales: BloqueoEvento[] | null = null
+      let comprobantesActuales: ComprobanteAdmin[] | null = null
+      let errorCargaAuxiliar = ''
+      try {
+        eventosActuales = supabaseConfigurado ? await leerBloqueosEventosRemotos() : leerBloqueosEventos()
+      } catch {
+        errorCargaAuxiliar = 'No pudimos cargar los eventos especiales. Revisa la conexión.'
+      }
+      try {
+        comprobantesActuales = supabaseConfigurado ? await leerComprobantesAdminRemotos() : []
+      } catch {
+        errorCargaAuxiliar = 'No pudimos cargar los comprobantes. Revisa la conexión.'
+      }
+
+      let sorteoActual: ResumenSorteo | null = null
+      let ganadorActual: TicketSorteo | null = null
+      let errorSorteoActual = ''
+      if (supabaseConfigurado) {
+        try {
+          const [sorteoLeido, ganadorLeido] = await Promise.all([leerUltimoSorteoRemoto(), leerUltimoResultadoRemoto()])
+          sorteoActual = sorteoLeido
+          ganadorActual = ganadorLeido
+        } catch {
+          errorSorteoActual = 'No se pudo consultar el historial de sorteos. Ejecuta primero supabase/fix-sorteos-reales.sql.'
+        }
+      }
+
+      if (montado) {
+        setReservas(actuales)
+        setUltimoSorteo(sorteoActual)
+        setUltimoGanador(ganadorActual)
+        setErrorDatosSorteo('')
+        setErrorSorteo(errorSorteoActual)
+        if (comprobantesActuales) {
+          setComprobantesAdmin(comprobantesActuales)
+          setModalComprobante((actual) => {
+            if (!actual) return null
+            const pagoId = actual.comprobante.pagoId
+            const actualizado = comprobantesActuales?.find((c) => c.pagoId === pagoId)
+            return actualizado
+              ? { ...actual, comprobante: actualizado }
+              : { ...actual, comprobante: { ...actual.comprobante, estado: 'confirmado' } }
+          })
+        }
+        if (eventosActuales) setEventos(eventosActuales)
+        if (errorCargaAuxiliar) setError(errorCargaAuxiliar)
+        setEstadoConexion(supabaseConfigurado ? 'sincronizado' : 'demo')
+        setListaCargada(true)
+        setCargando(false)
       }
     }
     void refrescar()
@@ -659,7 +697,21 @@ export default function AdminApp() {
   }
 
   if (vista === 'sorteos') {
-    return <AdminSorteosVista onVolver={irAPanelGeneral} />
+    return (
+      <AdminSorteosVista
+        onVolver={irAPanelGeneral}
+        reservas={reservas}
+        ultimoSorteo={ultimoSorteo}
+        ultimoGanador={ultimoGanador}
+        onSorteoEjecutado={(resultado) => {
+          setUltimoSorteo(resultado.sorteo)
+          setUltimoGanador(resultado.ganador)
+        }}
+        supabaseConfigurado={supabaseConfigurado}
+        cargandoDatos={cargando || !listaCargada}
+        errorDatos={errorDatosSorteo || errorSorteo}
+      />
+    )
   }
 
   return (

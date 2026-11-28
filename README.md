@@ -24,7 +24,10 @@ Sin esas variables, la aplicación funciona con el modo demo local. Con Supabase
 8. Ejecuta `supabase/horarios-entrenamiento-admin.sql` para crear la RPC que permite al administrador guardar la configuración semanal. Esta migración solo crea o reemplaza funciones y permisos; no cambia reservas ni horarios por sí sola.
 9. Para actualizar automáticamente la disponibilidad pública cuando el administrador bloquee o libere horarios, ejecuta `supabase/fix-realtime-horarios-publicos.sql`.
 10. En Authentication, crea el usuario del encargado y asígnale `app_metadata.role = admin`.
-11. Reinicia Vite con `npm run dev`.
+11. Para activar los sorteos reales, ejecuta `supabase/fix-sorteos-reales.sql` después de aplicar el esquema y las migraciones de pagos.
+    La RPC `public.ejecutar_sorteo()` solo acepta administradores, guarda el snapshot de cada ticket y registra el ganador. Participan únicamente reservas `finalizado` con `pago_estado` `confirmado` o `no_requerido`; cada reserva cuenta como un ticket, sin importar si duró 1, 2 o 3 horas.
+    El primer sorteo toma todas las reservas elegibles existentes. Los siguientes toman solo reservas creadas después del corte del sorteo anterior.
+12. Reinicia Vite con `npm run dev`.
 
 ### Notificaciones del encargado en Android
 

@@ -19,6 +19,7 @@ import {
 } from 'lucide-react'
 import AdminMarca from './AdminMarca'
 import AdminHistorialClientes from './AdminHistorialClientes'
+import type { Reserva } from '../../types'
 import {
   DATOS_SORTEO_DEMO,
   crearParticipantesDemo,
@@ -26,6 +27,8 @@ import {
   ventanaSlot,
   type TicketSorteo,
 } from '../../sorteoDemo'
+import { crearParticipantesDesdeTickets, prepararSorteoReal } from '../../sorteoReal'
+import { ejecutarSorteoRemoto, type ResumenSorteo, type ResultadoSorteoRemoto } from '../../sorteoSupabase'
 import {
   INICIO_DESACELERACION_GIRO_DEMO_MS,
   INTERVALO_GIRO_RAPIDO_DEMO_MS,
@@ -37,6 +40,13 @@ import {
 
 export interface AdminSorteosVistaProps {
   onVolver: () => void
+  reservas: readonly Reserva[]
+  ultimoSorteo: ResumenSorteo | null
+  ultimoGanador: TicketSorteo | null
+  onSorteoEjecutado: (resultado: ResultadoSorteoRemoto) => void
+  supabaseConfigurado: boolean
+  cargandoDatos: boolean
+  errorDatos?: string
 }
 
 function reproducirSonidoTick(frecuencia = 420, duracion = 0.025): void {
@@ -87,6 +97,13 @@ function formatearPorcentaje(valor: number): string {
   return `${valor.toFixed(1)}%`
 }
 
+function formatearCorteSorteo(hasta: string | null | undefined): string {
+  if (!hasta) return 'Al girar'
+  const fecha = new Date(hasta)
+  if (Number.isNaN(fecha.getTime())) return 'Al girar'
+  return new Intl.DateTimeFormat('es-PE', { day: 'numeric', month: 'long' }).format(fecha)
+}
+
 type PosicionTicketSlot = 'anterior-2' | 'anterior' | 'actual' | 'siguiente' | 'siguiente-2'
 
 const POSICIONES_TICKET_SLOT: PosicionTicketSlot[] = ['anterior-2', 'anterior', 'actual', 'siguiente', 'siguiente-2']
@@ -117,22 +134,48 @@ function TicketSlot({ ticket, posicion, ganador, nombreVisible }: {
   )
 }
 
-export default function AdminSorteosVista({ onVolver }: AdminSorteosVistaProps) {
+export default function AdminSorteosVista({
+  onVolver,
+  reservas,
+  ultimoSorteo,
+  ultimoGanador,
+  onSorteoEjecutado,
+  supabaseConfigurado,
+  cargandoDatos,
+  errorDatos,
+}: AdminSorteosVistaProps) {
   const [girando, setGirando] = useState(false)
   const [ganador, setGanador] = useState<TicketSorteo | null>(null)
+  const [resultadoRemoto, setResultadoRemoto] = useState<ResultadoSorteoRemoto | null>(null)
+  const [errorSorteo, setErrorSorteo] = useState('')
   const [indiceVisible, setIndiceVisible] = useState(0)
   const [copiado, setCopiado] = useState(false)
   const [sonidoHabilitado, setSonidoHabilitado] = useState(true)
   const [tabActual, setTabActual] = useState<'sorteo' | 'historial'>('sorteo')
   const temporizadorPasoGiroRef = useRef<number | null>(null)
 
-  const participantes = useMemo(() => crearParticipantesDemo(DATOS_SORTEO_DEMO), [])
-  const tickets = useMemo(() => crearTicketsDemo(participantes), [participantes])
+  const hastaVista = useMemo(() => new Date().toISOString(), [reservas, ultimoSorteo?.id])
+  const preparacionReal = useMemo(
+    () => prepararSorteoReal(reservas, ultimoSorteo?.hasta, hastaVista),
+    [reservas, hastaVista, ultimoSorteo?.hasta],
+  )
+  const participantesDemo = useMemo(() => crearParticipantesDemo(DATOS_SORTEO_DEMO), [])
+  const ticketsDemo = useMemo(() => crearTicketsDemo(participantesDemo), [participantesDemo])
+  const participantesRemotos = useMemo(
+    () => resultadoRemoto ? crearParticipantesDesdeTickets(resultadoRemoto.tickets) : null,
+    [resultadoRemoto],
+  )
+  const participantes = participantesRemotos ?? (supabaseConfigurado ? preparacionReal.participantes : participantesDemo)
+  const tickets = resultadoRemoto?.tickets ?? (supabaseConfigurado ? preparacionReal.tickets : ticketsDemo)
   const ticketsSlot = useMemo(() => ventanaSlot(tickets, indiceVisible), [tickets, indiceVisible])
   const totalTickets = tickets.length
   const totalParticipantes = participantes.length
   const promedioTickets = totalParticipantes > 0 ? (totalTickets / totalParticipantes).toFixed(1) : '0.0'
-  const clienteGanador = ganador ? participantes.find((participante) => participante.cliente.id === ganador.clienteId) : null
+  const ganadorVisible = ganador ?? (!girando && supabaseConfigurado ? ultimoGanador : null)
+  const ganadorHistorico = Boolean(!ganador && ganadorVisible)
+  const clienteGanador = ganadorVisible ? participantes.find((participante) => participante.cliente.id === ganadorVisible.clienteId) : null
+  const textoCorte = supabaseConfigurado ? formatearCorteSorteo(ultimoSorteo?.hasta) : '24 diciembre'
+  const etiquetaCorte = supabaseConfigurado ? (ultimoSorteo ? 'último corte' : 'corte al ejecutar') : 'cierre'
 
   function limpiarTemporizadores(): void {
     if (temporizadorPasoGiroRef.current !== null) window.clearTimeout(temporizadorPasoGiroRef.current)
@@ -141,25 +184,48 @@ export default function AdminSorteosVista({ onVolver }: AdminSorteosVistaProps) 
 
   useEffect(() => () => limpiarTemporizadores(), [])
 
-  function girarSorteo(): void {
-    if (girando || tickets.length === 0) return
+  async function girarSorteo(): Promise<void> {
+    if (cargandoDatos || errorDatos || girando || tickets.length === 0 || (supabaseConfigurado && resultadoRemoto)) return
 
     limpiarTemporizadores()
-    const indiceGanador = Math.floor(Math.random() * tickets.length)
-    const rutaGiro = crearRutaGiroDemo(indiceVisible, indiceGanador, tickets.length)
+    setGirando(true)
+    setGanador(null)
+    setErrorSorteo('')
+
+    let ticketsParaGiro = tickets
+    let indiceGanador = 0
+
+    if (supabaseConfigurado) {
+      try {
+        const resultado = await ejecutarSorteoRemoto()
+        ticketsParaGiro = resultado.tickets
+        indiceGanador = ticketsParaGiro.findIndex((ticket) => ticket.id === resultado.ganador.id)
+        if (indiceGanador < 0 || ticketsParaGiro.length === 0) throw new Error('ganador-no-encontrado')
+        setResultadoRemoto(resultado)
+        onSorteoEjecutado(resultado)
+      } catch {
+        setGirando(false)
+        setErrorSorteo('No se pudo ejecutar el sorteo. Verifica que la migración SQL esté aplicada y vuelve a intentarlo.')
+        return
+      }
+    } else {
+      indiceGanador = Math.floor(Math.random() * tickets.length)
+    }
+
+    const indiceInicial = ((indiceVisible % ticketsParaGiro.length) + ticketsParaGiro.length) % ticketsParaGiro.length
+    setIndiceVisible(indiceInicial)
+    const rutaGiro = crearRutaGiroDemo(indiceInicial, indiceGanador, ticketsParaGiro.length)
     const intervalosDesaceleracion = crearIntervalosDesaceleracionDemo()
-    let indiceActual = indiceVisible
+    let indiceActual = indiceInicial
     let pasoRapido = 0
     let pasoDesaceleracion = 0
     const inicioGiro = performance.now()
-    setGirando(true)
-    setGanador(null)
 
     const avanzarSlot = (): void => {
       const transcurrido = performance.now() - inicioGiro
 
       if (transcurrido < INICIO_DESACELERACION_GIRO_DEMO_MS) {
-        indiceActual = (indiceActual + calcularSaltoRapidoGiroDemo(tickets.length, pasoRapido)) % tickets.length
+        indiceActual = (indiceActual + calcularSaltoRapidoGiroDemo(ticketsParaGiro.length, pasoRapido)) % ticketsParaGiro.length
         setIndiceVisible(indiceActual)
         if (sonidoHabilitado && pasoRapido % 5 === 0) reproducirSonidoTick(440 + (pasoRapido % 3) * 50)
         pasoRapido += 1
@@ -181,7 +247,7 @@ export default function AdminSorteosVista({ onVolver }: AdminSorteosVistaProps) 
       pasoDesaceleracion += 1
 
       if (pasoDesaceleracion >= rutaGiro.length) {
-        setGanador(tickets[indiceGanador])
+        setGanador(ticketsParaGiro[indiceGanador] ?? null)
         setGirando(false)
         temporizadorPasoGiroRef.current = null
         if (sonidoHabilitado) reproducirSonidoVictoria()
@@ -227,7 +293,7 @@ export default function AdminSorteosVista({ onVolver }: AdminSorteosVistaProps) 
         </div>
 
         <div className="sorteo-page-header-actions">
-          <span className="sorteo-demo-badge"><span aria-hidden="true" /> Modo demo</span>
+          <span className="sorteo-demo-badge"><span aria-hidden="true" /> {supabaseConfigurado ? 'Datos reales' : 'Modo demo'}</span>
           <button type="button" className="sorteo-header-button" onClick={onVolver}>
             <ArrowLeft size={17} aria-hidden="true" />
             Volver al panel
@@ -265,7 +331,9 @@ export default function AdminSorteosVista({ onVolver }: AdminSorteosVistaProps) 
               <div className="sorteo-slot-viewport" aria-live="polite" aria-label="Ticket seleccionado">
                 <div className="sorteo-slot-focus-window" aria-hidden="true" />
                 {ticketsSlot.length === 0 ? (
-                  <div className="sorteo-slot-empty">No hay tickets disponibles</div>
+                  <div className="sorteo-slot-empty">
+                    {errorDatos ? 'No se pudieron cargar los tickets' : cargandoDatos ? 'Cargando reservas reales…' : 'No hay tickets elegibles'}
+                  </div>
                 ) : (
                   <div className="sorteo-slot-ticket-stack">
                     {ticketsSlot.map((ticket, index) => (
@@ -291,11 +359,16 @@ export default function AdminSorteosVista({ onVolver }: AdminSorteosVistaProps) 
           </div>
 
           <div className="sorteo-slot-actions">
-            <button type="button" className="sorteo-primary-action" onClick={girarSorteo} disabled={girando || tickets.length === 0}>
+            <button
+              type="button"
+              className="sorteo-primary-action"
+              onClick={() => void girarSorteo()}
+              disabled={cargandoDatos || Boolean(errorDatos) || girando || tickets.length === 0 || (supabaseConfigurado && Boolean(resultadoRemoto))}
+            >
               <Sparkles size={19} aria-hidden="true" />
-              {girando ? 'Girando el sorteo…' : ganador ? 'Girar de nuevo' : 'Girar sorteo'}
+              {girando ? 'Girando el sorteo…' : resultadoRemoto ? 'Sorteo guardado' : ganador ? 'Girar de nuevo' : 'Girar sorteo'}
             </button>
-            {ganador && (
+            {ganador && !supabaseConfigurado && (
               <button type="button" className="sorteo-secondary-action" onClick={reiniciarSorteo} disabled={girando}>
                 <RotateCcw size={16} aria-hidden="true" />
                 Reiniciar
@@ -305,25 +378,25 @@ export default function AdminSorteosVista({ onVolver }: AdminSorteosVistaProps) 
         </article>
 
         <aside className="sorteo-side-column">
-          {ganador ? (
+          {ganadorVisible ? (
             <article className="sorteo-winner-card" role="alert">
               <div className="sorteo-winner-card-heading">
                 <span className="sorteo-winner-icon"><Trophy size={21} aria-hidden="true" /></span>
                 <div>
-                  <span>Resultado del sorteo</span>
-                  <strong>¡Tenemos ganador!</strong>
+                  <span>{ganadorHistorico ? 'Último resultado' : 'Resultado del sorteo'}</span>
+                  <strong>{ganadorHistorico ? 'Ganador registrado' : '¡Tenemos ganador!'}</strong>
                 </div>
               </div>
-              <div className="sorteo-winner-ticket-number">#{ganador.numeroGlobal}</div>
-              <h3>{ganador.nombre}</h3>
-              <p>Ganó con su oportunidad {ganador.ticketIndex} de {ganador.totalTickets} reservas en la campaña.</p>
+              <div className="sorteo-winner-ticket-number">#{ganadorVisible.numeroGlobal}</div>
+              <h3>{ganadorVisible.nombre}</h3>
+              <p>Ganó con su oportunidad {ganadorVisible.ticketIndex} de {ganadorVisible.totalTickets} reservas en la campaña.</p>
               <div className="sorteo-winner-meta">
-                <span><strong>Celular</strong>{ganador.celular}</span>
-                <span><strong>Premio</strong>2 horas de cancha gratis</span>
+                <span><strong>Celular</strong>{ganadorVisible.celular}</span>
+                <span><strong>Premio</strong>5 pavos</span>
               </div>
               <a
                 className="sorteo-whatsapp-action"
-                href={`https://wa.me/51${ganador.celular}?text=¡Hola%20${encodeURIComponent(ganador.nombre.split(' ')[0])}!%20🎉%20Ganaste%20el%20sorteo%20del%20Polideportivo%20El%20Jaguar%20con%20el%20Ticket%20%23${ganador.numeroGlobal}.`}
+                href={`https://wa.me/51${ganadorVisible.celular}?text=¡Hola%20${encodeURIComponent(ganadorVisible.nombre.split(' ')[0])}!%20🎉%20Ganaste%20el%20sorteo%20del%20Polideportivo%20El%20Jaguar%20con%20el%20Ticket%20%23${ganadorVisible.numeroGlobal}.`}
                 target="_blank"
                 rel="noopener noreferrer"
               >
@@ -343,7 +416,7 @@ export default function AdminSorteosVista({ onVolver }: AdminSorteosVistaProps) 
               <ul className="sorteo-check-list">
                 <li><CheckCircle2 size={17} aria-hidden="true" /> Todos los tickets tienen una oportunidad proporcional.</li>
                 <li><CheckCircle2 size={17} aria-hidden="true" /> El número ganador queda visible al detenerse.</li>
-                <li><CheckCircle2 size={17} aria-hidden="true" /> Los datos mostrados corresponden a una demo.</li>
+                <li><CheckCircle2 size={17} aria-hidden="true" /> {supabaseConfigurado ? 'Los tickets vienen de reservas finalizadas en Supabase.' : 'Los datos mostrados corresponden a una demo.'}</li>
               </ul>
               <div className="sorteo-info-stat">
                 <span>Rango de tickets</span>
@@ -357,12 +430,18 @@ export default function AdminSorteosVista({ onVolver }: AdminSorteosVistaProps) 
               <Gift size={19} aria-hidden="true" />
               <h3>Reglas de la campaña</h3>
             </div>
-            <p>Participan los clientes frecuentes con reservas registradas durante el periodo activo.</p>
+            <p>{supabaseConfigurado ? 'Participan solo reservas finalizadas con el pago verificado. Cada reserva genera un ticket.' : 'Participan los clientes frecuentes con reservas registradas durante el periodo activo.'}</p>
             <div className="sorteo-rule-row"><span>1</span><strong>reserva</strong><em>=</em><strong>1 ticket</strong></div>
-            <div className="sorteo-rule-row"><span>24</span><strong>diciembre</strong><em>·</em><strong>cierre</strong></div>
+            <div className="sorteo-rule-row sorteo-rule-row-corte"><span>{textoCorte}</span><em>·</em><strong>{etiquetaCorte}</strong></div>
           </article>
         </aside>
       </section>
+
+      {(errorDatos || errorSorteo) && (
+        <div className="sorteo-data-error" role="alert">
+          {errorDatos || errorSorteo}
+        </div>
+      )}
 
       <section className="sorteo-intro" aria-labelledby="sorteo-titulo-principal">
         <div>
@@ -381,7 +460,7 @@ export default function AdminSorteosVista({ onVolver }: AdminSorteosVistaProps) 
           <div className="sorteo-summary-icon"><Gift size={21} aria-hidden="true" /></div>
           <div>
             <span>Premio de la campaña</span>
-            <strong>2 horas de cancha gratis</strong>
+            <strong>5 pavos</strong>
             <small>Para el ticket ganador</small>
           </div>
         </article>
@@ -406,7 +485,7 @@ export default function AdminSorteosVista({ onVolver }: AdminSorteosVistaProps) 
           <div>
             <span>Transparencia</span>
             <strong>1 ticket = 1 oportunidad</strong>
-            <small>Selección aleatoria demo</small>
+            <small>{supabaseConfigurado ? 'Selección guardada en Supabase' : 'Selección aleatoria demo'}</small>
           </div>
         </article>
       </section>
@@ -440,7 +519,7 @@ export default function AdminSorteosVista({ onVolver }: AdminSorteosVistaProps) 
                 </thead>
                 <tbody>
                   {participantes.map((participante, index) => (
-                    <tr key={participante.cliente.id} className={ganador?.clienteId === participante.cliente.id ? 'fila-ganadora' : ''}>
+                    <tr key={participante.cliente.id} className={ganadorVisible?.clienteId === participante.cliente.id ? 'fila-ganadora' : ''}>
                       <td className="col-rank">{index + 1}</td>
                       <td><strong className="nombre-cliente-tab">{participante.cliente.nombre}</strong>{participante.tickets >= 8 && <span className="badge-top-tickets">Frecuente</span>}</td>
                       <td className="col-celular-tab">{participante.cliente.celular}</td>
