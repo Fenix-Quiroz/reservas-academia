@@ -87,6 +87,8 @@ assert.match(adminSorteos, /const ganadorVisible = ganador \?\?/)
 assert.doesNotMatch(adminSorteos, /tickets\.length === 0 && ultimoGanador/)
 assert.match(adminSorteos, /<span>Premio de la campaña<\/span>[\s\S]*?<strong>5 pavos<\/strong>/)
 assert.doesNotMatch(adminSorteos, /2 horas de cancha gratis/)
+assert.match(adminSorteos, /<strong>Campaña activa<\/strong> · hasta el 22 de diciembre/)
+assert.doesNotMatch(adminSorteos, /Campaña activa<\/strong> · 1 al 24 de diciembre/)
 
 assert.match(cliente, /className="seleccionar-cancha"/)
 assert.match(cliente, /Reserva tu campo/)

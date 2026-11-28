@@ -174,7 +174,7 @@ export default function AdminSorteosVista({
   const ganadorVisible = ganador ?? (!girando && supabaseConfigurado ? ultimoGanador : null)
   const ganadorHistorico = Boolean(!ganador && ganadorVisible)
   const clienteGanador = ganadorVisible ? participantes.find((participante) => participante.cliente.id === ganadorVisible.clienteId) : null
-  const textoCorte = supabaseConfigurado ? formatearCorteSorteo(ultimoSorteo?.hasta) : '24 diciembre'
+  const textoCorte = supabaseConfigurado ? formatearCorteSorteo(ultimoSorteo?.hasta) : '22 diciembre'
   const etiquetaCorte = supabaseConfigurado ? (ultimoSorteo ? 'último corte' : 'corte al ejecutar') : 'cierre'
 
   function limpiarTemporizadores(): void {
@@ -451,7 +451,7 @@ export default function AdminSorteosVista({
         </div>
         <div className="sorteo-campaign-pill">
           <Calendar size={17} aria-hidden="true" />
-          <span><strong>Campaña activa</strong> · 1 al 24 de diciembre</span>
+          <span><strong>Campaña activa</strong> · hasta el 22 de diciembre</span>
         </div>
       </section>
 
