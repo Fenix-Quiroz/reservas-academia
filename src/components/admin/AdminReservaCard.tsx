@@ -106,7 +106,15 @@ export default function AdminReservaCard({
         <span>{reserva.alias} · {reserva.celular}</span>
         <span className="precio">S/ {reserva.montoTotal ?? (cancha?.precioHora ?? 0) * reserva.horas} · {cancha?.jugadores} contra {cancha?.jugadores}</span>
       </div>
-      {comprobante && !sinAdelanto && (
+      {sinAdelanto ? (
+        <div className="admin-reserva-comprobante admin-reserva-comprobante-sin-adelanto" aria-label="Comprobante de pago">
+          <div className="admin-comprobante-encabezado">
+            <strong>Comprobante de pago</strong>
+            <span className="estado estado-sin-adelanto">Sin comprobante</span>
+          </div>
+          <p className="admin-comprobante-aviso">Cliente fijo: no requiere adelanto.</p>
+        </div>
+      ) : comprobante && (
         <div className="admin-reserva-comprobante" aria-label="Comprobante de pago">
           <div className="admin-comprobante-encabezado">
             <strong>Comprobante de pago</strong>

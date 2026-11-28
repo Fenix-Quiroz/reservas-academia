@@ -3700,6 +3700,12 @@ button:disabled {
   color: var(--color-ink-100);
 }
 
+.admin-comprobante-aviso {
+  margin: 0;
+  color: var(--color-ink-300);
+  font-size: 0.8rem;
+}
+
 .admin-reserva-comprobante .estado {
   justify-self: start;
 }

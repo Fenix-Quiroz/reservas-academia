@@ -92,7 +92,7 @@ const comprobantePendiente: ComprobanteAdmin = {
   mimeType: 'image/png',
   sizeBytes: 100,
 }
-const renderTarjeta = (reserva: Reserva, comprobante: ComprobanteAdmin) => renderToStaticMarkup(createElement(AdminReservaCard, {
+const renderTarjeta = (reserva: Reserva, comprobante?: ComprobanteAdmin) => renderToStaticMarkup(createElement(AdminReservaCard, {
   reserva,
   comprobante,
   puedeCancelar: false,
@@ -112,6 +112,13 @@ const renderTarjeta = (reserva: Reserva, comprobante: ComprobanteAdmin) => rende
 assert.match(renderTarjeta(comprobanteFueraDePlazo, comprobantePendiente), /Confirmar comprobante/)
 assert.doesNotMatch(renderTarjeta({ ...comprobanteFueraDePlazo, estado: 'cancelado' }, comprobantePendiente), /Confirmar comprobante/)
 assert.doesNotMatch(renderTarjeta(comprobanteFueraDePlazo, { ...comprobantePendiente, estado: 'confirmado' }), /Confirmar comprobante/)
+
+const clienteFijoFinalizado: Reserva = {
+  ...comprobanteFueraDePlazo,
+  id: 'cliente-fijo-finalizado',
+  pagoEstado: 'no_requerido',
+}
+assert.match(renderTarjeta(clienteFijoFinalizado), /Sin comprobante[\s\S]*Cliente fijo/)
 
 import fs from 'node:fs'
 const cardSource = fs.readFileSync(new URL('./components/admin/AdminReservaCard.tsx', import.meta.url), 'utf8')
