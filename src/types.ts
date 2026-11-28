@@ -41,10 +41,12 @@ export interface Reserva {
   horas: number
   alias: string
   celular: string
+  clienteId?: string
   estado: EstadoReserva
   pagoEstado?: EstadoPago
   montoTotal?: number
   nombre?: string
+  createdAt?: string
 }
 
 export interface BloqueoEvento {

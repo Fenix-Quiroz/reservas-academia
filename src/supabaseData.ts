@@ -54,11 +54,12 @@ interface FilaReserva {
   horas: number | string
   alias: string
   celular: string
+  cliente_id?: unknown
   estado?: unknown
   pago_estado?: unknown
   monto_total?: number | string | null
   token?: unknown
-  cliente_id?: unknown
+  created_at?: string
 }
 
 interface FilaHorarioPublico {
@@ -119,8 +120,10 @@ export const deReserva = (fila: FilaReserva): Reserva => {
     alias: fila.alias,
     celular: fila.celular,
     estado: fila.estado,
+    ...(typeof fila.cliente_id === 'string' && fila.cliente_id ? { clienteId: fila.cliente_id } : {}),
     ...(pagoEstado ? { pagoEstado } : {}),
     ...(Number.isFinite(montoTotal) ? { montoTotal } : {}),
+    ...(fila.created_at ? { createdAt: fila.created_at } : {}),
   })
 }
 
@@ -221,14 +224,25 @@ function clienteSupabasePublic(): SupabaseClient {
 
 export async function leerReservasRemotas(): Promise<Reserva[]> {
   const cliente = clienteSupabase()
-  const { data, error } = await cliente
-    .from('reservas')
-    .select('id, cancha_id, fecha, inicio, horas, alias, celular, estado, pago_estado, monto_total')
-    .order('fecha')
-    .order('inicio')
+  const tamanoPagina = 1000
+  const filas: FilaReserva[] = []
 
-  if (error) throw error
-  return (data as FilaReserva[]).map(deReserva)
+  for (let inicioPagina = 0; ; inicioPagina += tamanoPagina) {
+    const { data, error } = await cliente
+      .from('reservas')
+      .select('id, cancha_id, fecha, inicio, horas, alias, celular, cliente_id, estado, pago_estado, monto_total, created_at')
+      .order('fecha')
+      .order('inicio')
+      .order('id')
+      .range(inicioPagina, inicioPagina + tamanoPagina - 1)
+
+    if (error) throw error
+    const pagina = data as FilaReserva[]
+    filas.push(...pagina)
+    if (pagina.length < tamanoPagina) break
+  }
+
+  return filas.map(deReserva)
 }
 
 export async function leerComprobantesAdminRemotos(): Promise<ComprobanteAdmin[]> {

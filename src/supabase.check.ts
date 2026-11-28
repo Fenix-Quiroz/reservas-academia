@@ -25,6 +25,7 @@ assert.deepEqual(deReserva(fila), {
 })
 
 assert.deepEqual(aReserva(deReserva(fila)), fila)
+assert.equal(deReserva({ ...fila, cliente_id: 'cliente-1' }).clienteId, 'cliente-1')
 const filaConMonto = { ...fila, monto_total: '120.00' }
 assert.equal(deReserva(filaConMonto).montoTotal, 120)
 assert.equal(aReserva(deReserva(filaConMonto)).monto_total, 120)
